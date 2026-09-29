@@ -1,0 +1,6 @@
+{
+  "name": "Controle de Celulares e Patrimônio",
+  "description": "Sistema de gestão e controle de patrimônio de celulares corporativos, termos de responsabilidade e inventário por unidade e setor.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

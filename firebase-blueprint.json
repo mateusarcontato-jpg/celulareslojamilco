@@ -1,0 +1,43 @@
+{
+  "entities": {
+    "Device": {
+      "title": "Device",
+      "description": "Aparelho celular corporativo sob controle patrimonial",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Identificador único do dispositivo" },
+        "store": { "type": "string", "description": "Unidade ou Loja (Ex: LOJA ACARAÚ, LOJA PRÉA)" },
+        "assetNumber": { "type": "string", "description": "Número do patrimônio ou SEM PT" },
+        "hasAssetTag": { "type": "boolean", "description": "Se possui plaqueta patrimonial" },
+        "employeeName": { "type": "string", "description": "Nome do colaborador responsável" },
+        "previousEmployeeName": { "type": "string", "description": "Colaborador anterior se houve troca" },
+        "hasVpn": { "type": "boolean", "description": "Se possui acesso à VPN corporativa" },
+        "brand": { "type": "string", "description": "Marca do aparelho" },
+        "model": { "type": "string", "description": "Modelo e memória (Ex: A54 - 128GB)" },
+        "sector": { "type": "string", "description": "Setor do colaborador (Ex: VENDAS, CAIXA)" },
+        "acquisitionDate": { "type": "string", "description": "Data de aquisição ou entrega" },
+        "status": { 
+          "type": "string", 
+          "enum": ["EM USO", "DISPONÍVEL", "MANUTENÇÃO", "SEM PATRIMÔNIO", "PERDA / EXTRAVIO", "DESCARTADO"],
+          "description": "Estado operacional do aparelho"
+        },
+        "phoneNumber": { "type": "string", "description": "Número da linha corporativa" },
+        "carrier": { "type": "string", "description": "Operadora de telefonia" },
+        "imei1": { "type": "string", "description": "Código IMEI do aparelho" },
+        "condition": { "type": "string", "description": "Condição física de conservação" },
+        "accessories": { "type": "array", "description": "Lista de acessórios vinculados" },
+        "notes": { "type": "string", "description": "Anotações adicionais" },
+        "occurrences": { "type": "array", "description": "Histórico do fichário de manutenções e trocas" },
+        "createdAt": { "type": "string", "description": "Timestamp ISO de criação" },
+        "updatedAt": { "type": "string", "description": "Timestamp ISO da última modificação" }
+      },
+      "required": ["store", "assetNumber", "employeeName", "model", "sector", "status"]
+    }
+  },
+  "firestore": {
+    "/devices/{deviceId}": {
+      "schema": "Device",
+      "description": "Coleção central de celulares corporativos e fichários"
+    }
+  }
+}

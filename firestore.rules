@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Regra de segurança padrão: nega tudo por padrão
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Coleção de teste de conectividade exigida pelas diretrizes do Firebase
+    match /test/{testId} {
+      allow read: if true;
+    }
+
+    // Coleção principal de celulares e patrimônio corporativo
+    match /devices/{deviceId} {
+      // Leitura permitida para visualização do inventário da empresa
+      allow read: if true;
+
+      // Criação, atualização e exclusão de dispositivos e fichários
+      allow create: if request.resource.data.store is string
+                    && request.resource.data.employeeName is string
+                    && request.resource.data.model is string;
+
+      allow update: if request.resource.data.store is string
+                    && request.resource.data.employeeName is string;
+
+      allow delete: if true;
+    }
+
+    // Configurações de Lojas e Setores
+    match /metadata/{metaId} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}
