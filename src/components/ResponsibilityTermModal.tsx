@@ -24,11 +24,11 @@ export const ResponsibilityTermModal: React.FC<ResponsibilityTermModalProps> = (
   });
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 print-modal-container">
       {/* Modal Container */}
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-2xl max-w-3xl w-full max-h-[96vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white rounded-2xl border border-zinc-200 shadow-2xl max-w-3xl w-full max-h-[96vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 print-modal-card">
         {/* Modal Toolbar in Amilco Black & Red */}
-        <div className="no-print px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950 text-white">
+        <div className="no-print px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950 text-white shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-red-600 text-white flex items-center justify-center font-bold">
               <FileCheck className="w-5 h-5" />
@@ -62,7 +62,7 @@ export const ResponsibilityTermModal: React.FC<ResponsibilityTermModalProps> = (
         </div>
 
         {/* Termo Printable Body */}
-        <div className="flex-1 overflow-y-auto p-6 sm:p-10 bg-white text-zinc-900 text-xs sm:text-sm space-y-4 print:p-0 print:space-y-4 font-sans leading-relaxed">
+        <div className="flex-1 overflow-y-auto p-6 sm:p-10 bg-white text-zinc-900 text-xs sm:text-sm space-y-4 print:p-6 print:space-y-4 font-sans leading-relaxed print-sheet-a4">
           {/* Header Document */}
           <div className="text-center border-b-2 border-black pb-3">
             <h1 className="text-xl font-bold tracking-tight text-black uppercase">
@@ -84,9 +84,9 @@ export const ResponsibilityTermModal: React.FC<ResponsibilityTermModalProps> = (
             a seguir, em perfeitas condições de uso, conservação e funcionamento.
           </p>
 
-          {/* Dados do Colaborador */}
-          <div className="border border-zinc-300 rounded-lg p-3 bg-zinc-50 space-y-1.5 text-xs">
-            <h3 className="font-bold text-black uppercase border-b border-zinc-200 pb-1 text-[11px] text-red-700">
+          {/* 1. Dados do Colaborador */}
+          <div className="border border-zinc-300 rounded-lg p-3 bg-zinc-50 space-y-1.5 text-xs print:bg-white print:border-black/40">
+            <h3 className="font-bold text-black uppercase border-b border-zinc-200 pb-1 text-[11px] text-red-700 print:text-black">
               1. IDENTIFICAÇÃO DO COLABORADOR
             </h3>
             <div className="grid grid-cols-2 gap-2 pt-1">
@@ -114,9 +114,9 @@ export const ResponsibilityTermModal: React.FC<ResponsibilityTermModalProps> = (
             </div>
           </div>
 
-          {/* Dados do Equipamento */}
-          <div className="border border-zinc-300 rounded-lg p-3 bg-zinc-50 space-y-1.5 text-xs">
-            <h3 className="font-bold text-black uppercase border-b border-zinc-200 pb-1 text-[11px] text-red-700">
+          {/* 2. Dados do Equipamento */}
+          <div className="border border-zinc-300 rounded-lg p-3 bg-zinc-50 space-y-1.5 text-xs print:bg-white print:border-black/40">
+            <h3 className="font-bold text-black uppercase border-b border-zinc-200 pb-1 text-[11px] text-red-700 print:text-black">
               2. ESPECIFICAÇÃO DO EQUIPAMENTO E ACESSÓRIOS
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
@@ -148,35 +148,32 @@ export const ResponsibilityTermModal: React.FC<ResponsibilityTermModalProps> = (
               </div>
             </div>
 
-            <div className="pt-2 border-t border-zinc-200">
+            <div className="pt-2 border-t border-zinc-200 print:border-black/20">
               <span className="text-zinc-500 font-medium">Acessórios Entregues:</span>{' '}
               <strong className="text-black">
                 {device.accessories && device.accessories.length > 0
                   ? device.accessories.join(', ')
-                  : 'Carregador original, cabo e capa protetora'}
+                  : 'Nenhum acessório adicional registrado'}
               </strong>
             </div>
           </div>
 
-          {/* Cláusulas e Condições de Uso */}
-          <div className="space-y-1 text-[11px] text-justify text-zinc-700 leading-tight">
-            <h3 className="font-bold text-black uppercase text-[11px]">
+          {/* 3. Cláusulas Oficiais Amilco Home Center */}
+          <div className="space-y-1.5 text-xs text-justify text-zinc-800 leading-normal">
+            <h3 className="font-bold text-black uppercase text-[11px] text-red-700 print:text-black border-b border-zinc-200 print:border-black/20 pb-1">
               3. CONDIÇÕES GERAIS E OBRIGAÇÕES DO COLABORADOR
             </h3>
             <p>
-              <strong>a) Finalidade Exclusiva:</strong> O celular corporativo destina-se única e exclusivamente para a execução dos serviços e contatos de trabalho da Amilco Home Center, sendo vedado o uso particular abusivo, empréstimo a terceiros ou instalação de softwares não autorizados pela equipe de TI.
+              <strong>1-</strong> Se o equipamento for danificado ou inutilizado por emprego inadequado, mau uso, negligência ou extravio, a empresa me fornecerá novo equipamento e cobrará o valor de um equipamento da mesma marca ou equivalente ao da praça.
             </p>
             <p>
-              <strong>b) Dever de Guarda e Zelo:</strong> O colaborador compromete-se a zelar pela integridade física e operacional do equipamento, mantendo-o com película e capa protetora, evitando quedas, contato com líquidos ou calor excessivo.
+              <strong>2-</strong> Em caso de dano, inutilização, ou extravio do equipamento deverei comunicar imediatamente ao setor competente.
             </p>
             <p>
-              <strong>c) Notificação Imediata:</strong> Havendo qualquer anormalidade, defeito, perda, furto ou roubo, o fato deverá ser imediatamente comunicado ao setor de TI/Gerência, com apresentação do Boletim de Ocorrência Policial nas hipóteses de crime.
+              <strong>3-</strong> Terminando os serviços ou no caso de rescisão do contrato de trabalho, devolverei o equipamento completo e em perfeito estado de conservação, considerando-se o tempo do uso do mesmo (tempo de vida útil), ao setor competente.
             </p>
             <p>
-              <strong>d) Devolução:</strong> Em caso de rescisão contratual, férias prolongadas, transferência de setor ou solicitação da gerência, o equipamento deverá ser prontamente restituído nas mesmas condições recebidas, ressalvado o desgaste natural.
-            </p>
-            <p>
-              <strong>e) Responsabilidade por Dano Culposo ou Doloso:</strong> Em caso de dano decorrente de negligência manifesta, imprudência ou extravio injustificado, a empresa reserva-se o direito de ressarcimento conforme previsto no Artigo 462, § 1º da CLT.
+              <strong>4-</strong> Estando os equipamentos em minha posse, estarei sujeito a inspeções sem prévio aviso.
             </p>
           </div>
 
@@ -215,7 +212,7 @@ export const ResponsibilityTermModal: React.FC<ResponsibilityTermModalProps> = (
         </div>
 
         {/* Modal Bottom */}
-        <div className="no-print px-6 py-3 border-t border-zinc-200 flex items-center justify-between bg-zinc-50 text-xs text-zinc-500">
+        <div className="no-print px-6 py-3 border-t border-zinc-200 flex items-center justify-between bg-zinc-50 text-xs text-zinc-500 shrink-0">
           <span>AMILCO HOME CENTER · Imprima ou salve em PDF usando o botão acima.</span>
           <button
             onClick={onClose}

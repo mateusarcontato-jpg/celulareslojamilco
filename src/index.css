@@ -15,6 +15,10 @@
   body {
     background: white !important;
     color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .no-print {
@@ -26,7 +30,48 @@
   }
 
   @page {
-    margin: 1.5cm;
     size: A4 portrait;
+    margin: 12mm 15mm;
+  }
+
+  /* Reset modal containers so they fill normal printed paper */
+  .print-modal-container {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    inset: auto !important;
+    display: block !important;
+  }
+
+  .print-modal-card {
+    position: static !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .print-sheet-a4 {
+    box-shadow: none !important;
+    margin: 0 auto !important;
+    padding: 8mm 10mm !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border: 1.5px solid #222 !important;
+    border-radius: 4px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 }
