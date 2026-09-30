@@ -22,10 +22,12 @@ import {
   History,
   Layers,
   Building,
-  CloudCheck
+  CloudCheck,
+  SlidersHorizontal
 } from 'lucide-react';
 import { User, onAuthStateChanged } from 'firebase/auth';
-import { Device, DeviceOccurrence, DeviceStatus } from './types/device';
+import { Device, DeviceOccurrence, DeviceStatus, AdvancedFilterCriteria, INITIAL_ADVANCED_FILTERS } from './types/device';
+import { matchAdvancedCriteria, countActiveAdvancedFilters } from './utils/filterUtils';
 import { 
   getStoredDevices, 
   saveStoredDevices, 
@@ -54,6 +56,7 @@ import { ImportExportModal } from './components/ImportExportModal';
 import { OccurrenceModal } from './components/OccurrenceModal';
 import { DeviceHistoryModal } from './components/DeviceHistoryModal';
 import { PdfReportModal } from './components/PdfReportModal';
+import { AdvancedFilterModal } from './components/AdvancedFilterModal';
 
 export default function App() {
   const [devices, setDevices] = useState<Device[]>(() => getStoredDevices());
@@ -84,6 +87,8 @@ export default function App() {
   const [historyDevice, setHistoryDevice] = useState<Device | null>(null);
   const [isImportExportOpen, setIsImportExportOpen] = useState(false);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+  const [isMainAdvancedModalOpen, setIsMainAdvancedModalOpen] = useState(false);
+  const [mainAdvancedCriteria, setMainAdvancedCriteria] = useState<AdvancedFilterCriteria>(INITIAL_ADVANCED_FILTERS);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // 1. Auth Listener e Teste de Conexão Firebase
@@ -148,6 +153,10 @@ export default function App() {
         return false;
       }
 
+      if (!matchAdvancedCriteria(device, mainAdvancedCriteria)) {
+        return false;
+      }
+
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim();
         const matchName = device.employeeName.toLowerCase().includes(query);
@@ -165,7 +174,7 @@ export default function App() {
 
       return true;
     });
-  }, [devices, currentStore, statusFilter, sectorFilter, vpnOnly, semPtOnly, searchQuery]);
+  }, [devices, currentStore, statusFilter, sectorFilter, vpnOnly, semPtOnly, searchQuery, mainAdvancedCriteria]);
 
   // Actions Handlers integrados ao Firebase
   const handleSaveDevice = async (savedDevice: Device) => {
@@ -263,7 +272,10 @@ export default function App() {
     setSearchQuery('');
     setVpnOnly(false);
     setSemPtOnly(false);
+    setMainAdvancedCriteria(INITIAL_ADVANCED_FILTERS);
   };
+
+  const activeMainAdvCount = countActiveAdvancedFilters(mainAdvancedCriteria);
 
   const activeFiltersCount = 
     (currentStore !== 'TODAS' ? 1 : 0) +
@@ -271,7 +283,8 @@ export default function App() {
     (sectorFilter !== 'TODOS' ? 1 : 0) +
     (vpnOnly ? 1 : 0) +
     (semPtOnly ? 1 : 0) +
-    (searchQuery.trim() ? 1 : 0);
+    (searchQuery.trim() ? 1 : 0) +
+    activeMainAdvCount;
 
   return (
     <div className="min-h-screen bg-zinc-100 flex flex-col font-sans text-zinc-900">
@@ -447,6 +460,26 @@ export default function App() {
                 <span>Sem PT</span>
               </button>
 
+              {/* Botão Janelinha de Acessórios & Estado Físico */}
+              <button
+                type="button"
+                onClick={() => setIsMainAdvancedModalOpen(true)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                  activeMainAdvCount > 0
+                    ? 'bg-red-600 text-white border-red-600 shadow-2xs'
+                    : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200'
+                }`}
+                title="Filtrar colaboradores por quem tem carregador, capa, tela quebrada ou avarias"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-red-500" />
+                <span>Acessórios & Estado</span>
+                {activeMainAdvCount > 0 && (
+                  <span className="bg-white text-black px-1.5 py-0.2 rounded-full text-[10px] font-black font-mono">
+                    {activeMainAdvCount}
+                  </span>
+                )}
+              </button>
+
               {/* Limpar Filtros se houver ativos */}
               {activeFiltersCount > 0 && (
                 <button
@@ -612,6 +645,15 @@ export default function App() {
           setDetailDevice(null);
           setTransferDevice(d);
         }}
+      />
+
+      {/* 9. Janelinha Dedicada: Filtro Avançado de Acessórios & Estado */}
+      <AdvancedFilterModal
+        isOpen={isMainAdvancedModalOpen}
+        onClose={() => setIsMainAdvancedModalOpen(false)}
+        criteria={mainAdvancedCriteria}
+        onApplyCriteria={(c) => setMainAdvancedCriteria(c)}
+        devices={devices}
       />
     </div>
   );

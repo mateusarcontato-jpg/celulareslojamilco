@@ -5,8 +5,6 @@ import {
   Download, 
   FileText, 
   Building2, 
-  Cloud, 
-  CloudCheck, 
   LogIn, 
   LogOut,
   User as UserIcon 
@@ -44,9 +42,9 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header className="bg-zinc-950 text-white border-b-2 border-red-600 sticky top-0 z-30 no-print shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Zone 1: Wordmark - Amilco Home Center */}
+          {/* Zone 1: Ícone do Celular & Título Amilco Home Center */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center text-white shadow-sm font-bold">
+            <div className="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center text-white shadow-sm font-bold shrink-0">
               <Smartphone className="w-5 h-5" />
             </div>
             <div>
@@ -54,7 +52,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <h1 className="text-base sm:text-lg font-bold tracking-tight text-white leading-tight">
                   AMILCO HOME CENTER
                 </h1>
-                <span className="text-[11px] bg-red-600 text-white font-bold px-2 py-0.5 rounded tracking-wide">
+                <span className="text-[11px] bg-red-600 text-white font-bold px-2 py-0.5 rounded tracking-wide uppercase">
                   PATRIMÔNIO
                 </span>
               </div>
@@ -79,7 +77,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Zone 2 & 3: Store Selector and Action Buttons */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-2.5">
             {/* Store dropdown */}
             <div className="flex items-center gap-1.5 text-xs text-zinc-300 bg-zinc-900 px-3 py-1.5 rounded-lg border border-zinc-800">
               <Building2 className="w-3.5 h-3.5 text-red-500" />

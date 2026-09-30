@@ -74,3 +74,31 @@ export interface ReportFilterOptions {
   groupBySector: boolean;
   includeOccurrences: boolean;
 }
+
+export interface AdvancedFilterCriteria {
+  // Acessórios
+  accessoryMode: 'has' | 'missing'; // 'has' = possui o acessório; 'missing' = NÃO possui (faltando)
+  accessories: string[]; // ex: ['Carregador Original', 'Capa Protetora', 'Película de Vidro']
+  
+  // Condição física & Tela & Defeitos
+  conditionCategories: string[]; // ['TELA_QUEBRADA', 'COM_AVARIAS', 'BOM', 'NOVO', 'EM_REPARO', 'BATERIA_DEFEITO']
+  conditionCustomText: string; // busca livre em condição, notas ou histórico de ocorrências
+  
+  // Outros parâmetros
+  vpnFilter: 'ALL' | 'WITH_VPN' | 'WITHOUT_VPN';
+  tagFilter: 'ALL' | 'WITH_TAG' | 'SEM_PT';
+  hasPhoneLine: 'ALL' | 'WITH_LINE' | 'WITHOUT_LINE';
+  hasOccurrencesOnly: boolean;
+}
+
+export const INITIAL_ADVANCED_FILTERS: AdvancedFilterCriteria = {
+  accessoryMode: 'has',
+  accessories: [],
+  conditionCategories: [],
+  conditionCustomText: '',
+  vpnFilter: 'ALL',
+  tagFilter: 'ALL',
+  hasPhoneLine: 'ALL',
+  hasOccurrencesOnly: false,
+};
+

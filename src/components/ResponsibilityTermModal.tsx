@@ -89,137 +89,135 @@ export const ResponsibilityTermModal: React.FC<ResponsibilityTermModalProps> = (
             <h3 className="font-bold text-black uppercase border-b border-zinc-200 pb-1 text-[11px] text-red-700 print:text-black">
               1. IDENTIFICAÇÃO DO COLABORADOR
             </h3>
-            <div className="grid grid-cols-2 gap-2 pt-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               <div>
-                <span className="text-zinc-500 font-medium">Nome:</span>{' '}
-                <strong className="text-black uppercase">{device.employeeName}</strong>
-                {device.previousEmployeeName && (
-                  <span className="text-[10px] text-zinc-500 block">
-                    (Usuário anterior: {device.previousEmployeeName})
-                  </span>
-                )}
+                <span className="text-zinc-500 block text-[10px] uppercase font-semibold">Nome Completo:</span>
+                <span className="font-bold text-black">{device.employeeName}</span>
               </div>
               <div>
-                <span className="text-zinc-500 font-medium">Setor / Departamento:</span>{' '}
-                <strong className="text-black uppercase">{device.sector}</strong>
+                <span className="text-zinc-500 block text-[10px] uppercase font-semibold">Setor / Departamento:</span>
+                <span className="font-semibold text-black">{device.sector}</span>
               </div>
               <div>
-                <span className="text-zinc-500 font-medium">Unidade / Loja:</span>{' '}
-                <strong className="text-black uppercase">{device.store}</strong>
+                <span className="text-zinc-500 block text-[10px] uppercase font-semibold">Loja / Unidade:</span>
+                <span className="font-semibold text-black">{device.store}</span>
               </div>
               <div>
-                <span className="text-zinc-500 font-medium">Data da Entrega:</span>{' '}
-                <strong className="text-black">{device.acquisitionDate || currentDate}</strong>
+                <span className="text-zinc-500 block text-[10px] uppercase font-semibold">Data de Aquisição / Entrega:</span>
+                <span className="font-medium text-zinc-900">{device.acquisitionDate || currentDate}</span>
+              </div>
+              <div>
+                <span className="text-zinc-500 block text-[10px] uppercase font-semibold">Colaborador Anterior:</span>
+                <span className="font-medium text-zinc-700">{device.previousEmployeeName || 'Nenhum'}</span>
               </div>
             </div>
           </div>
 
-          {/* 2. Dados do Equipamento */}
+          {/* 2. Dados do Aparelho */}
           <div className="border border-zinc-300 rounded-lg p-3 bg-zinc-50 space-y-1.5 text-xs print:bg-white print:border-black/40">
             <h3 className="font-bold text-black uppercase border-b border-zinc-200 pb-1 text-[11px] text-red-700 print:text-black">
-              2. ESPECIFICAÇÃO DO EQUIPAMENTO E ACESSÓRIOS
+              2. ESPECIFICAÇÕES DO EQUIPAMENTO CELULAR
             </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div>
-                <span className="text-zinc-500 font-medium">N° de Patrimônio:</span>{' '}
-                <strong className="text-black font-mono font-bold">
-                  {device.hasAssetTag ? device.assetNumber : 'SEM PT (EM REGULARIZAÇÃO)'}
-                </strong>
+                <span className="text-zinc-500 block text-[10px] uppercase font-semibold">Marca / Modelo:</span>
+                <span className="font-bold text-black">{device.brand} {device.model}</span>
               </div>
               <div>
-                <span className="text-zinc-500 font-medium">Marca / Modelo:</span>{' '}
-                <strong className="text-black">{device.brand} - {device.model}</strong>
+                <span className="text-zinc-500 block text-[10px] uppercase font-semibold">Nº Patrimônio (Plaqueta):</span>
+                <span className="font-mono font-bold text-black bg-zinc-200 px-1 py-0.5 rounded text-[11px]">
+                  {device.hasAssetTag ? device.assetNumber : 'SEM PT'}
+                </span>
               </div>
               <div>
-                <span className="text-zinc-500 font-medium">IMEI Principal:</span>{' '}
-                <strong className="text-black font-mono">{device.imei1 || 'Conforme Registro do Aparelho'}</strong>
+                <span className="text-zinc-500 block text-[10px] uppercase font-semibold">IMEI 1:</span>
+                <span className="font-mono text-zinc-900">{device.imei1 || 'Não cadastrado'}</span>
               </div>
               <div>
-                <span className="text-zinc-500 font-medium">Linha Telefônica:</span>{' '}
-                <strong className="text-black font-mono">{device.phoneNumber || 'Chip Corporativo'}</strong>
+                <span className="text-zinc-500 block text-[10px] uppercase font-semibold">Linha Telefônica:</span>
+                <span className="font-medium text-black">{device.phoneNumber || 'Sem Linha'}</span>
               </div>
               <div>
-                <span className="text-zinc-500 font-medium">Estado Físico:</span>{' '}
-                <strong className="text-black">{device.condition}</strong>
+                <span className="text-zinc-500 block text-[10px] uppercase font-semibold">VPN Instalada:</span>
+                <span className="font-semibold text-zinc-900">{device.hasVpn ? 'SIM (Instalada)' : 'NÃO'}</span>
               </div>
               <div>
-                <span className="text-zinc-500 font-medium">Acesso VPN Corporativa:</span>{' '}
-                <strong className="text-black">{device.hasVpn ? 'SIM (Configurado)' : 'NÃO'}</strong>
+                <span className="text-zinc-500 block text-[10px] uppercase font-semibold">Estado do Aparelho:</span>
+                <span className="font-medium text-zinc-900">{device.condition}</span>
+              </div>
+              <div className="col-span-2">
+                <span className="text-zinc-500 block text-[10px] uppercase font-semibold">Acessórios Entregues:</span>
+                <span className="font-medium text-zinc-900">
+                  {device.accessories && device.accessories.length > 0
+                    ? device.accessories.join(', ')
+                    : 'Nenhum acessório adicional'}
+                </span>
               </div>
             </div>
-
-            <div className="pt-2 border-t border-zinc-200 print:border-black/20">
-              <span className="text-zinc-500 font-medium">Acessórios Entregues:</span>{' '}
-              <strong className="text-black">
-                {device.accessories && device.accessories.length > 0
-                  ? device.accessories.join(', ')
-                  : 'Nenhum acessório adicional registrado'}
-              </strong>
-            </div>
+            {device.notes && (
+              <div className="mt-1 pt-1 border-t border-zinc-200">
+                <span className="text-zinc-500 block text-[10px] uppercase font-semibold">Observações / Avarias:</span>
+                <span className="text-zinc-700 italic">{device.notes}</span>
+              </div>
+            )}
           </div>
 
-          {/* 3. Cláusulas Oficiais Amilco Home Center */}
-          <div className="space-y-1.5 text-xs text-justify text-zinc-800 leading-normal">
-            <h3 className="font-bold text-black uppercase text-[11px] text-red-700 print:text-black border-b border-zinc-200 print:border-black/20 pb-1">
-              3. CONDIÇÕES GERAIS E OBRIGAÇÕES DO COLABORADOR
+          {/* 3. Obrigações e Cláusulas */}
+          <div className="space-y-1.5 text-[11px] text-zinc-700 leading-relaxed border border-zinc-200 rounded-lg p-3 bg-zinc-50/50 print:bg-white print:border-black/30">
+            <h3 className="font-bold text-black uppercase text-[11px] text-red-700 print:text-black">
+              3. TERMOS E CONDIÇÕES DE USO
             </h3>
-            <p>
-              <strong>1-</strong> Se o equipamento for danificado ou inutilizado por emprego inadequado, mau uso, negligência ou extravio, a empresa me fornecerá novo equipamento e cobrará o valor de um equipamento da mesma marca ou equivalente ao da praça.
-            </p>
-            <p>
-              <strong>2-</strong> Em caso de dano, inutilização, ou extravio do equipamento deverei comunicar imediatamente ao setor competente.
-            </p>
-            <p>
-              <strong>3-</strong> Terminando os serviços ou no caso de rescisão do contrato de trabalho, devolverei o equipamento completo e em perfeito estado de conservação, considerando-se o tempo do uso do mesmo (tempo de vida útil), ao setor competente.
-            </p>
-            <p>
-              <strong>4-</strong> Estando os equipamentos em minha posse, estarei sujeito a inspeções sem prévio aviso.
-            </p>
+            <ol className="list-decimal pl-4 space-y-1">
+              <li>
+                O aparelho destina-se exclusivamente ao desempenho das funções de trabalho, sendo vedada a cessão,
+                empréstimo ou transferência a terceiros sem prévia autorização expressa do setor de TI / Diretoria.
+              </li>
+              <li>
+                O colaborador compromete-se a zelar pelo bom estado de conservação do celular, protegendo-o contra
+                quedas, umidade, danos físicos e extravio.
+              </li>
+              <li>
+                É expressamente proibida a remoção ou adulteração da plaqueta de patrimônio (quando houver) ou dos números de série/IMEI.
+              </li>
+              <li>
+                Em caso de perda, furto ou roubo, o colaborador deverá comunicar imediatamente a empresa e apresentar o
+                respectivo Boletim de Ocorrência (B.O.) em até 24 horas.
+              </li>
+              <li>
+                Havendo dano causado por negligência, imprudência ou dolo, a empresa reserva-se o direito de apurar as
+                responsabilidades conforme as normas internas e legislação vigente.
+              </li>
+              <li>
+                O colaborador compromete-se a restituir imediatamente o equipamento e todos os seus acessórios no ato de
+                desligamento, troca de função ou sempre que solicitado pela empresa.
+              </li>
+            </ol>
           </div>
 
-          {/* Campo de Assinaturas */}
+          {/* 4. Assinaturas */}
           <div className="pt-6 space-y-6">
-            <p className="text-xs text-center text-zinc-700 font-medium">
-              Acaraú / Préa - CE, {currentDate}.
+            <p className="text-right text-xs text-zinc-600">
+              {device.store}, {currentDate}.
             </p>
 
-            <div className="grid grid-cols-2 gap-8 pt-2">
+            <div className="grid grid-cols-2 gap-8 pt-4">
               <div className="text-center">
-                <div className="border-t border-black pt-1 mx-auto w-11/12"></div>
-                <p className="text-xs font-bold text-black uppercase">{device.employeeName}</p>
-                <p className="text-[10px] text-zinc-600">Assinatura do Colaborador (Recebedor)</p>
+                <div className="border-t border-black pt-1.5 mx-4">
+                  <p className="font-bold text-black text-xs uppercase">{device.employeeName}</p>
+                  <p className="text-[10px] text-zinc-500 uppercase">Colaborador(a) / Usuário(a)</p>
+                  <p className="text-[10px] text-zinc-500 font-mono mt-0.5">CPF: ___________________________</p>
+                </div>
               </div>
 
               <div className="text-center">
-                <div className="border-t border-black pt-1 mx-auto w-11/12"></div>
-                <p className="text-xs font-bold text-black uppercase">AMILCO HOME CENTER</p>
-                <p className="text-[10px] text-zinc-600">Responsável Patrimônio / TI / Gerência</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-8 pt-2">
-              <div className="text-center">
-                <div className="border-t border-zinc-400 pt-1 mx-auto w-10/12"></div>
-                <p className="text-[10px] text-zinc-600">Testemunha 1 (Assinatura e CPF)</p>
-              </div>
-
-              <div className="text-center">
-                <div className="border-t border-zinc-400 pt-1 mx-auto w-10/12"></div>
-                <p className="text-[10px] text-zinc-600">Testemunha 2 (Assinatura e CPF)</p>
+                <div className="border-t border-black pt-1.5 mx-4">
+                  <p className="font-bold text-black text-xs uppercase">AMILCO HOME CENTER</p>
+                  <p className="text-[10px] text-zinc-500 uppercase">Responsável pela Entrega / T.I.</p>
+                  <p className="text-[10px] text-zinc-500 mt-0.5">Assinatura e Carimbo</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Modal Bottom */}
-        <div className="no-print px-6 py-3 border-t border-zinc-200 flex items-center justify-between bg-zinc-50 text-xs text-zinc-500 shrink-0">
-          <span>AMILCO HOME CENTER · Imprima ou salve em PDF usando o botão acima.</span>
-          <button
-            onClick={onClose}
-            className="px-3.5 py-1.5 text-xs font-semibold text-zinc-800 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-100 transition-colors"
-          >
-            Fechar
-          </button>
         </div>
       </div>
     </div>
