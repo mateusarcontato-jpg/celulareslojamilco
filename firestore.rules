@@ -11,6 +11,12 @@ service cloud.firestore {
       allow read: if true;
     }
 
+    // Coleção de perfis de técnicos e usuários autenticados
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
     // Coleção principal de celulares e patrimônio corporativo
     match /devices/{deviceId} {
       // Leitura permitida para visualização do inventário da empresa

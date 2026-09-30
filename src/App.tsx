@@ -57,11 +57,17 @@ import { OccurrenceModal } from './components/OccurrenceModal';
 import { DeviceHistoryModal } from './components/DeviceHistoryModal';
 import { PdfReportModal } from './components/PdfReportModal';
 import { AdvancedFilterModal } from './components/AdvancedFilterModal';
+import { LoginScreen } from './components/LoginScreen';
+import { TechnicianUser } from './types/auth';
+import { getStoredCurrentTechnician, logoutTechnicianService } from './services/authService';
 
 export default function App() {
   const [devices, setDevices] = useState<Device[]>(() => getStoredDevices());
   const [stores, setStores] = useState<string[]>(() => getStoredStores());
   const [sectors, setSectors] = useState<string[]>(() => getStoredSectors());
+
+  // Autenticação de Técnicos
+  const [currentTechnician, setCurrentTechnician] = useState<TechnicianUser | null>(() => getStoredCurrentTechnician());
 
   // Firebase State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -286,6 +292,24 @@ export default function App() {
     (searchQuery.trim() ? 1 : 0) +
     activeMainAdvCount;
 
+  const handleLogout = async () => {
+    await logoutTechnicianService();
+    setCurrentTechnician(null);
+    showToast('Sessão encerrada com sucesso.');
+  };
+
+  // Se o técnico não estiver autenticado, exige a tela de login
+  if (!currentTechnician) {
+    return (
+      <LoginScreen
+        onSuccess={(tech) => {
+          setCurrentTechnician(tech);
+          showToast(`Bem-vindo, ${tech.name}!`);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-zinc-100 flex flex-col font-sans text-zinc-900">
       {/* Toast Notification */}
@@ -309,9 +333,9 @@ export default function App() {
         onOpenPdfReportModal={() => setIsPdfModalOpen(true)}
         totalDevicesCount={devices.length}
         isFirebaseConnected={isFirebaseConnected}
-        currentUser={currentUser}
-        onLogin={loginWithGoogle}
-        onLogout={logout}
+        currentTechnician={currentTechnician}
+        onOpenLoginModal={() => setCurrentTechnician(null)}
+        onLogout={handleLogout}
       />
 
       {/* Main Container */}
@@ -594,6 +618,7 @@ export default function App() {
         onClose={() => setOccurrenceDevice(null)}
         onSaveOccurrence={handleSaveOccurrence}
         sectors={sectors}
+        currentTechnicianName={currentTechnician?.name}
       />
 
       {/* 4. Modal de Troca Rápida de Usuário */}

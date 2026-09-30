@@ -20,6 +20,7 @@ interface OccurrenceModalProps {
   onClose: () => void;
   onSaveOccurrence: (updatedDevice: Device, occurrence: DeviceOccurrence) => void;
   sectors: string[];
+  currentTechnicianName?: string;
 }
 
 export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
@@ -28,6 +29,7 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
   onClose,
   onSaveOccurrence,
   sectors,
+  currentTechnicianName,
 }) => {
   if (!isOpen || !device) return null;
 
@@ -52,7 +54,7 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
   const [changeStatusToLoss, setChangeStatusToLoss] = useState(true);
 
   // Responsável & Anexos
-  const [recordedBy, setRecordedBy] = useState('Gestor de Patrimônio');
+  const [recordedBy, setRecordedBy] = useState(currentTechnicianName || 'Técnico de T.I.');
   const [attachmentName, setAttachmentName] = useState('');
   const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
 

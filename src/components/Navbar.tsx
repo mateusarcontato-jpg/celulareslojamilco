@@ -7,9 +7,10 @@ import {
   Building2, 
   LogIn, 
   LogOut,
-  User as UserIcon 
+  User as UserIcon,
+  ShieldCheck
 } from 'lucide-react';
-import { User } from 'firebase/auth';
+import { TechnicianUser } from '../types/auth';
 
 interface NavbarProps {
   currentStore: string;
@@ -20,9 +21,9 @@ interface NavbarProps {
   onOpenPdfReportModal: () => void;
   totalDevicesCount: number;
   isFirebaseConnected?: boolean;
-  currentUser?: User | null;
-  onLogin?: () => void;
-  onLogout?: () => void;
+  currentTechnician: TechnicianUser | null;
+  onOpenLoginModal: () => void;
+  onLogout: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -34,8 +35,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenPdfReportModal,
   totalDevicesCount,
   isFirebaseConnected = true,
-  currentUser = null,
-  onLogin,
+  currentTechnician,
+  onOpenLoginModal,
   onLogout,
 }) => {
   return (
@@ -60,17 +61,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <p className="text-xs text-zinc-400 font-medium hidden sm:block">
                   Controle de Celulares e Termos de Responsabilidade
                 </p>
-                {/* Status da Nuvem Firebase */}
+                {/* Status discreto e disfarçado da Nuvem */}
                 <span 
-                  className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.2 rounded border ${
-                    isFirebaseConnected 
-                      ? 'bg-emerald-950/70 text-emerald-400 border-emerald-800' 
-                      : 'bg-amber-950/70 text-amber-400 border-amber-800'
-                  }`}
-                  title={isFirebaseConnected ? 'Sincronização em tempo real via Firebase Firestore ativa' : 'Operando offline'}
+                  className="inline-flex items-center gap-1.5 text-[10px] font-medium text-zinc-400 select-none pl-1"
+                  title={isFirebaseConnected ? 'Conexão em tempo real ativa' : 'Modo local'}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${isFirebaseConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
-                  <span>{isFirebaseConnected ? 'Firebase Nuvem' : 'Local'}</span>
+                  <span className={`w-1.5 h-1.5 rounded-full ${isFirebaseConnected ? 'bg-emerald-500/70' : 'bg-zinc-600'}`}></span>
+                  <span className="text-zinc-500 font-normal">Sincronizado</span>
                 </span>
               </div>
             </div>
@@ -116,39 +113,47 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>Planilha</span>
             </button>
 
-            {/* Auth Google */}
-            {currentUser ? (
-              <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 py-1 px-2 rounded-lg">
-                {currentUser.photoURL ? (
+            {/* Sessão do Técnico / Autenticação */}
+            {currentTechnician ? (
+              <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 py-1 px-2.5 rounded-lg">
+                {currentTechnician.avatarUrl ? (
                   <img 
-                    src={currentUser.photoURL} 
-                    alt={currentUser.displayName || 'Usuário'} 
-                    className="w-5 h-5 rounded-full"
+                    src={currentTechnician.avatarUrl} 
+                    alt={currentTechnician.name} 
+                    className="w-6 h-6 rounded-full border border-red-500/50"
                   />
                 ) : (
-                  <UserIcon className="w-4 h-4 text-zinc-400" />
+                  <div className="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-[11px] font-bold">
+                    {currentTechnician.name.charAt(0).toUpperCase()}
+                  </div>
                 )}
-                <span className="text-xs font-semibold text-zinc-200 hidden lg:inline max-w-[100px] truncate">
-                  {currentUser.displayName?.split(' ')[0] || 'Usuário'}
-                </span>
+                <div className="hidden lg:flex flex-col text-left leading-tight">
+                  <span className="text-xs font-bold text-white max-w-[120px] truncate">
+                    {currentTechnician.name}
+                  </span>
+                  <span className="text-[10px] text-zinc-400">
+                    {currentTechnician.role}
+                  </span>
+                </div>
                 <button
                   onClick={onLogout}
-                  className="text-zinc-400 hover:text-red-400 p-0.5 ml-0.5"
-                  title="Sair da conta Google"
+                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-zinc-300 hover:text-white bg-zinc-800/80 hover:bg-red-600 rounded-md transition-colors ml-1 cursor-pointer border border-zinc-700/60 shadow-xs"
+                  title="Encerrar sessão"
                 >
                   <LogOut className="w-3.5 h-3.5" />
+                  <span>Sair</span>
                 </button>
               </div>
-            ) : onLogin ? (
+            ) : (
               <button
-                onClick={onLogin}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-zinc-300 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg transition-colors cursor-pointer"
-                title="Entrar com conta Google"
+                onClick={onOpenLoginModal}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-red-500 rounded-lg transition-colors cursor-pointer shadow-xs"
+                title="Acessar com login e senha"
               >
                 <LogIn className="w-3.5 h-3.5 text-red-500" />
-                <span className="hidden sm:inline">Entrar</span>
+                <span>Entrar</span>
               </button>
-            ) : null}
+            )}
 
             {/* Novo Celular Button in Amilco Red */}
             <button
