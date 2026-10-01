@@ -338,6 +338,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
               <div className="text-right text-[11px] text-zinc-600 font-mono">
                 <p>Emissão: <strong>{currentDate}</strong></p>
                 <p>Total Listado: <strong className="text-black font-bold">{filtered.length} Aparelhos</strong></p>
+                <p className="text-purple-950">Aparelhos Pessoais: <strong className="font-bold">{filtered.filter(d => Boolean(d.isPersonalDevice)).length}</strong></p>
               </div>
             </div>
 
@@ -415,6 +416,11 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                                     </td>
                                     <td className="border border-zinc-300 py-1.5 px-2">
                                       <span className="font-bold uppercase text-black">{d.employeeName}</span>
+                                      {d.isPersonalDevice && (
+                                        <span className="ml-1 inline-block px-1 py-0.2 rounded text-[8px] font-bold bg-purple-100 text-purple-900 border border-purple-300">
+                                          PESSOAL
+                                        </span>
+                                      )}
                                       {d.previousEmployeeName && (
                                         <span className="text-[10px] text-zinc-500 block">
                                           (Anterior: {d.previousEmployeeName})
@@ -509,6 +515,11 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                               </td>
                               <td className="border border-zinc-300 py-1.5 px-2 font-semibold">
                                 <span className="font-bold uppercase text-black">{d.employeeName}</span>
+                                {d.isPersonalDevice && (
+                                  <span className="ml-1 inline-block px-1 py-0.2 rounded text-[8px] font-bold bg-purple-100 text-purple-900 border border-purple-300">
+                                    PESSOAL
+                                  </span>
+                                )}
                                 {d.previousEmployeeName && (
                                   <span className="text-[10px] text-zinc-500 block">
                                     (Anterior: {d.previousEmployeeName})

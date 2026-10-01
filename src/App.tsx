@@ -80,6 +80,7 @@ export default function App() {
   const [sectorFilter, setSectorFilter] = useState<string>('TODOS');
   const [vpnOnly, setVpnOnly] = useState<boolean>(false);
   const [semPtOnly, setSemPtOnly] = useState<boolean>(false);
+  const [personalOnly, setPersonalOnly] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [isGroupedBySector, setIsGroupedBySector] = useState<boolean>(true); // Separado por grupos igual no PDF
 
@@ -159,6 +160,10 @@ export default function App() {
         return false;
       }
 
+      if (personalOnly && !device.isPersonalDevice) {
+        return false;
+      }
+
       if (!matchAdvancedCriteria(device, mainAdvancedCriteria)) {
         return false;
       }
@@ -180,52 +185,71 @@ export default function App() {
 
       return true;
     });
-  }, [devices, currentStore, statusFilter, sectorFilter, vpnOnly, semPtOnly, searchQuery, mainAdvancedCriteria]);
+  }, [devices, currentStore, statusFilter, sectorFilter, vpnOnly, semPtOnly, personalOnly, searchQuery, mainAdvancedCriteria]);
+
+  // Contagem de Celulares Pessoais encontrados na filtragem atual
+  const filteredPersonalCount = useMemo(() => {
+    return filteredDevices.filter((d) => Boolean(d.isPersonalDevice)).length;
+  }, [filteredDevices]);
 
   // Actions Handlers integrados ao Firebase
   const handleSaveDevice = async (savedDevice: Device) => {
     // Atualização otimista local
     setDevices((prev) => {
       const exists = prev.some((d) => d.id === savedDevice.id);
-      if (exists) {
-        return prev.map((d) => (d.id === savedDevice.id ? savedDevice : d));
-      } else {
-        return [savedDevice, ...prev];
-      }
+      const updated = exists 
+        ? prev.map((d) => (d.id === savedDevice.id ? savedDevice : d))
+        : [savedDevice, ...prev];
+      saveStoredDevices(updated);
+      return updated;
     });
 
     try {
       await saveDeviceToFirestore(savedDevice);
+      setIsFirebaseConnected(true);
       showToast(
         savedDevice.assetNumber === 'SEM PT'
-          ? `Aparelho de ${savedDevice.employeeName} salvo na nuvem Firebase (SEM PT).`
-          : `Aparelho PT ${savedDevice.assetNumber} salvo na nuvem Firebase.`
+          ? `Aparelho de ${savedDevice.employeeName} salvo e sincronizado na nuvem Firebase!`
+          : `Aparelho PT ${savedDevice.assetNumber} salvo e sincronizado na nuvem Firebase!`
       );
     } catch (e) {
-      showToast('Salvo localmente. Sincronizando com a nuvem...');
+      console.error('[App] Erro ao sincronizar com Firebase:', e);
+      showToast('Aparelho salvo localmente.');
     }
   };
 
   const handleSaveOccurrence = async (updatedDevice: Device, occurrence: DeviceOccurrence) => {
-    setDevices((prev) => prev.map((d) => (d.id === updatedDevice.id ? updatedDevice : d)));
+    setDevices((prev) => {
+      const updated = prev.map((d) => (d.id === updatedDevice.id ? updatedDevice : d));
+      saveStoredDevices(updated);
+      return updated;
+    });
     if (historyDevice && historyDevice.id === updatedDevice.id) {
       setHistoryDevice(updatedDevice);
     }
 
     try {
       await saveDeviceToFirestore(updatedDevice);
-      showToast(`Ocorrência "${occurrence.title}" gravada no Firebase com sucesso!`);
+      setIsFirebaseConnected(true);
+      showToast(`Ocorrência "${occurrence.title}" gravada no Firebase!`);
     } catch (e) {
+      console.error('[App] Erro ao gravar ocorrência no Firebase:', e);
       showToast('Ocorrência gravada localmente.');
     }
   };
 
   const handleQuickTransfer = async (updatedDevice: Device) => {
-    setDevices((prev) => prev.map((d) => (d.id === updatedDevice.id ? updatedDevice : d)));
+    setDevices((prev) => {
+      const updated = prev.map((d) => (d.id === updatedDevice.id ? updatedDevice : d));
+      saveStoredDevices(updated);
+      return updated;
+    });
     try {
       await saveDeviceToFirestore(updatedDevice);
-      showToast(`Troca registrada na nuvem: Alocado para ${updatedDevice.employeeName}.`);
+      setIsFirebaseConnected(true);
+      showToast(`Troca salva no Firebase: Alocado para ${updatedDevice.employeeName}.`);
     } catch (e) {
+      console.error('[App] Erro na transferência:', e);
       showToast(`Troca registrada localmente.`);
     }
   };
@@ -233,11 +257,17 @@ export default function App() {
   const handleDeleteDevice = async (deviceToDelete: Device) => {
     const confirmMessage = `Tem certeza que deseja remover o celular de ${deviceToDelete.employeeName} (Patrimônio: ${deviceToDelete.assetNumber})?`;
     if (window.confirm(confirmMessage)) {
-      setDevices((prev) => prev.filter((d) => d.id !== deviceToDelete.id));
+      setDevices((prev) => {
+        const updated = prev.filter((d) => d.id !== deviceToDelete.id);
+        saveStoredDevices(updated);
+        return updated;
+      });
       try {
         await deleteDeviceFromFirestore(deviceToDelete.id);
+        setIsFirebaseConnected(true);
         showToast('Celular removido do Firebase e do inventário.');
       } catch (e) {
+        console.error('[App] Erro ao excluir no Firebase:', e);
         showToast('Celular removido do inventário.');
       }
     }
@@ -278,6 +308,7 @@ export default function App() {
     setSearchQuery('');
     setVpnOnly(false);
     setSemPtOnly(false);
+    setPersonalOnly(false);
     setMainAdvancedCriteria(INITIAL_ADVANCED_FILTERS);
   };
 
@@ -289,6 +320,7 @@ export default function App() {
     (sectorFilter !== 'TODOS' ? 1 : 0) +
     (vpnOnly ? 1 : 0) +
     (semPtOnly ? 1 : 0) +
+    (personalOnly ? 1 : 0) +
     (searchQuery.trim() ? 1 : 0) +
     activeMainAdvCount;
 
@@ -409,13 +441,15 @@ export default function App() {
               setStatusFilter('ALL');
             }
           }}
+          personalOnly={personalOnly}
+          onTogglePersonalOnly={() => setPersonalOnly(!personalOnly)}
           onFilterStore={(store) => {
             setCurrentStore(currentStore === store ? 'TODAS' : store);
           }}
         />
 
         {/* Barra de Filtros, Pesquisa e Controles de Visualização */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-3.5 mb-4 shadow-2xs no-print space-y-3">
+        <div className="bg-white border border-zinc-200 rounded-xl p-3.5 mb-3 shadow-2xs no-print space-y-3">
           <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
             {/* Campo de Busca Rápida */}
             <div className="relative flex-1">
@@ -455,6 +489,21 @@ export default function App() {
                   ))}
                 </select>
               </div>
+
+              {/* Botão Rápido Celular Pessoal do Colaborador */}
+              <button
+                type="button"
+                onClick={() => setPersonalOnly(!personalOnly)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                  personalOnly
+                    ? 'bg-purple-700 text-white border-purple-700 shadow-2xs ring-2 ring-purple-400/30'
+                    : 'bg-purple-50 text-purple-900 border-purple-200 hover:bg-purple-100'
+                }`}
+                title="Filtrar colaboradores que utilizam aparelho pessoal"
+              >
+                <Smartphone className="w-3.5 h-3.5 text-purple-600" />
+                <span>Pessoal ({filteredPersonalCount})</span>
+              </button>
 
               {/* Botão Rápido de VPN */}
               <button
@@ -543,6 +592,48 @@ export default function App() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Barra de Resumo Dinâmico dos Filtros com Exibição de Celulares Pessoais */}
+        <div className="flex flex-wrap items-center justify-between gap-3 px-3.5 py-2.5 bg-white border border-zinc-200 rounded-xl mb-4 text-xs font-medium shadow-2xs no-print">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-zinc-600">
+              Aparelhos na filtragem: <strong className="text-zinc-950 font-bold">{filteredDevices.length}</strong> de {devices.length}
+            </span>
+            <span className="text-zinc-300">·</span>
+            <div className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold transition-all ${
+              filteredPersonalCount > 0 
+                ? 'bg-purple-100 text-purple-900 border border-purple-300' 
+                : 'bg-zinc-100 text-zinc-600 border border-zinc-200'
+            }`}>
+              <Smartphone className="w-3.5 h-3.5 text-purple-600" />
+              <span>
+                Celulares Pessoais neste filtro: <strong className="text-purple-950 font-black">{filteredPersonalCount}</strong> {filteredPersonalCount === 1 ? 'usuário' : 'usuários'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {filteredPersonalCount > 0 && !personalOnly && (
+              <button
+                type="button"
+                onClick={() => setPersonalOnly(true)}
+                className="text-[11px] font-bold text-purple-800 hover:text-purple-950 underline cursor-pointer"
+              >
+                Isolar os {filteredPersonalCount} pessoais
+              </button>
+            )}
+
+            {personalOnly && (
+              <button
+                type="button"
+                onClick={() => setPersonalOnly(false)}
+                className="text-[11px] font-bold text-red-600 hover:text-red-800 underline cursor-pointer"
+              >
+                Voltar a exibir todos
+              </button>
+            )}
           </div>
         </div>
 

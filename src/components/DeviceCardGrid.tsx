@@ -81,6 +81,13 @@ export const DeviceCardGrid: React.FC<DeviceCardGridProps> = ({
                         VPN
                       </span>
                     )}
+
+                    {device.isPersonalDevice && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-purple-700 text-white" title="Celular pessoal do colaborador">
+                        <Smartphone className="w-2.5 h-2.5" />
+                        PESSOAL
+                      </span>
+                    )}
                   </div>
                 </div>
 

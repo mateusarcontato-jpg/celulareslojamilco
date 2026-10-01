@@ -182,6 +182,11 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                   vpn
                 </span>
               )}
+              {device.isPersonalDevice && (
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-bold bg-purple-700 text-white" title="Celular pessoal do colaborador">
+                  📱 pessoal
+                </span>
+              )}
             </div>
             {device.previousEmployeeName && (
               <span className="text-[10px] text-zinc-500 block mt-0.5">

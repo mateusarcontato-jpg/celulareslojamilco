@@ -60,6 +60,9 @@ export interface Device {
   accessories: string[];
   notes?: string;
   
+  // Aparelho Pessoal do Colaborador (Uso de chip/aplicativos da empresa em celular próprio)
+  isPersonalDevice?: boolean;
+  
   // Fichário de Histórico e Ocorrências (Manutenção, Troca, Perda, Entrega)
   occurrences: DeviceOccurrence[];
   

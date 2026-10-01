@@ -22,6 +22,7 @@ export const QuickTransferModal: React.FC<QuickTransferModalProps> = ({
   const [newSector, setNewSector] = useState(device.sector);
   const [reason, setReason] = useState('Troca de usuário / aparelho');
   const [recordedBy, setRecordedBy] = useState('Gerência / TI');
+  const [isPersonal, setIsPersonal] = useState(Boolean(device.isPersonalDevice));
 
   const handleStockToggle = (checked: boolean) => {
     setToStock(checked);
@@ -60,6 +61,7 @@ export const QuickTransferModal: React.FC<QuickTransferModalProps> = ({
       employeeName: targetEmployee,
       sector: newSector,
       status: finalStatus,
+      isPersonalDevice: toStock ? false : isPersonal,
       updatedAt: now.toISOString(),
       occurrences: [newOcc, ...device.occurrences],
     };
@@ -130,19 +132,33 @@ export const QuickTransferModal: React.FC<QuickTransferModalProps> = ({
             </div>
 
             {!toStock && (
-              <div>
-                <label className="block font-bold text-zinc-800 mb-1">
-                  Nome do Novo Usuário <span className="text-red-600">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: MARCOS LIMA"
-                  value={newEmployeeName}
-                  onChange={(e) => setNewEmployeeName(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 font-bold uppercase focus:ring-2 focus:ring-red-600"
-                />
-              </div>
+              <>
+                <div>
+                  <label className="block font-bold text-zinc-800 mb-1">
+                    Nome do Novo Usuário <span className="text-red-600">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ex: MARCOS LIMA"
+                    value={newEmployeeName}
+                    onChange={(e) => setNewEmployeeName(e.target.value)}
+                    className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 font-bold uppercase focus:ring-2 focus:ring-red-600"
+                  />
+                </div>
+
+                <div className="p-2.5 bg-purple-50 border border-purple-200 rounded-lg">
+                  <label className="flex items-center gap-2 cursor-pointer font-bold text-purple-950 text-xs select-none">
+                    <input
+                      type="checkbox"
+                      checked={isPersonal}
+                      onChange={(e) => setIsPersonal(e.target.checked)}
+                      className="rounded text-purple-600 focus:ring-purple-500 w-4 h-4 cursor-pointer"
+                    />
+                    <span>Celular Pessoal do Colaborador (Uso Próprio)</span>
+                  </label>
+                </div>
+              </>
             )}
 
             <div>

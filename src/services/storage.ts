@@ -13,9 +13,12 @@ export function getStoredDevices(): Device[] {
       return INITIAL_DEVICES;
     }
     const parsed = JSON.parse(raw);
-    // Ensure all items have occurrences array
+    // Ensure all items have occurrences array and boolean flags
     return parsed.map((d: any) => ({
       ...d,
+      isPersonalDevice: Boolean(d.isPersonalDevice),
+      hasVpn: Boolean(d.hasVpn),
+      hasAssetTag: d.hasAssetTag !== false && d.assetNumber !== 'SEM PT',
       occurrences: d.occurrences || d.history?.map((h: any) => ({
         id: h.id,
         date: h.date,

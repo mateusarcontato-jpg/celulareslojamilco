@@ -113,6 +113,11 @@ export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                   <Shield className="w-2.5 h-2.5" /> VPN Habilitada
                 </span>
               )}
+              {device.isPersonalDevice && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-800 bg-purple-100 px-1.5 py-0.2 rounded mt-1">
+                  <Smartphone className="w-2.5 h-2.5 text-purple-700" /> Celular Pessoal
+                </span>
+              )}
             </div>
 
             <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-200">

@@ -35,6 +35,7 @@ export const DeviceFormModal: React.FC<DeviceFormModalProps> = ({
   const [employeeName, setEmployeeName] = useState('');
   const [previousEmployeeName, setPreviousEmployeeName] = useState('');
   const [hasVpn, setHasVpn] = useState(false);
+  const [isPersonalDevice, setIsPersonalDevice] = useState(false);
   const [brand, setBrand] = useState('SAMSUNG');
   const [model, setModel] = useState('');
   const [sector, setSector] = useState('VENDAS');
@@ -59,6 +60,7 @@ export const DeviceFormModal: React.FC<DeviceFormModalProps> = ({
       setEmployeeName(editingDevice.employeeName || '');
       setPreviousEmployeeName(editingDevice.previousEmployeeName || '');
       setHasVpn(editingDevice.hasVpn || false);
+      setIsPersonalDevice(Boolean(editingDevice.isPersonalDevice));
       setBrand(editingDevice.brand || 'SAMSUNG');
       setModel(editingDevice.model || '');
       setSector(editingDevice.sector || 'VENDAS');
@@ -77,6 +79,7 @@ export const DeviceFormModal: React.FC<DeviceFormModalProps> = ({
       setEmployeeName('');
       setPreviousEmployeeName('');
       setHasVpn(false);
+      setIsPersonalDevice(false);
       setBrand('SAMSUNG');
       setModel('A55 - 128GB');
       setSector('VENDAS');
@@ -124,8 +127,9 @@ export const DeviceFormModal: React.FC<DeviceFormModalProps> = ({
       assetNumber: finalAssetNumber,
       hasAssetTag: hasAssetTag,
       employeeName: employeeName.trim().toUpperCase() || 'A DEFINIR',
-      previousEmployeeName: previousEmployeeName.trim().toUpperCase() || undefined,
+      previousEmployeeName: previousEmployeeName.trim().toUpperCase() || '',
       hasVpn,
+      isPersonalDevice: Boolean(isPersonalDevice),
       brand: brand.toUpperCase(),
       model: model.trim(),
       sector: sector.toUpperCase(),
@@ -391,18 +395,36 @@ export const DeviceFormModal: React.FC<DeviceFormModalProps> = ({
               </div>
             </div>
 
-            {/* VPN Checkbox */}
-            <div className="pt-1 flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer font-bold text-zinc-900">
+            {/* Toggles: VPN e Celular Pessoal do Colaborador */}
+            <div className="pt-2 border-t border-red-200/60 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="flex items-center gap-2 cursor-pointer font-bold text-zinc-900 bg-white/80 p-2.5 rounded-lg border border-red-200 select-none hover:bg-white transition-colors">
                 <input
                   type="checkbox"
                   checked={hasVpn}
                   onChange={(e) => setHasVpn(e.target.checked)}
                   className="rounded text-red-600 focus:ring-red-500 w-4 h-4 cursor-pointer"
                 />
-                <span className="flex items-center gap-1">
-                  <Shield className="w-3.5 h-3.5 text-red-600" />
-                  Possui Acesso VPN Corporativa
+                <span className="flex items-center gap-1.5 text-xs">
+                  <Shield className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                  <span>Possui Acesso VPN Corporativa</span>
+                </span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer font-bold text-purple-950 bg-purple-50 p-2.5 rounded-lg border border-purple-300 select-none hover:bg-purple-100/70 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={isPersonalDevice}
+                  onChange={(e) => setIsPersonalDevice(e.target.checked)}
+                  className="rounded text-purple-600 focus:ring-purple-500 w-4 h-4 cursor-pointer"
+                />
+                <span className="flex items-center gap-1.5 text-xs">
+                  <Smartphone className="w-3.5 h-3.5 text-purple-700 shrink-0" />
+                  <span>Celular Pessoal do Colaborador</span>
+                  {isPersonalDevice && (
+                    <span className="bg-purple-600 text-white text-[9px] uppercase px-1.5 py-0.2 rounded font-bold ml-auto">
+                      Pessoal
+                    </span>
+                  )}
                 </span>
               </label>
             </div>

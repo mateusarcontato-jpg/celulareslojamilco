@@ -12,6 +12,7 @@
         "employeeName": { "type": "string", "description": "Nome do colaborador responsável" },
         "previousEmployeeName": { "type": "string", "description": "Colaborador anterior se houve troca" },
         "hasVpn": { "type": "boolean", "description": "Se possui acesso à VPN corporativa" },
+        "isPersonalDevice": { "type": "boolean", "description": "Se é o celular pessoal do colaborador (uso próprio)" },
         "brand": { "type": "string", "description": "Marca do aparelho" },
         "model": { "type": "string", "description": "Modelo e memória (Ex: A54 - 128GB)" },
         "sector": { "type": "string", "description": "Setor do colaborador (Ex: VENDAS, CAIXA)" },
