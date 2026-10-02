@@ -47,6 +47,7 @@ export interface DeviceAuditInfo {
   auditedBy: string; // Ex: "Mateus (Auditor T.I.)"
   verifiedAccessories: string[]; // Itens que foram conferidos e estão presentes
   missingAccessories: string[]; // Itens que deveriam ter sido entregues mas estão ausentes/faltando
+  damagedAccessories?: string[]; // Acessórios entregues que estão danificados, trincados ou avariados (parte da divergência)
   screenOk: boolean; // Tela sem trincas ou defeitos
   batteryOk: boolean; // Bateria operando normalmente
   chargerOk?: boolean; // Carregador original presente e testado

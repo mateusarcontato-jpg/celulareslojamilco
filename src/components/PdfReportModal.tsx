@@ -147,27 +147,47 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
     // 1. Verifica se há acessórios faltando / não entregues / extraviados
     const hasMissingItems = Boolean(
       (d.auditInfo?.missingAccessories && d.auditInfo.missingAccessories.length > 0) ||
-      d.auditInfo?.status === 'COM_PENDENCIA'
+      (d.auditInfo?.status === 'COM_PENDENCIA' && (!d.auditInfo?.verifiedAccessories || d.auditInfo.verifiedAccessories.length === 0))
     );
     const missingList = d.auditInfo?.missingAccessories || [];
 
-    // 2. Verifica se a tela está danificada
+    // 2. PELÍCULA TRINCADA OU QUALQUER ACESSÓRIO DANIFICADO FAZ PARTE DA DIVERGÊNCIA!
+    const hasDamagedItems = Boolean(
+      (d.auditInfo?.damagedAccessories && d.auditInfo.damagedAccessories.length > 0) ||
+      d.auditInfo?.peliculaStatus === 'PELICULA_TRINCADA'
+    );
+    const damagedList = Array.from(new Set([
+      ...(d.auditInfo?.damagedAccessories || []),
+      ...(d.auditInfo?.peliculaStatus === 'PELICULA_TRINCADA' ? ['Película de Proteção (Trincada)'] : [])
+    ]));
+
+    // 3. Verifica se a tela está danificada
     const isScreenDefect = d.auditInfo
       ? d.auditInfo.screenOk === false
       : condUpper.includes('TRINC') || condUpper.includes('QUEBRAD') || notesLower.includes('tela trinc') || notesLower.includes('tela quebrad');
 
-    // 3. Verifica defeito de bateria / conector
+    // 4. Verifica defeito de bateria / conector
     const isBatteryDefect = d.auditInfo
       ? d.auditInfo.batteryOk === false
       : notesLower.includes('bateria viciad') || notesLower.includes('bateria estufad') || notesLower.includes('conector quebrad');
 
-    // 4. Avaria geral, perda ou manutenção
+    // 5. Avaria geral, perda ou manutenção
     const isAvariaDefect = condUpper.includes('AVARIA') || (notesLower.includes('avaria') && !notesLower.includes('sem avaria'));
     const isReparoDefect = condUpper.includes('REPARO') || d.status === 'MANUTENÇÃO';
     const isPerdaDefect = d.status === 'PERDA / EXTRAVIO' || condUpper.includes('EXTRAV') || condUpper.includes('PERDA') || (d.occurrences || []).some(o => o.type === 'PERDA');
 
-    const hasAnyDivergence = hasMissingItems || isScreenDefect || isBatteryDefect || isAvariaDefect || isReparoDefect || isPerdaDefect;
-    const isAllOk = !hasAnyDivergence;
+    // Película trincada ou qualquer acessório danificado faz parte da DIVERGÊNCIA!
+    const hasAnyDivergence = 
+      hasMissingItems || 
+      hasDamagedItems || 
+      isScreenDefect || 
+      isBatteryDefect || 
+      isAvariaDefect || 
+      isReparoDefect || 
+      isPerdaDefect ||
+      d.auditInfo?.status === 'COM_PENDENCIA';
+
+    const isAllOk = !hasAnyDivergence && (d.auditInfo ? d.auditInfo.status === 'OK' : true);
 
     return (
       <td className={`border border-zinc-300 py-2 px-2.5 text-[10px] min-w-[210px] max-w-[340px] ${
@@ -233,10 +253,18 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
               </div>
             )}
 
-            {/* Película Trincada */}
-            {d.auditInfo?.peliculaStatus === 'PELICULA_TRINCADA' && (
-              <div className="mt-1 p-1 bg-amber-200/90 border border-amber-400 rounded text-[9.5px] text-amber-950 font-black">
-                ⚠️ PELÍCULA DE PROTEÇÃO TRINCADA (Necessita substituição)
+            {/* Película Trincada ou Acessório Danificado (Divergência) */}
+            {hasDamagedItems && (
+              <div className="mt-1.5 p-1.5 bg-white border-2 border-red-600 rounded text-[10px] text-red-950">
+                <span className="font-black text-red-700 block uppercase text-[9px] tracking-wider">
+                  ⚠️ ACESSÓRIO(S) OU PELÍCULA DANIFICADA [DIVERGÊNCIA]:
+                </span>
+                <span className="font-black text-red-900 underline text-[10.5px]">
+                  {damagedList.join(', ')}
+                </span>
+                <span className="block text-[8.5px] text-red-700 font-semibold mt-0.5">
+                  Constatado na conferência: avariado/trincado, requer substituição imediata.
+                </span>
               </div>
             )}
 

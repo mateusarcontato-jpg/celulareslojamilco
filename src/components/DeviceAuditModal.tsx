@@ -53,6 +53,7 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
   const [expectedItems, setExpectedItems] = useState<string[]>(baseAccessories);
   const [verifiedItems, setVerifiedItems] = useState<string[]>([]);
   const [missingItems, setMissingItems] = useState<string[]>([]);
+  const [damagedAccessories, setDamagedAccessories] = useState<string[]>([]);
   const [screenOk, setScreenOk] = useState<boolean>(true);
   const [batteryOk, setBatteryOk] = useState<boolean>(true);
   const [peliculaStatus, setPeliculaStatus] = useState<'COM_PELICULA_OK' | 'PELICULA_TRINCADA' | 'SEM_PELICULA'>('COM_PELICULA_OK');
@@ -74,12 +75,15 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
     if (device.auditInfo) {
       setVerifiedItems(device.auditInfo.verifiedAccessories || []);
       setMissingItems(device.auditInfo.missingAccessories || []);
+      setDamagedAccessories(device.auditInfo.damagedAccessories || []);
       setScreenOk(device.auditInfo.screenOk !== false);
       setBatteryOk(device.auditInfo.batteryOk !== false);
       setPeliculaStatus(device.auditInfo.peliculaStatus || (
         device.auditInfo.missingAccessories?.some(i => i.toLowerCase().includes('película') || i.toLowerCase().includes('pelicula'))
           ? 'SEM_PELICULA'
-          : 'COM_PELICULA_OK'
+          : device.auditInfo.damagedAccessories?.some(i => i.toLowerCase().includes('película') || i.toLowerCase().includes('pelicula'))
+            ? 'PELICULA_TRINCADA'
+            : 'COM_PELICULA_OK'
       ));
       setCondition(device.auditInfo.conditionVerified || device.condition || 'BOM');
       setAuditNotes(device.auditInfo.auditNotes || '');
@@ -88,6 +92,7 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
       // Default: If no audit yet, start with verified items equal to expected
       setVerifiedItems([...initialExpected]);
       setMissingItems([]);
+      setDamagedAccessories([]);
       setScreenOk(
         !((device.condition || '').toUpperCase().includes('TRINC') || 
           (device.condition || '').toUpperCase().includes('QUEBRAD') ||
@@ -110,13 +115,30 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
     }
   }, [device, currentAuditorName]);
 
-  const toggleItemStatus = (item: string, targetStatus: 'verified' | 'missing') => {
+  const toggleItemStatus = (item: string, targetStatus: 'verified' | 'missing' | 'damaged') => {
+    const isPelicula = item.toLowerCase().includes('película') || item.toLowerCase().includes('pelicula');
+
     if (targetStatus === 'verified') {
       setVerifiedItems((prev) => (prev.includes(item) ? prev : [...prev, item]));
       setMissingItems((prev) => prev.filter((i) => i !== item));
-    } else {
+      setDamagedAccessories((prev) => prev.filter((i) => i !== item));
+      if (isPelicula) {
+        setPeliculaStatus('COM_PELICULA_OK');
+      }
+    } else if (targetStatus === 'missing') {
       setMissingItems((prev) => (prev.includes(item) ? prev : [...prev, item]));
       setVerifiedItems((prev) => prev.filter((i) => i !== item));
+      setDamagedAccessories((prev) => prev.filter((i) => i !== item));
+      if (isPelicula) {
+        setPeliculaStatus('SEM_PELICULA');
+      }
+    } else if (targetStatus === 'damaged') {
+      setDamagedAccessories((prev) => (prev.includes(item) ? prev : [...prev, item]));
+      setVerifiedItems((prev) => (prev.includes(item) ? prev : [...prev, item]));
+      setMissingItems((prev) => prev.filter((i) => i !== item));
+      if (isPelicula) {
+        setPeliculaStatus('PELICULA_TRINCADA');
+      }
     }
   };
 
@@ -125,25 +147,28 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
     const peliculaItemName = expectedItems.find(i => i.toLowerCase().includes('película') || i.toLowerCase().includes('pelicula')) || 'Película de Vidro';
 
     if (newStatus === 'SEM_PELICULA') {
-      // Marca como faltando nos acessórios
       setMissingItems((prev) => (prev.includes(peliculaItemName) ? prev : [...prev, peliculaItemName]));
       setVerifiedItems((prev) => prev.filter((i) => i !== peliculaItemName));
-    } else {
-      // Película presente (ou trincada precisando de troca)
+      setDamagedAccessories((prev) => prev.filter((i) => i !== peliculaItemName));
+    } else if (newStatus === 'PELICULA_TRINCADA') {
+      setDamagedAccessories((prev) => (prev.includes(peliculaItemName) ? prev : [...prev, peliculaItemName]));
       setVerifiedItems((prev) => (prev.includes(peliculaItemName) ? prev : [...prev, peliculaItemName]));
       setMissingItems((prev) => prev.filter((i) => i !== peliculaItemName));
-      if (newStatus === 'PELICULA_TRINCADA') {
-        setAuditNotes((prev) => {
-          if (prev.includes('Película trincada')) return prev;
-          return prev ? `${prev}. Película trincada (necessita troca, tela intacta).` : 'Película de proteção trincada (necessita troca, tela intacta).';
-        });
-      }
+      setAuditNotes((prev) => {
+        if (prev.includes('Película trincada')) return prev;
+        return prev ? `${prev}. Película trincada (danificada, requer substituição).` : 'Película de proteção trincada (danificada, requer substituição).';
+      });
+    } else {
+      setVerifiedItems((prev) => (prev.includes(peliculaItemName) ? prev : [...prev, peliculaItemName]));
+      setMissingItems((prev) => prev.filter((i) => i !== peliculaItemName));
+      setDamagedAccessories((prev) => prev.filter((i) => i !== peliculaItemName));
     }
   };
 
   const markAllAsVerified = () => {
     setVerifiedItems([...expectedItems]);
     setMissingItems([]);
+    setDamagedAccessories([]);
     setPeliculaStatus('COM_PELICULA_OK');
   };
 
@@ -157,10 +182,27 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
     setNewItemText('');
   };
 
+  // Película trincada ou qualquer acessório danificado FAZ PARTE DA DIVERGÊNCIA!
+  const hasDivergence = 
+    missingItems.length > 0 || 
+    damagedAccessories.length > 0 || 
+    peliculaStatus === 'PELICULA_TRINCADA' || 
+    peliculaStatus === 'SEM_PELICULA' || 
+    !screenOk || 
+    !batteryOk || 
+    condition === 'TELA TRINCADA' || 
+    condition === 'COM AVARIAS' || 
+    condition === 'EM REPARO';
+
+  const isAuditCurrentlyOk = !hasDivergence;
+
   const handleSave = (forcedStatus?: 'OK' | 'COM_PENDENCIA') => {
-    const isOk = forcedStatus 
-      ? forcedStatus === 'OK' 
-      : (missingItems.length === 0 && screenOk && batteryOk && peliculaStatus !== 'SEM_PELICULA' && condition !== 'TELA TRINCADA' && condition !== 'EM REPARO');
+    const isOk = forcedStatus ? forcedStatus === 'OK' : !hasDivergence;
+
+    const allDamaged = Array.from(new Set([
+      ...damagedAccessories,
+      ...(peliculaStatus === 'PELICULA_TRINCADA' ? ['Película de Proteção (Trincada)'] : [])
+    ]));
 
     const nowStr = new Date().toLocaleDateString('pt-BR') + ' às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
@@ -170,6 +212,7 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
       auditedBy: auditorName.trim() || 'Auditor T.I.',
       verifiedAccessories: verifiedItems,
       missingAccessories: missingItems,
+      damagedAccessories: allDamaged,
       screenOk,
       batteryOk,
       peliculaStatus,
@@ -179,9 +222,10 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
     };
 
     // Build occurrence history description
-    const statusText = isOk ? '100% CONFORME (Tudo OK)' : `PENDÊNCIA APONTADA (Faltando ${missingItems.length} item(ns))`;
+    const statusText = isOk ? '100% CONFORME (Tudo OK)' : `DIVERGÊNCIA APONTADA (Item Ausente ou Danificado)`;
     const missingDesc = missingItems.length > 0 ? `\nItens Ausentes: ${missingItems.join(', ')}.` : '';
-    const peliculaDesc = peliculaStatus === 'COM_PELICULA_OK' ? 'Com Película Íntegra' : peliculaStatus === 'PELICULA_TRINCADA' ? 'Película Trincada' : 'Sem Película';
+    const damagedDesc = allDamaged.length > 0 ? `\nItens/Acessórios Danificados: ${allDamaged.join(', ')}.` : '';
+    const peliculaDesc = peliculaStatus === 'COM_PELICULA_OK' ? 'Com Película Íntegra' : peliculaStatus === 'PELICULA_TRINCADA' ? 'Película Trincada (Danificada)' : 'Sem Película';
     const physicalDesc = `\nEstado: ${condition} | Tela: ${screenOk ? 'OK' : 'Trincada/Defeito'} | Película: ${peliculaDesc} | Bateria: ${batteryOk ? 'OK' : 'Defeito/Viciada'}.`;
     const notesDesc = auditNotes.trim() ? `\nObs: "${auditNotes.trim()}"` : '';
 
@@ -190,7 +234,7 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
       date: new Date().toLocaleDateString('pt-BR'),
       type: 'AUDITORIA',
       title: `CHECKUP DE AUDITORIA: ${statusText}`,
-      description: `Auditoria presencial realizada por ${auditorName.trim() || 'Auditor T.I.'}.${missingDesc}${physicalDesc}${notesDesc}`,
+      description: `Auditoria presencial realizada por ${auditorName.trim() || 'Auditor T.I.'}.${missingDesc}${damagedDesc}${physicalDesc}${notesDesc}`,
       recordedBy: auditorName.trim() || 'Auditor T.I.'
     };
 
@@ -206,8 +250,6 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
     onSaveAudit(updatedDevice);
     onClose();
   };
-
-  const isAuditCurrentlyOk = missingItems.length === 0 && screenOk && batteryOk;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-xs animate-in fade-in">
@@ -279,12 +321,12 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
               )}
               <div>
                 <h4 className="font-bold uppercase tracking-wider text-xs">
-                  {isAuditCurrentlyOk ? 'Diagnóstico: 100% Conforme (Tudo OK)' : 'Diagnóstico: Pendência Constatada'}
+                  {isAuditCurrentlyOk ? 'Diagnóstico: 100% Conforme (Tudo OK)' : 'Diagnóstico: Divergência Constatada'}
                 </h4>
                 <p className="text-[11px] mt-0.5">
                   {isAuditCurrentlyOk 
-                    ? 'Todos os itens entregues estão presentes e o aparelho está íntegro.' 
-                    : `Atenção: Há ${missingItems.length} item(ns) faltando ou avaria física constatada.`}
+                    ? 'Todos os itens entregues estão presentes e nenhum acessório ou tela possui avarias.' 
+                    : `Atenção: Constatada divergência (item ausente, película trincada ou acessório danificado).`}
                 </p>
               </div>
             </div>
@@ -294,7 +336,7 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
               onClick={markAllAsVerified}
               className="px-3 py-1.5 bg-white border border-zinc-300 hover:border-zinc-400 rounded-lg text-zinc-800 font-bold text-[11px] shadow-2xs transition-colors shrink-0 cursor-pointer"
             >
-              ✓ Marcar Tudo Presente
+              ✓ Marcar Tudo 100% OK
             </button>
           </div>
 
@@ -310,12 +352,12 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
                 </span>
               </div>
               <span className="text-[11px] text-zinc-500 font-medium">
-                {verifiedItems.length} de {expectedItems.length} presentes
+                {verifiedItems.length} de {expectedItems.length} conferidos
               </span>
             </div>
 
             <p className="text-[11px] text-zinc-600">
-              Verifique fisicamente se o colaborador apresentou cada item que consta no termo/ficha:
+              Verifique fisicamente se o colaborador apresentou cada item e seu estado de conservação:
             </p>
 
             {/* Lista de Itens para Conferência */}
@@ -323,46 +365,74 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
               {expectedItems.map((item) => {
                 const isVerified = verifiedItems.includes(item);
                 const isMissing = missingItems.includes(item);
+                const isDamaged = damagedAccessories.includes(item) || (
+                  (item.toLowerCase().includes('película') || item.toLowerCase().includes('pelicula')) && peliculaStatus === 'PELICULA_TRINCADA'
+                );
 
                 return (
                   <div
                     key={item}
                     className={`p-2.5 rounded-xl border flex items-center justify-between transition-all ${
                       isMissing
-                        ? 'bg-red-50/80 border-red-300 text-red-950'
-                        : isVerified
-                          ? 'bg-emerald-50/60 border-emerald-200 text-emerald-950'
-                          : 'bg-white border-zinc-200 text-zinc-800'
+                        ? 'bg-red-50/90 border-red-300 text-red-950'
+                        : isDamaged
+                          ? 'bg-amber-50/90 border-amber-400 text-amber-950'
+                          : isVerified
+                            ? 'bg-emerald-50/60 border-emerald-200 text-emerald-950'
+                            : 'bg-white border-zinc-200 text-zinc-800'
                     }`}
                   >
                     <div className="flex items-center gap-2 min-w-0 pr-2">
-                      <Plug className={`w-3.5 h-3.5 shrink-0 ${isMissing ? 'text-red-600' : isVerified ? 'text-emerald-600' : 'text-zinc-400'}`} />
-                      <span className="font-semibold text-xs truncate">{item}</span>
+                      <Plug className={`w-3.5 h-3.5 shrink-0 ${
+                        isMissing ? 'text-red-600' : isDamaged ? 'text-amber-600' : isVerified ? 'text-emerald-600' : 'text-zinc-400'
+                      }`} />
+                      <div className="min-w-0">
+                        <span className="font-semibold text-xs truncate block">{item}</span>
+                        {isDamaged && (
+                          <span className="text-[9.5px] font-black text-amber-800 block uppercase">⚠️ Danificado (Divergência)</span>
+                        )}
+                        {isMissing && (
+                          <span className="text-[9.5px] font-black text-red-700 block uppercase">❌ Ausente / Falta</span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         type="button"
                         onClick={() => toggleItemStatus(item, 'verified')}
-                        className={`px-2 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
-                          isVerified
+                        className={`px-1.5 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                          isVerified && !isDamaged
                             ? 'bg-emerald-600 text-white shadow-2xs'
                             : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
                         }`}
-                        title="Marcar como presente e conferido"
+                        title="Marcar como presente e em perfeito estado"
                       >
-                        ✓ Presente
+                        ✓ OK
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => toggleItemStatus(item, 'damaged')}
+                        className={`px-1.5 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                          isDamaged
+                            ? 'bg-amber-600 text-white shadow-2xs'
+                            : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                        }`}
+                        title="Marcar como danificado ou trincado (DIVERGÊNCIA)"
+                      >
+                        ⚠️ Avaria
                       </button>
 
                       <button
                         type="button"
                         onClick={() => toggleItemStatus(item, 'missing')}
-                        className={`px-2 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                        className={`px-1.5 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
                           isMissing
                             ? 'bg-red-600 text-white shadow-2xs'
                             : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
                         }`}
-                        title="Marcar como ausente ou faltante"
+                        title="Marcar como ausente ou faltante (DIVERGÊNCIA)"
                       >
                         ✕ Falta
                       </button>
@@ -396,18 +466,37 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
               </button>
             </div>
 
-            {/* Alerta de Itens Faltando */}
-            {missingItems.length > 0 && (
-              <div className="p-3 bg-red-100/80 border border-red-300 rounded-xl text-red-950 flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                <div>
-                  <strong className="block font-bold uppercase text-[11px]">
-                    Itens Apontados como Faltando:
-                  </strong>
-                  <span className="font-semibold">{missingItems.join(', ')}</span>
+            {/* Alertas de Itens Faltando e Danificados (Divergências) */}
+            <div className="space-y-2">
+              {missingItems.length > 0 && (
+                <div className="p-3 bg-red-100/90 border border-red-300 rounded-xl text-red-950 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="block font-bold uppercase text-[11px] text-red-900">
+                      Itens Faltando (Divergência):
+                    </strong>
+                    <span className="font-semibold">{missingItems.join(', ')}</span>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+
+              {(damagedAccessories.length > 0 || peliculaStatus === 'PELICULA_TRINCADA') && (
+                <div className="p-3 bg-amber-100/90 border border-amber-400 rounded-xl text-amber-950 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="block font-bold uppercase text-[11px] text-amber-900">
+                      Acessórios Danificados / Trincados (Divergência):
+                    </strong>
+                    <span className="font-semibold">
+                      {Array.from(new Set([
+                        ...damagedAccessories,
+                        ...(peliculaStatus === 'PELICULA_TRINCADA' ? ['Película de Proteção (Trincada)'] : [])
+                      ])).join(', ')}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* SEÇÃO 2: ESTADO FÍSICO, TELA, PELÍCULA E BATERIA */}
@@ -681,18 +770,18 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
 
             <button
               type="button"
-              onClick={() => handleSave(missingItems.length === 0 ? 'OK' : 'COM_PENDENCIA')}
+              onClick={() => handleSave(isAuditCurrentlyOk ? 'OK' : 'COM_PENDENCIA')}
               className={`inline-flex items-center gap-1.5 px-5 py-2 font-bold text-white rounded-xl shadow-sm transition-all cursor-pointer ${
-                missingItems.length === 0 && screenOk && batteryOk
+                isAuditCurrentlyOk
                   ? 'bg-emerald-600 hover:bg-emerald-700'
                   : 'bg-red-600 hover:bg-red-700'
               }`}
             >
               <Check className="w-4 h-4" />
               <span>
-                {missingItems.length === 0 && screenOk && batteryOk
+                {isAuditCurrentlyOk
                   ? 'Concluir Checkup (100% OK)'
-                  : 'Registrar Auditoria'}
+                  : 'Salvar com Divergência (Pendência)'}
               </span>
             </button>
           </div>
