@@ -118,8 +118,10 @@ export const DeviceFormModal: React.FC<DeviceFormModalProps> = ({
     }
 
     const now = new Date().toISOString();
-    const finalAssetNumber = hasAssetTag ? assetNumber.trim() : 'SEM PT';
-    const finalStatus: DeviceStatus = !hasAssetTag && status === 'EM USO' ? 'SEM PATRIMÔNIO' : status;
+    const finalAssetNumber = hasAssetTag ? assetNumber.trim() : isPersonalDevice ? 'PESSOAL' : 'SEM PT';
+    const finalStatus: DeviceStatus = isPersonalDevice
+      ? (status === 'SEM PATRIMÔNIO' ? 'PESSOAL' : status)
+      : (!hasAssetTag && status === 'EM USO' ? 'SEM PATRIMÔNIO' : status);
 
     const deviceData: Device = {
       id: editingDevice ? editingDevice.id : `dev-${Date.now()}`,
@@ -304,15 +306,55 @@ export const DeviceFormModal: React.FC<DeviceFormModalProps> = ({
                 <select
                   value={condition}
                   onChange={(e) => setCondition(e.target.value as DeviceCondition)}
-                  className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 font-medium"
+                  className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 font-bold focus:ring-2 focus:ring-red-600"
                 >
-                  <option value="NOVO">NOVO (Na caixa)</option>
                   <option value="BOM">BOM (Em uso regular)</option>
-                  <option value="COM AVARIAS">COM MARCAS DE USO</option>
-                  <option value="TELA TRINCADA">TELA TRINCADA</option>
-                  <option value="EM REPARO">EM REPARO / DEFEITO</option>
+                  <option value="NOVO">NOVO (Na caixa)</option>
+                  <option value="TELA TRINCADA">🔨 TELA TRINCADA / QUEBRADA</option>
+                  <option value="COM AVARIAS">⚠️ COM AVARIAS / MARCAS DE USO</option>
+                  <option value="EM REPARO">🛠️ EM REPARO / DEFEITO</option>
                   <option value="EXTRAVIADO">EXTRAVIADO / PERDIDO</option>
                 </select>
+
+                {/* Chips rápidos de condição */}
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setCondition('BOM')}
+                    className={`px-2 py-0.5 rounded text-[10px] font-semibold border transition-all ${
+                      condition === 'BOM' ? 'bg-zinc-900 text-white border-zinc-900' : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
+                    }`}
+                  >
+                    Bom
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCondition('TELA TRINCADA')}
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all ${
+                      condition === 'TELA TRINCADA' ? 'bg-red-600 text-white border-red-600 shadow-2xs' : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                    }`}
+                  >
+                    🔨 Tela Trincada
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCondition('COM AVARIAS')}
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all ${
+                      condition === 'COM AVARIAS' ? 'bg-amber-600 text-white border-amber-600 shadow-2xs' : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+                    }`}
+                  >
+                    ⚠️ Avarias
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCondition('EM REPARO')}
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all ${
+                      condition === 'EM REPARO' ? 'bg-blue-600 text-white border-blue-600 shadow-2xs' : 'bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100'
+                    }`}
+                  >
+                    🛠️ Reparo
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -375,6 +417,7 @@ export const DeviceFormModal: React.FC<DeviceFormModalProps> = ({
                   className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 font-bold"
                 >
                   <option value="EM USO">EM USO</option>
+                  <option value="PESSOAL">CELULAR PESSOAL</option>
                   <option value="DISPONÍVEL">DISPONÍVEL (ESTOQUE)</option>
                   <option value="MANUTENÇÃO">MANUTENÇÃO</option>
                   <option value="SEM PATRIMÔNIO">SEM PATRIMÔNIO</option>
@@ -414,7 +457,15 @@ export const DeviceFormModal: React.FC<DeviceFormModalProps> = ({
                 <input
                   type="checkbox"
                   checked={isPersonalDevice}
-                  onChange={(e) => setIsPersonalDevice(e.target.checked)}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setIsPersonalDevice(checked);
+                    if (checked) {
+                      setStatus('PESSOAL');
+                      setHasAssetTag(false);
+                      setAssetNumber('PESSOAL');
+                    }
+                  }}
                   className="rounded text-purple-600 focus:ring-purple-500 w-4 h-4 cursor-pointer"
                 />
                 <span className="flex items-center gap-1.5 text-xs">
@@ -456,15 +507,70 @@ export const DeviceFormModal: React.FC<DeviceFormModalProps> = ({
             </div>
           </div>
 
-          {/* Observações */}
-          <div>
-            <label className="block font-semibold text-zinc-700 mb-1">Observações</label>
+          {/* Observações e Descrição de Avarias / Defeitos */}
+          <div className="bg-zinc-50 p-3.5 rounded-xl border border-zinc-200 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block font-bold text-zinc-900 text-xs">
+                Descrição de Avarias / Defeito (Tela, Bateria, etc.) e Observações da Ficha
+              </label>
+              <span className="text-[10px] text-red-600 font-semibold">
+                Exibido no Relatório PDF
+              </span>
+            </div>
+
+            {/* Tags rápidas de defeito comum */}
+            <div className="flex flex-wrap gap-1 text-[10px]">
+              <span className="text-zinc-500 font-medium self-center mr-1">Inserir rápido:</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const tag = 'Tela trincada';
+                  setNotes((prev) => (prev ? `${prev}, ${tag}` : tag));
+                  setCondition('TELA TRINCADA');
+                }}
+                className="px-2 py-0.5 rounded-md bg-red-100 hover:bg-red-200 text-red-900 font-bold border border-red-300 transition-colors cursor-pointer"
+              >
+                + Tela Trincada
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const tag = 'Bateria descarregando rápido';
+                  setNotes((prev) => (prev ? `${prev}, ${tag}` : tag));
+                }}
+                className="px-2 py-0.5 rounded-md bg-orange-100 hover:bg-orange-200 text-orange-950 font-bold border border-orange-300 transition-colors cursor-pointer"
+              >
+                + Bateria Ruim
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const tag = 'Conector de carga com mau contato';
+                  setNotes((prev) => (prev ? `${prev}, ${tag}` : tag));
+                }}
+                className="px-2 py-0.5 rounded-md bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold border border-amber-300 transition-colors cursor-pointer"
+              >
+                + Conector de Carga
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const tag = 'Carcaça com marcas de impacto e arranhões';
+                  setNotes((prev) => (prev ? `${prev}, ${tag}` : tag));
+                  if (condition === 'BOM') setCondition('COM AVARIAS');
+                }}
+                className="px-2 py-0.5 rounded-md bg-zinc-200 hover:bg-zinc-300 text-zinc-900 font-bold border border-zinc-300 transition-colors cursor-pointer"
+              >
+                + Avarias na Carcaça
+              </button>
+            </div>
+
             <textarea
-              rows={2}
+              rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Informações adicionais sobre o aparelho..."
-              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-zinc-900"
+              placeholder="Ex: Tela quebrada no canto superior; bateria viciada; conector com folga; carcaça riscada..."
+              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 font-medium focus:ring-2 focus:ring-red-600 text-xs"
             />
           </div>
 

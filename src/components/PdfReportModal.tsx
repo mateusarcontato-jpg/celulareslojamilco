@@ -123,6 +123,106 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
 
   const filterSummary = getFilterSummaryText();
 
+  const renderAccessoriesAndConditionCell = (d: Device) => {
+    const condUpper = (d.condition || '').toUpperCase();
+    const notesLower = (d.notes || '').toLowerCase();
+    const occText = (d.occurrences || []).map((o) => `${o.title} ${o.description}`).join(' ').toLowerCase();
+
+    const isTelaDefect = condUpper.includes('TRINC') || condUpper.includes('QUEBRAD') || notesLower.includes('tela') || notesLower.includes('display') || occText.includes('tela') || occText.includes('display');
+    const isBatteryDefect = notesLower.includes('bateria') || notesLower.includes('conector') || notesLower.includes('carga') || occText.includes('bateria') || occText.includes('conector');
+    const isAvariaDefect = condUpper.includes('AVARIA') || notesLower.includes('avaria') || notesLower.includes('defeito') || notesLower.includes('risco') || notesLower.includes('amassado') || occText.includes('avaria');
+    const isReparoDefect = condUpper.includes('REPARO') || d.status === 'MANUTENÇÃO';
+
+    return (
+      <td className="border border-zinc-300 py-1.5 px-2 text-[10px] min-w-[200px] max-w-[320px]">
+        {/* Acessórios vinculados */}
+        <div className="font-semibold text-zinc-900 leading-snug">
+          {d.accessories && d.accessories.length > 0 ? (
+            <span>{d.accessories.join(', ')}</span>
+          ) : (
+            <span className="text-zinc-400 italic">Sem acessórios vinculados</span>
+          )}
+        </div>
+
+        {/* Badges de Estado e Defeitos identificados */}
+        <div className="mt-1 flex flex-wrap items-center gap-1">
+          <span className={`inline-block px-1.5 py-0.2 rounded font-bold text-[9px] uppercase ${
+            condUpper === 'NOVO'
+              ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+              : isTelaDefect || isBatteryDefect || isAvariaDefect || isReparoDefect
+                ? 'bg-red-50 text-red-900 border border-red-300'
+                : 'bg-zinc-100 text-zinc-800 border border-zinc-300'
+          }`}>
+            ESTADO: {d.condition || 'BOM'}
+          </span>
+
+          {isTelaDefect && (
+            <span className="inline-block px-1.5 py-0.2 rounded font-bold text-[9px] uppercase bg-red-100 text-red-900 border border-red-400">
+              🔨 TELA QUEBRADA / TRINCADA
+            </span>
+          )}
+
+          {isBatteryDefect && (
+            <span className="inline-block px-1.5 py-0.2 rounded font-bold text-[9px] uppercase bg-orange-100 text-orange-950 border border-orange-400">
+              🔋 BATERIA / CARGA
+            </span>
+          )}
+
+          {isAvariaDefect && !isTelaDefect && (
+            <span className="inline-block px-1.5 py-0.2 rounded font-bold text-[9px] uppercase bg-amber-100 text-amber-950 border border-amber-400">
+              ⚠️ COM AVARIAS
+            </span>
+          )}
+
+          {isReparoDefect && (
+            <span className="inline-block px-1.5 py-0.2 rounded font-bold text-[9px] uppercase bg-blue-100 text-blue-900 border border-blue-300">
+              🛠️ EM MANUTENÇÃO
+            </span>
+          )}
+        </div>
+
+        {/* DESCRIÇÃO DA FICHA: TELA QUEBRADA, BATERIA, ETC. */}
+        {d.notes && d.notes.trim() && (
+          <div className="mt-1.5 p-1.5 bg-red-50/90 border border-red-300 rounded text-[9.5px] leading-tight text-red-950">
+            <span className="font-bold text-red-800 block text-[9px] uppercase tracking-wide">
+              Descrição da Ficha (Avaria / Defeito):
+            </span>
+            <span className="font-semibold text-black">{d.notes}</span>
+          </div>
+        )}
+
+        {/* Ocorrências com histórico de reparo ou manutenção */}
+        {d.occurrences && d.occurrences.length > 0 && d.occurrences.some(o => 
+          (o.title + ' ' + o.description).toLowerCase().includes('tela') ||
+          (o.title + ' ' + o.description).toLowerCase().includes('bateria') ||
+          (o.title + ' ' + o.description).toLowerCase().includes('avaria') ||
+          (o.title + ' ' + o.description).toLowerCase().includes('reparo') ||
+          (o.title + ' ' + o.description).toLowerCase().includes('defeito') ||
+          o.type === 'MANUTENÇÃO'
+        ) && (
+          <div className="mt-1 space-y-0.5">
+            {d.occurrences
+              .filter(o => 
+                (o.title + ' ' + o.description).toLowerCase().includes('tela') ||
+                (o.title + ' ' + o.description).toLowerCase().includes('bateria') ||
+                (o.title + ' ' + o.description).toLowerCase().includes('avaria') ||
+                (o.title + ' ' + o.description).toLowerCase().includes('reparo') ||
+                (o.title + ' ' + o.description).toLowerCase().includes('defeito') ||
+                o.type === 'MANUTENÇÃO'
+              )
+              .map(occ => (
+                <div key={occ.id} className="p-1 bg-zinc-50 border border-zinc-300 rounded text-[8.5px] text-zinc-900 leading-tight">
+                  <span className="font-bold text-red-700">[{occ.type}] </span>
+                  <span className="font-semibold">{occ.title}:</span> {occ.description}
+                </div>
+              ))
+            }
+          </div>
+        )}
+      </td>
+    );
+  };
+
   return (
     <>
       <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 print-modal-container">
@@ -412,15 +512,18 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                                 return (
                                   <tr key={d.id} className="hover:bg-zinc-50 border-b border-zinc-300">
                                     <td className="border border-zinc-300 py-1.5 px-2 font-mono font-bold">
-                                      {d.hasAssetTag ? d.assetNumber : 'SEM PT'}
+                                      {d.isPersonalDevice ? (
+                                        <span className="text-purple-900 font-bold bg-purple-50 px-1 py-0.2 rounded border border-purple-200 text-[10px]">
+                                          PESSOAL
+                                        </span>
+                                      ) : d.hasAssetTag ? (
+                                        d.assetNumber
+                                      ) : (
+                                        'SEM PT'
+                                      )}
                                     </td>
                                     <td className="border border-zinc-300 py-1.5 px-2">
                                       <span className="font-bold uppercase text-black">{d.employeeName}</span>
-                                      {d.isPersonalDevice && (
-                                        <span className="ml-1 inline-block px-1 py-0.2 rounded text-[8px] font-bold bg-purple-100 text-purple-900 border border-purple-300">
-                                          PESSOAL
-                                        </span>
-                                      )}
                                       {d.previousEmployeeName && (
                                         <span className="text-[10px] text-zinc-500 block">
                                           (Anterior: {d.previousEmployeeName})
@@ -440,26 +543,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                                         </span>
                                       )}
                                     </td>
-                                    {showAccessoriesColumn && (
-                                      <td className="border border-zinc-300 py-1.5 px-2 text-[10px]">
-                                        <div className="font-semibold text-zinc-900">
-                                          {d.accessories && d.accessories.length > 0
-                                            ? d.accessories.join(', ')
-                                            : 'Sem acessórios vinculados'}
-                                        </div>
-                                        <div className="mt-0.5">
-                                          <span className={`inline-block px-1.5 py-0.2 rounded font-bold text-[9px] uppercase ${
-                                            isTelaTrincada 
-                                              ? 'bg-red-100 text-red-900 border border-red-300' 
-                                              : d.condition === 'NOVO' 
-                                                ? 'bg-emerald-100 text-emerald-900' 
-                                                : 'bg-zinc-100 text-zinc-700'
-                                          }`}>
-                                            Estado: {d.condition}
-                                          </span>
-                                        </div>
-                                      </td>
-                                    )}
+                                    {showAccessoriesColumn && renderAccessoriesAndConditionCell(d)}
                                     <td className="border border-zinc-300 py-1.5 px-2 font-semibold">
                                       {d.hasVpn ? (
                                         <span className="text-emerald-700 font-bold">SIM</span>
@@ -472,13 +556,17 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                                     </td>
                                     <td className="border border-zinc-300 py-1.5 px-2 font-semibold">
                                       <span className={`px-1.5 py-0.5 rounded text-[10px] ${
-                                        d.status === 'EM USO'
-                                          ? 'bg-zinc-100 text-zinc-900 font-bold'
-                                          : d.status === 'MANUTENÇÃO'
-                                            ? 'bg-amber-100 text-amber-900 font-bold'
-                                            : 'bg-red-100 text-red-900 font-bold'
+                                        d.isPersonalDevice && (d.status === 'SEM PATRIMÔNIO' || d.status === 'PESSOAL')
+                                          ? 'bg-purple-100 text-purple-900 font-bold border border-purple-300'
+                                          : d.status === 'EM USO'
+                                            ? 'bg-zinc-100 text-zinc-900 font-bold'
+                                            : d.status === 'MANUTENÇÃO'
+                                              ? 'bg-amber-100 text-amber-900 font-bold'
+                                              : 'bg-red-100 text-red-900 font-bold'
                                       }`}>
-                                        {d.status}
+                                        {d.isPersonalDevice && (d.status === 'SEM PATRIMÔNIO' || d.status === 'PESSOAL')
+                                          ? 'PESSOAL'
+                                          : d.status}
                                       </span>
                                     </td>
                                   </tr>
@@ -511,15 +599,18 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                           return (
                             <tr key={d.id} className="hover:bg-zinc-50 border-b border-zinc-300">
                               <td className="border border-zinc-300 py-1.5 px-2 font-mono font-bold">
-                                {d.hasAssetTag ? d.assetNumber : 'SEM PT'}
+                                {d.isPersonalDevice ? (
+                                  <span className="text-purple-900 font-bold bg-purple-50 px-1 py-0.2 rounded border border-purple-200 text-[10px]">
+                                    PESSOAL
+                                  </span>
+                                ) : d.hasAssetTag ? (
+                                  d.assetNumber
+                                ) : (
+                                  'SEM PT'
+                                )}
                               </td>
                               <td className="border border-zinc-300 py-1.5 px-2 font-semibold">
                                 <span className="font-bold uppercase text-black">{d.employeeName}</span>
-                                {d.isPersonalDevice && (
-                                  <span className="ml-1 inline-block px-1 py-0.2 rounded text-[8px] font-bold bg-purple-100 text-purple-900 border border-purple-300">
-                                    PESSOAL
-                                  </span>
-                                )}
                                 {d.previousEmployeeName && (
                                   <span className="text-[10px] text-zinc-500 block">
                                     (Anterior: {d.previousEmployeeName})
@@ -528,24 +619,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                               </td>
                               <td className="border border-zinc-300 py-1.5 px-2">{d.sector}</td>
                               <td className="border border-zinc-300 py-1.5 px-2 font-medium">{d.brand} {d.model}</td>
-                              {showAccessoriesColumn && (
-                                <td className="border border-zinc-300 py-1.5 px-2 text-[10px]">
-                                  <div className="font-semibold text-zinc-900">
-                                    {d.accessories && d.accessories.length > 0
-                                      ? d.accessories.join(', ')
-                                      : 'Sem acessórios vinculados'}
-                                  </div>
-                                  <div className="mt-0.5">
-                                    <span className={`inline-block px-1.5 py-0.2 rounded font-bold text-[9px] uppercase ${
-                                      isTelaTrincada 
-                                        ? 'bg-red-100 text-red-900 border border-red-300' 
-                                        : 'bg-zinc-100 text-zinc-700'
-                                    }`}>
-                                      Estado: {d.condition}
-                                    </span>
-                                  </div>
-                                </td>
-                              )}
+                              {showAccessoriesColumn && renderAccessoriesAndConditionCell(d)}
                               <td className="border border-zinc-300 py-1.5 px-2 font-semibold">
                                 {d.hasVpn ? (
                                   <span className="text-emerald-700 font-bold">SIM</span>
@@ -554,7 +628,13 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                                 )}
                               </td>
                               <td className="border border-zinc-300 py-1.5 px-2 font-semibold">
-                                {d.status}
+                                {d.isPersonalDevice && (d.status === 'SEM PATRIMÔNIO' || d.status === 'PESSOAL') ? (
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-purple-100 text-purple-900 font-bold border border-purple-300">
+                                    PESSOAL
+                                  </span>
+                                ) : (
+                                  d.status
+                                )}
                               </td>
                             </tr>
                           );

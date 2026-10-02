@@ -81,8 +81,9 @@ export function matchAdvancedCriteria(device: Device, criteria: AdvancedFilterCr
   if (criteria.vpnFilter === 'WITHOUT_VPN' && device.hasVpn) return false;
 
   // 5. Plaqueta de Patrimônio
-  if (criteria.tagFilter === 'WITH_TAG' && (!device.hasAssetTag || device.assetNumber === 'SEM PT')) return false;
-  if (criteria.tagFilter === 'SEM_PT' && device.hasAssetTag && device.assetNumber !== 'SEM PT') return false;
+  if (criteria.tagFilter === 'WITH_TAG' && (!device.hasAssetTag || device.assetNumber === 'SEM PT' || device.isPersonalDevice)) return false;
+  if (criteria.tagFilter === 'SEM_PT' && (device.hasAssetTag && device.assetNumber !== 'SEM PT' || device.isPersonalDevice)) return false;
+  if (criteria.tagFilter === 'PESSOAL' && !device.isPersonalDevice) return false;
 
   // 6. Linha Telefônica
   const hasLine = Boolean(device.phoneNumber && device.phoneNumber.trim().length > 3);

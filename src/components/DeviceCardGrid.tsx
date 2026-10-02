@@ -65,7 +65,12 @@ export const DeviceCardGrid: React.FC<DeviceCardGridProps> = ({
                     {device.store}
                   </span>
                   <div className="flex items-center gap-2 mt-0.5">
-                    {isSemPt ? (
+                    {device.isPersonalDevice ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-bold bg-purple-100 text-purple-900 border border-purple-300 rounded shadow-2xs">
+                        <Smartphone className="w-3 h-3 text-purple-700" />
+                        PESSOAL
+                      </span>
+                    ) : isSemPt ? (
                       <span className="px-2 py-0.5 text-xs font-bold bg-red-100 text-red-800 border border-red-300 rounded">
                         SEM PT
                       </span>
@@ -81,18 +86,17 @@ export const DeviceCardGrid: React.FC<DeviceCardGridProps> = ({
                         VPN
                       </span>
                     )}
-
-                    {device.isPersonalDevice && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-purple-700 text-white" title="Celular pessoal do colaborador">
-                        <Smartphone className="w-2.5 h-2.5" />
-                        PESSOAL
-                      </span>
-                    )}
                   </div>
                 </div>
 
-                <span className={`px-2 py-0.5 text-[11px] font-bold border rounded ${getStatusColor(device.status)}`}>
-                  {device.status}
+                <span className={`px-2 py-0.5 text-[11px] font-bold border rounded ${
+                  device.isPersonalDevice && (device.status === 'SEM PATRIMÔNIO' || device.status === 'PESSOAL')
+                    ? 'bg-purple-100 text-purple-900 border-purple-300'
+                    : getStatusColor(device.status)
+                }`}>
+                  {device.isPersonalDevice && (device.status === 'SEM PATRIMÔNIO' || device.status === 'PESSOAL')
+                    ? 'CELULAR PESSOAL'
+                    : device.status}
                 </span>
               </div>
 

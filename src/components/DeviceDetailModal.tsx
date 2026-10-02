@@ -46,7 +46,11 @@ export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                 <h2 className="text-base font-bold text-white tracking-wide">
                   {device.brand} {device.model}
                 </h2>
-                {isSemPt ? (
+                {device.isPersonalDevice ? (
+                  <span className="px-2 py-0.5 text-xs font-bold bg-purple-700 text-white rounded">
+                    CELULAR PESSOAL
+                  </span>
+                ) : isSemPt ? (
                   <span className="px-2 py-0.5 text-xs font-bold bg-red-600 text-white rounded">
                     SEM PT
                   </span>
@@ -83,8 +87,20 @@ export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
 
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 text-xs">
-          {/* Alerta Sem Tombamento */}
-          {isSemPt && (
+          {/* Alerta Sem Tombamento ou Aviso de Celular Pessoal */}
+          {device.isPersonalDevice ? (
+            <div className="p-3.5 bg-purple-50 border border-purple-200 rounded-xl flex items-start gap-3">
+              <Smartphone className="w-5 h-5 text-purple-700 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-xs font-bold text-purple-950 uppercase tracking-wide">
+                  Aparelho Particular do Colaborador
+                </h4>
+                <p className="text-xs text-purple-800 mt-0.5">
+                  Este aparelho pertence ao colaborador (não faz parte do patrimônio da loja).
+                </p>
+              </div>
+            </div>
+          ) : isSemPt ? (
             <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
               <div>
@@ -94,7 +110,7 @@ export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                 </p>
               </div>
             </div>
-          )}
+          ) : null}
 
           {/* Grid de Informações Principais */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -113,11 +129,6 @@ export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                   <Shield className="w-2.5 h-2.5" /> VPN Habilitada
                 </span>
               )}
-              {device.isPersonalDevice && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-800 bg-purple-100 px-1.5 py-0.2 rounded mt-1">
-                  <Smartphone className="w-2.5 h-2.5 text-purple-700" /> Celular Pessoal
-                </span>
-              )}
             </div>
 
             <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-200">
@@ -133,7 +144,7 @@ export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
             <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-200">
               <span className="text-[11px] font-bold text-zinc-500 block uppercase">Status Operacional</span>
               <span className="text-sm font-bold text-zinc-950 block mt-0.5">
-                {device.status}
+                {device.isPersonalDevice && (device.status === 'SEM PATRIMÔNIO' || device.status === 'PESSOAL') ? 'CELULAR PESSOAL' : device.status}
               </span>
               <span className="text-[11px] text-zinc-500 block mt-0.5 font-mono">
                 Aquisição: {device.acquisitionDate}
@@ -176,9 +187,11 @@ export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
             </div>
 
             {device.notes && (
-              <div className="pt-2 border-t border-zinc-100">
-                <span className="text-zinc-500 text-[11px] block font-semibold">Observações:</span>
-                <p className="text-zinc-700 italic">"{device.notes}"</p>
+              <div className="mt-2 p-2.5 bg-red-50/80 border border-red-200 rounded-lg">
+                <span className="text-red-800 text-[11px] block font-bold uppercase tracking-wide">
+                  ⚠️ Descrição de Defeito / Avaria da Ficha:
+                </span>
+                <p className="text-zinc-950 font-semibold mt-0.5 text-xs">{device.notes}</p>
               </div>
             )}
           </div>

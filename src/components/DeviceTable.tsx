@@ -13,7 +13,8 @@ import {
   Wrench,
   History,
   Layers,
-  List
+  List,
+  Smartphone
 } from 'lucide-react';
 import { Device, DeviceStatus } from '../types/device';
 
@@ -56,8 +57,23 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
     }
   };
 
-  const getStatusBadge = (status: DeviceStatus) => {
+  const getStatusBadge = (status: DeviceStatus, isPersonal?: boolean) => {
+    if (isPersonal && (status === 'SEM PATRIMÔNIO' || status === 'PESSOAL')) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-900 border border-purple-300">
+          <Smartphone className="w-3 h-3 text-purple-700" />
+          CELULAR PESSOAL
+        </span>
+      );
+    }
     switch (status) {
+      case 'PESSOAL':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-900 border border-purple-300">
+            <Smartphone className="w-3 h-3 text-purple-700" />
+            CELULAR PESSOAL
+          </span>
+        );
       case 'EM USO':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-zinc-900 text-white border border-zinc-800">
@@ -159,7 +175,12 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
 
           {/* N° Patrimônio */}
           <td className="py-2.5 px-3 whitespace-nowrap">
-            {isSemPt ? (
+            {device.isPersonalDevice ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-900 border border-purple-300 shadow-2xs">
+                <Smartphone className="w-3 h-3 text-purple-700" />
+                PESSOAL
+              </span>
+            ) : isSemPt ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-red-100 text-red-800 border border-red-300">
                 <AlertCircle className="w-3 h-3 text-red-600" />
                 SEM PT
@@ -180,11 +201,6 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
               {device.hasVpn && (
                 <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-bold bg-red-600 text-white">
                   vpn
-                </span>
-              )}
-              {device.isPersonalDevice && (
-                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-bold bg-purple-700 text-white" title="Celular pessoal do colaborador">
-                  📱 pessoal
                 </span>
               )}
             </div>
@@ -237,7 +253,7 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
 
           {/* Status */}
           <td className="py-2.5 px-3 whitespace-nowrap">
-            {getStatusBadge(device.status)}
+            {getStatusBadge(device.status, device.isPersonalDevice)}
           </td>
 
           {/* Ações */}

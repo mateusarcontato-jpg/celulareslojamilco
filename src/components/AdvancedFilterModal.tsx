@@ -318,8 +318,9 @@ export const AdvancedFilterModal: React.FC<AdvancedFilterModalProps> = ({
                   className="w-full bg-white border border-zinc-300 rounded-lg px-2.5 py-1.5 text-xs text-black focus:outline-none focus:border-red-600"
                 >
                   <option value="ALL">Todas as situações</option>
-                  <option value="WITH_TAG">🏷️ Com Plaqueta (Tombados)</option>
-                  <option value="SEM_PT">❓ Sem Plaqueta (SEM PT)</option>
+                  <option value="WITH_TAG">🏷️ Com Plaqueta (Tombados da Loja)</option>
+                  <option value="SEM_PT">❓ Sem Plaqueta (SEM PT da Loja)</option>
+                  <option value="PESSOAL">📱 Celular Pessoal do Colaborador</option>
                 </select>
               </div>
 

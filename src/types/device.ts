@@ -4,7 +4,8 @@ export type DeviceStatus =
   | 'MANUTENÇÃO'
   | 'SEM PATRIMÔNIO'
   | 'PERDA / EXTRAVIO'
-  | 'DESCARTADO';
+  | 'DESCARTADO'
+  | 'PESSOAL';
 
 export type DeviceCondition = 
   | 'NOVO'
@@ -89,7 +90,7 @@ export interface AdvancedFilterCriteria {
   
   // Outros parâmetros
   vpnFilter: 'ALL' | 'WITH_VPN' | 'WITHOUT_VPN';
-  tagFilter: 'ALL' | 'WITH_TAG' | 'SEM_PT';
+  tagFilter: 'ALL' | 'WITH_TAG' | 'SEM_PT' | 'PESSOAL';
   hasPhoneLine: 'ALL' | 'WITH_LINE' | 'WITHOUT_LINE';
   hasOccurrencesOnly: boolean;
 }
