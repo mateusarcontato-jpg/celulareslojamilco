@@ -126,120 +126,153 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
   const renderAccessoriesAndConditionCell = (d: Device) => {
     const condUpper = (d.condition || '').toUpperCase();
     const notesLower = (d.notes || '').toLowerCase();
-    const occText = (d.occurrences || []).map((o) => `${o.title} ${o.description}`).join(' ').toLowerCase();
+    
+    // Ocorrências reais de sinistro ou manutenção (excluindo checkups normais de auditoria)
+    const incidentOccurrences = (d.occurrences || []).filter((o) => {
+      if (o.type === 'AUDITORIA') return false;
+      const text = (o.title + ' ' + o.description).toLowerCase();
+      // Não acusa defeito se for apenas relatório de status OK
+      if (text.includes('tela: ok') || text.includes('bateria: ok') || text.includes('tudo ok')) return false;
+      return (
+        text.includes('trinc') ||
+        text.includes('quebrad') ||
+        text.includes('viciad') ||
+        text.includes('estufad') ||
+        (text.includes('avaria') && !text.includes('sem avaria')) ||
+        o.type === 'MANUTENÇÃO' ||
+        o.type === 'PERDA'
+      );
+    });
 
-    const isTelaDefect = condUpper.includes('TRINC') || condUpper.includes('QUEBRAD') || notesLower.includes('tela') || notesLower.includes('display') || occText.includes('tela') || occText.includes('display');
-    const isBatteryDefect = notesLower.includes('bateria') || notesLower.includes('conector') || notesLower.includes('carga') || occText.includes('bateria') || occText.includes('conector');
-    const isAvariaDefect = condUpper.includes('AVARIA') || notesLower.includes('avaria') || notesLower.includes('defeito') || notesLower.includes('risco') || notesLower.includes('amassado') || occText.includes('avaria');
+    // 1. Verifica se há acessórios faltando / não entregues / extraviados
+    const hasMissingItems = Boolean(
+      (d.auditInfo?.missingAccessories && d.auditInfo.missingAccessories.length > 0) ||
+      d.auditInfo?.status === 'COM_PENDENCIA'
+    );
+    const missingList = d.auditInfo?.missingAccessories || [];
+
+    // 2. Verifica se a tela está danificada
+    const isScreenDefect = d.auditInfo
+      ? d.auditInfo.screenOk === false
+      : condUpper.includes('TRINC') || condUpper.includes('QUEBRAD') || notesLower.includes('tela trinc') || notesLower.includes('tela quebrad');
+
+    // 3. Verifica defeito de bateria / conector
+    const isBatteryDefect = d.auditInfo
+      ? d.auditInfo.batteryOk === false
+      : notesLower.includes('bateria viciad') || notesLower.includes('bateria estufad') || notesLower.includes('conector quebrad');
+
+    // 4. Avaria geral, perda ou manutenção
+    const isAvariaDefect = condUpper.includes('AVARIA') || (notesLower.includes('avaria') && !notesLower.includes('sem avaria'));
     const isReparoDefect = condUpper.includes('REPARO') || d.status === 'MANUTENÇÃO';
+    const isPerdaDefect = d.status === 'PERDA / EXTRAVIO' || condUpper.includes('EXTRAV') || condUpper.includes('PERDA') || (d.occurrences || []).some(o => o.type === 'PERDA');
+
+    const hasAnyDivergence = hasMissingItems || isScreenDefect || isBatteryDefect || isAvariaDefect || isReparoDefect || isPerdaDefect;
+    const isAllOk = !hasAnyDivergence;
 
     return (
-      <td className="border border-zinc-300 py-1.5 px-2 text-[10px] min-w-[200px] max-w-[320px]">
-        {/* Acessórios vinculados */}
-        <div className="font-semibold text-zinc-900 leading-snug">
-          {d.accessories && d.accessories.length > 0 ? (
-            <span>{d.accessories.join(', ')}</span>
-          ) : (
-            <span className="text-zinc-400 italic">Sem acessórios vinculados</span>
-          )}
-        </div>
-
-        {/* Badges de Estado e Defeitos identificados */}
-        <div className="mt-1 flex flex-wrap items-center gap-1">
-          <span className={`inline-block px-1.5 py-0.2 rounded font-bold text-[9px] uppercase ${
-            condUpper === 'NOVO'
-              ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-              : isTelaDefect || isBatteryDefect || isAvariaDefect || isReparoDefect
-                ? 'bg-red-50 text-red-900 border border-red-300'
-                : 'bg-zinc-100 text-zinc-800 border border-zinc-300'
-          }`}>
-            ESTADO: {d.condition || 'BOM'}
+      <td className={`border border-zinc-300 py-2 px-2.5 text-[10px] min-w-[210px] max-w-[340px] ${
+        hasAnyDivergence ? 'bg-red-50/50' : 'bg-emerald-50/30'
+      }`}>
+        {/* Acessórios Vinculados */}
+        <div className="text-zinc-800 text-[9.5px] leading-tight mb-1.5">
+          <span className="font-bold text-zinc-600">Acessórios da Ficha: </span>
+          <span className="font-semibold text-zinc-950">
+            {d.accessories && d.accessories.length > 0 ? d.accessories.join(', ') : 'Carregador Original, Cabo USB-C, Capa, Película'}
           </span>
-
-          {isTelaDefect && (
-            <span className="inline-block px-1.5 py-0.2 rounded font-bold text-[9px] uppercase bg-red-100 text-red-900 border border-red-400">
-              🔨 TELA QUEBRADA / TRINCADA
-            </span>
-          )}
-
-          {isBatteryDefect && (
-            <span className="inline-block px-1.5 py-0.2 rounded font-bold text-[9px] uppercase bg-orange-100 text-orange-950 border border-orange-400">
-              🔋 BATERIA / CARGA
-            </span>
-          )}
-
-          {isAvariaDefect && !isTelaDefect && (
-            <span className="inline-block px-1.5 py-0.2 rounded font-bold text-[9px] uppercase bg-amber-100 text-amber-950 border border-amber-400">
-              ⚠️ COM AVARIAS
-            </span>
-          )}
-
-          {isReparoDefect && (
-            <span className="inline-block px-1.5 py-0.2 rounded font-bold text-[9px] uppercase bg-blue-100 text-blue-900 border border-blue-300">
-              🛠️ EM MANUTENÇÃO
-            </span>
-          )}
         </div>
 
-        {/* DESCRIÇÃO DA FICHA: TELA QUEBRADA, BATERIA, ETC. */}
-        {d.notes && d.notes.trim() && (
-          <div className="mt-1.5 p-1.5 bg-red-50/90 border border-red-300 rounded text-[9.5px] leading-tight text-red-950">
-            <span className="font-bold text-red-800 block text-[9px] uppercase tracking-wide">
-              Descrição da Ficha (Avaria / Defeito):
-            </span>
-            <span className="font-semibold text-black">{d.notes}</span>
+        {/* ========================================================================= */}
+        {/* CASO 1: SE O APARELHO ESTIVER TUDO OK -> CAMPO EM VERDE SEM AVARIA/PERDA */}
+        {/* ========================================================================= */}
+        {isAllOk ? (
+          <div className="p-2 rounded-lg bg-emerald-100/90 border border-emerald-500 text-emerald-950 shadow-2xs">
+            <div className="flex items-center gap-1.5 font-black text-[10.5px] text-emerald-950 uppercase tracking-wide">
+              <span className="text-emerald-700 font-black text-xs leading-none">✓</span>
+              <span>APARELHO 100% OK — SEM AVARIA OU PERDA</span>
+            </div>
+            
+            <p className="text-[9px] text-emerald-900 mt-1 font-semibold leading-snug">
+              ✓ Todos os itens entregues estão presentes e conferidos
+            </p>
+            <p className="text-[8.5px] text-emerald-800 leading-tight">
+              ✓ Tela íntegra sem trincas · Bateria operando normalmente · Estado: <strong>{d.condition || 'BOM'}</strong>
+            </p>
+
+            {d.auditInfo?.lastAuditedAt && (
+              <div className="mt-1 text-[8.5px] text-emerald-700 font-mono">
+                Checkup presencial realizado por {d.auditInfo.auditedBy || 'T.I.'} ({d.auditInfo.lastAuditedAt})
+              </div>
+            )}
+          </div>
+        ) : (
+          /* ========================================================================= */
+          /* CASO 2: QUANDO TIVER ALGUM ITEM FALTANDO OU DIVERGÊNCIA -> CAMPO VERMELHO */
+          /* ========================================================================= */
+          <div className="p-2 rounded-lg bg-red-100 border-2 border-red-600 text-red-950 shadow-2xs">
+            <div className="flex items-center gap-1.5 font-black text-[11px] text-red-950 uppercase tracking-wide">
+              <span className="text-red-700 font-black text-xs leading-none">⚠️</span>
+              <span>DIVERGÊNCIA CONSTATADA</span>
+            </div>
+
+            {/* Destaque em VERMELHO FORTE dos itens que estão faltando */}
+            {hasMissingItems && (
+              <div className="mt-1.5 p-1.5 bg-white border border-red-500 rounded text-[10px] text-red-950">
+                <span className="font-black text-red-700 block uppercase text-[9px] tracking-wider">
+                  ❌ ITEM(NS) FALTANDO / NÃO APRESENTADO:
+                </span>
+                <span className="font-black text-red-900 underline text-[10.5px]">
+                  {missingList.length > 0 ? missingList.join(', ') : 'Acessórios entregues não apresentados'}
+                </span>
+              </div>
+            )}
+
+            {/* Avaria na Tela */}
+            {isScreenDefect && (
+              <div className="mt-1 p-1 bg-red-200/80 border border-red-400 rounded text-[9.5px] text-red-950 font-black">
+                🔨 TELA QUEBRADA / TRINCADA
+              </div>
+            )}
+
+            {/* Defeito na Bateria */}
+            {isBatteryDefect && (
+              <div className="mt-1 p-1 bg-orange-200/80 border border-orange-400 rounded text-[9.5px] text-orange-950 font-black">
+                🔋 DEFEITO: BATERIA OU CONECTOR DE CARGA
+              </div>
+            )}
+
+            {/* Registro de Perda */}
+            {isPerdaDefect && (
+              <div className="mt-1 p-1 bg-red-700 text-white rounded text-[9.5px] font-black uppercase">
+                🚨 APARELHO COM REGISTRO DE PERDA OU EXTRAVIO
+              </div>
+            )}
+
+            {/* Observações da Auditoria */}
+            {d.auditInfo?.auditNotes && (
+              <div className="mt-1 text-[9px] text-red-900 font-medium italic">
+                Obs da Auditoria: "{d.auditInfo.auditNotes}"
+              </div>
+            )}
           </div>
         )}
 
-        {/* Status de Auditoria e Itens Faltando */}
-        {d.auditInfo && (
-          <div className={`mt-1.5 p-1.5 rounded text-[9.5px] leading-tight border ${
-            d.auditInfo.status === 'OK'
-              ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
-              : 'bg-red-50 border-red-300 text-red-950 font-bold'
-          }`}>
-            <span className="font-bold block uppercase tracking-wide">
-              {d.auditInfo.status === 'OK' ? '✓ AUDITORIA CONFORME (100% OK)' : '⚠️ AUDITORIA: PENDÊNCIA APONTADA'}
-            </span>
-            {d.auditInfo.missingAccessories && d.auditInfo.missingAccessories.length > 0 && (
-              <span className="block mt-0.5 text-red-800">
-                Itens Faltando: <strong>{d.auditInfo.missingAccessories.join(', ')}</strong>
-              </span>
-            )}
-            {d.auditInfo.auditNotes && (
-              <span className="block mt-0.5 text-zinc-600 font-normal italic">
-                Obs: "{d.auditInfo.auditNotes}"
-              </span>
-            )}
+        {/* Anotação textual da ficha se houver */}
+        {d.notes && d.notes.trim() && !d.notes.toLowerCase().includes('ok') && (
+          <div className="mt-1 p-1 bg-zinc-50 border border-zinc-300 rounded text-[9px] text-zinc-800 leading-tight">
+            <span className="font-bold text-zinc-700">Ficha: </span>
+            <span>{d.notes}</span>
           </div>
         )}
 
-        {/* Ocorrências com histórico de reparo ou manutenção */}
-        {d.occurrences && d.occurrences.length > 0 && d.occurrences.some(o => 
-          (o.title + ' ' + o.description).toLowerCase().includes('tela') ||
-          (o.title + ' ' + o.description).toLowerCase().includes('bateria') ||
-          (o.title + ' ' + o.description).toLowerCase().includes('avaria') ||
-          (o.title + ' ' + o.description).toLowerCase().includes('reparo') ||
-          (o.title + ' ' + o.description).toLowerCase().includes('defeito') ||
-          o.type === 'MANUTENÇÃO'
-        ) && (
+        {/* Ocorrências reais de manutenção (se houver histórico de conserto anterior) */}
+        {incidentOccurrences.length > 0 && (
           <div className="mt-1 space-y-0.5">
-            {d.occurrences
-              .filter(o => 
-                (o.title + ' ' + o.description).toLowerCase().includes('tela') ||
-                (o.title + ' ' + o.description).toLowerCase().includes('bateria') ||
-                (o.title + ' ' + o.description).toLowerCase().includes('avaria') ||
-                (o.title + ' ' + o.description).toLowerCase().includes('reparo') ||
-                (o.title + ' ' + o.description).toLowerCase().includes('defeito') ||
-                o.type === 'MANUTENÇÃO'
-              )
-              .map(occ => (
-                <div key={occ.id} className="p-1 bg-zinc-50 border border-zinc-300 rounded text-[8.5px] text-zinc-900 leading-tight">
-                  <span className="font-bold text-red-700">[{occ.type}] </span>
-                  <span className="font-semibold">{occ.title}:</span> {occ.description}
-                </div>
-              ))
-            }
+            {incidentOccurrences.map(occ => (
+              <div key={occ.id} className="p-1 bg-zinc-50 border border-zinc-300 rounded text-[8.5px] text-zinc-900 leading-tight">
+                <span className="font-bold text-red-700">[{occ.type}] </span>
+                <span className="font-semibold">{occ.title}:</span> {occ.description}
+              </div>
+            ))}
           </div>
         )}
       </td>

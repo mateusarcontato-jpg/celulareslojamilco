@@ -151,7 +151,7 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
     const newOccurrence: DeviceOccurrence = {
       id: `occ-audit-${Date.now()}`,
       date: new Date().toLocaleDateString('pt-BR'),
-      type: 'MANUTENÇÃO',
+      type: 'AUDITORIA',
       title: `CHECKUP DE AUDITORIA: ${statusText}`,
       description: `Auditoria presencial realizada por ${auditorName.trim() || 'Auditor T.I.'}.${missingDesc}${physicalDesc}${notesDesc}`,
       recordedBy: auditorName.trim() || 'Auditor T.I.'

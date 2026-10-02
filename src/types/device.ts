@@ -20,7 +20,8 @@ export type OccurrenceType =
   | 'TROCA'
   | 'PERDA'
   | 'ENTREGA'
-  | 'DEVOLUCAO';
+  | 'DEVOLUCAO'
+  | 'AUDITORIA';
 
 export interface DeviceOccurrence {
   id: string;
