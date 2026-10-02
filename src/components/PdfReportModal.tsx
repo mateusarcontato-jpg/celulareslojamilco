@@ -191,6 +191,29 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
           </div>
         )}
 
+        {/* Status de Auditoria e Itens Faltando */}
+        {d.auditInfo && (
+          <div className={`mt-1.5 p-1.5 rounded text-[9.5px] leading-tight border ${
+            d.auditInfo.status === 'OK'
+              ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+              : 'bg-red-50 border-red-300 text-red-950 font-bold'
+          }`}>
+            <span className="font-bold block uppercase tracking-wide">
+              {d.auditInfo.status === 'OK' ? '✓ AUDITORIA CONFORME (100% OK)' : '⚠️ AUDITORIA: PENDÊNCIA APONTADA'}
+            </span>
+            {d.auditInfo.missingAccessories && d.auditInfo.missingAccessories.length > 0 && (
+              <span className="block mt-0.5 text-red-800">
+                Itens Faltando: <strong>{d.auditInfo.missingAccessories.join(', ')}</strong>
+              </span>
+            )}
+            {d.auditInfo.auditNotes && (
+              <span className="block mt-0.5 text-zinc-600 font-normal italic">
+                Obs: "{d.auditInfo.auditNotes}"
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Ocorrências com histórico de reparo ou manutenção */}
         {d.occurrences && d.occurrences.length > 0 && d.occurrences.some(o => 
           (o.title + ' ' + o.description).toLowerCase().includes('tela') ||

@@ -9,7 +9,9 @@ import {
   Calendar, 
   AlertTriangle,
   History,
-  Phone
+  Phone,
+  ClipboardCheck,
+  CheckCircle2
 } from 'lucide-react';
 import { Device } from '../types/device';
 
@@ -19,6 +21,7 @@ interface DeviceDetailModalProps {
   onEdit: (device: Device) => void;
   onOpenTerm: (device: Device) => void;
   onQuickTransfer: (device: Device) => void;
+  onOpenAudit?: (device: Device) => void;
 }
 
 export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
@@ -27,6 +30,7 @@ export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
   onEdit,
   onOpenTerm,
   onQuickTransfer,
+  onOpenAudit,
 }) => {
   if (!device) return null;
 
@@ -67,6 +71,20 @@ export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5">
+            {onOpenAudit && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenAudit(device);
+                }}
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors cursor-pointer shadow-xs"
+                title="Realizar Checkup de Auditoria"
+              >
+                <ClipboardCheck className="w-3.5 h-3.5" />
+                <span>Checkup</span>
+              </button>
+            )}
+
             <button
               onClick={() => onOpenTerm(device)}
               className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg transition-colors cursor-pointer"
@@ -87,6 +105,73 @@ export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
 
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 text-xs">
+          {/* Card de Auditoria & Checkup de Itens */}
+          <div className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+            device.auditInfo?.status === 'OK'
+              ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950'
+              : device.auditInfo?.status === 'COM_PENDENCIA'
+                ? 'bg-red-50/80 border-red-300 text-red-950'
+                : 'bg-zinc-50 border-zinc-200 text-zinc-900'
+          }`}>
+            <div className="flex items-start gap-3">
+              <ClipboardCheck className={`w-5 h-5 shrink-0 mt-0.5 ${
+                device.auditInfo?.status === 'OK'
+                  ? 'text-emerald-600'
+                  : device.auditInfo?.status === 'COM_PENDENCIA'
+                    ? 'text-red-600'
+                    : 'text-zinc-400'
+              }`} />
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="font-bold uppercase tracking-wider text-xs">
+                    {device.auditInfo?.status === 'OK'
+                      ? 'Checkup de Auditoria: 100% Conforme'
+                      : device.auditInfo?.status === 'COM_PENDENCIA'
+                        ? 'Checkup de Auditoria: Pendência Apontada'
+                        : 'Auditoria & Checkup: Não Realizado'}
+                  </h4>
+                  {device.auditInfo?.lastAuditedAt && (
+                    <span className="text-[10px] text-zinc-500 font-mono">
+                      ({device.auditInfo.lastAuditedAt})
+                    </span>
+                  )}
+                </div>
+
+                {device.auditInfo?.status === 'COM_PENDENCIA' && device.auditInfo.missingAccessories && device.auditInfo.missingAccessories.length > 0 && (
+                  <p className="text-red-800 text-xs mt-1 font-bold">
+                    ⚠️ Itens Faltando: {device.auditInfo.missingAccessories.join(', ')}
+                  </p>
+                )}
+
+                {device.auditInfo?.auditNotes && (
+                  <p className="text-zinc-600 text-[11px] mt-1 italic">
+                    Obs: "{device.auditInfo.auditNotes}"
+                  </p>
+                )}
+
+                {!device.auditInfo && (
+                  <p className="text-zinc-500 text-[11px] mt-0.5">
+                    Este aparelho ainda não foi auditado nesta rodada presencial de checkups.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {onOpenAudit && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenAudit(device);
+                }}
+                className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-xs shadow-xs transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer"
+              >
+                <ClipboardCheck className="w-3.5 h-3.5" />
+                <span>{device.auditInfo ? 'Refazer Checkup' : 'Fazer Checkup Agora'}</span>
+              </button>
+            )}
+          </div>
+
           {/* Alerta Sem Tombamento ou Aviso de Celular Pessoal */}
           {device.isPersonalDevice ? (
             <div className="p-3.5 bg-purple-50 border border-purple-200 rounded-xl flex items-start gap-3">

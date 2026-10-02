@@ -14,7 +14,9 @@ import {
   History,
   Layers,
   List,
-  Smartphone
+  Smartphone,
+  ClipboardCheck,
+  AlertTriangle
 } from 'lucide-react';
 import { Device, DeviceStatus } from '../types/device';
 
@@ -27,6 +29,7 @@ interface DeviceTableProps {
   onOpenTerm: (device: Device) => void;
   onQuickTransfer: (device: Device) => void;
   onDeleteDevice: (device: Device) => void;
+  onOpenAudit: (device: Device) => void;
   isGroupedBySector: boolean;
   onToggleGrouped: () => void;
 }
@@ -42,6 +45,7 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
   onOpenTerm,
   onQuickTransfer,
   onDeleteDevice,
+  onOpenAudit,
   isGroupedBySector,
   onToggleGrouped,
 }) => {
@@ -256,9 +260,55 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
             {getStatusBadge(device.status, device.isPersonalDevice)}
           </td>
 
+          {/* Auditoria / Checkup de Itens */}
+          <td className="py-2.5 px-3 whitespace-nowrap">
+            {device.auditInfo?.status === 'OK' ? (
+              <div className="flex flex-col">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-950 border border-emerald-300 w-fit">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-700" />
+                  CHECKUP OK
+                </span>
+                <span className="text-[9px] text-zinc-500 mt-0.5 font-medium">
+                  {device.auditInfo.lastAuditedAt ? device.auditInfo.lastAuditedAt.split(' às')[0] : 'Conferido'}
+                </span>
+              </div>
+            ) : device.auditInfo?.status === 'COM_PENDENCIA' ? (
+              <div className="flex flex-col">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-950 border border-red-300 w-fit">
+                  <AlertTriangle className="w-3 h-3 text-red-600" />
+                  FALTANDO ITENS
+                </span>
+                {device.auditInfo.missingAccessories && device.auditInfo.missingAccessories.length > 0 && (
+                  <span className="text-[9px] text-red-700 font-bold block truncate max-w-[125px]" title={device.auditInfo.missingAccessories.join(', ')}>
+                    Falta: {device.auditInfo.missingAccessories.join(', ')}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onOpenAudit(device)}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-300 transition-colors cursor-pointer"
+                title="Aparelho ainda não auditado. Clique para conferir itens"
+              >
+                <span>PENDENTE</span>
+              </button>
+            )}
+          </td>
+
           {/* Ações */}
           <td className="py-2.5 px-3 whitespace-nowrap text-right">
             <div className="flex items-center justify-end gap-1">
+              {/* Checkup da Auditoria */}
+              <button
+                onClick={() => onOpenAudit(device)}
+                className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer mr-0.5 shadow-2xs"
+                title="Realizar Checkup de Auditoria e Conferir Itens Entregues"
+              >
+                <ClipboardCheck className="w-3.5 h-3.5 text-red-600" />
+                <span>Checkup</span>
+              </button>
+
               {/* Fichário do Aparelho (Histórico completo) */}
               <button
                 onClick={() => onOpenHistory(device)}
@@ -404,6 +454,7 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                             <th className="py-2.5 px-3">Setor</th>
                             <th className="py-2.5 px-3">Data Aquisição</th>
                             <th className="py-2.5 px-3">Status</th>
+                            <th className="py-2.5 px-3">Auditoria</th>
                             <th className="py-2.5 px-3 text-right">Fichário / Ações</th>
                           </tr>
                         </thead>
@@ -496,6 +547,8 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                       <ArrowUpDown className="w-3 h-3 text-zinc-400" />
                     </div>
                   </th>
+
+                  <th className="py-3 px-3">Auditoria</th>
 
                   <th className="py-3 px-3 text-right">Fichário / Ações</th>
                 </tr>

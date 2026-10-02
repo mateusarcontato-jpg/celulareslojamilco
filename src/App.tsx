@@ -23,7 +23,8 @@ import {
   Layers,
   Building,
   CloudCheck,
-  SlidersHorizontal
+  SlidersHorizontal,
+  ClipboardCheck
 } from 'lucide-react';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { Device, DeviceOccurrence, DeviceStatus, AdvancedFilterCriteria, INITIAL_ADVANCED_FILTERS } from './types/device';
@@ -57,6 +58,7 @@ import { OccurrenceModal } from './components/OccurrenceModal';
 import { DeviceHistoryModal } from './components/DeviceHistoryModal';
 import { PdfReportModal } from './components/PdfReportModal';
 import { AdvancedFilterModal } from './components/AdvancedFilterModal';
+import { DeviceAuditModal } from './components/DeviceAuditModal';
 import { LoginScreen } from './components/LoginScreen';
 import { TechnicianUser } from './types/auth';
 import { getStoredCurrentTechnician, logoutTechnicianService } from './services/authService';
@@ -92,6 +94,8 @@ export default function App() {
   const [transferDevice, setTransferDevice] = useState<Device | null>(null);
   const [occurrenceDevice, setOccurrenceDevice] = useState<Device | null>(null);
   const [historyDevice, setHistoryDevice] = useState<Device | null>(null);
+  const [auditDevice, setAuditDevice] = useState<Device | null>(null);
+  const [auditFilter, setAuditFilter] = useState<'ALL' | 'OK' | 'MISSING' | 'PENDING'>('ALL');
   const [isImportExportOpen, setIsImportExportOpen] = useState(false);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [isMainAdvancedModalOpen, setIsMainAdvancedModalOpen] = useState(false);
@@ -164,6 +168,17 @@ export default function App() {
         return false;
       }
 
+      // Filtro de Auditoria / Checkup
+      if (auditFilter === 'OK' && device.auditInfo?.status !== 'OK') {
+        return false;
+      }
+      if (auditFilter === 'MISSING' && device.auditInfo?.status !== 'COM_PENDENCIA') {
+        return false;
+      }
+      if (auditFilter === 'PENDING' && (device.auditInfo && device.auditInfo.status !== 'NAO_AUDITADO')) {
+        return false;
+      }
+
       if (!matchAdvancedCriteria(device, mainAdvancedCriteria)) {
         return false;
       }
@@ -185,7 +200,17 @@ export default function App() {
 
       return true;
     });
-  }, [devices, currentStore, statusFilter, sectorFilter, vpnOnly, semPtOnly, personalOnly, searchQuery, mainAdvancedCriteria]);
+  }, [devices, currentStore, statusFilter, sectorFilter, vpnOnly, semPtOnly, personalOnly, auditFilter, searchQuery, mainAdvancedCriteria]);
+
+  // Estatísticas de Auditoria e Checkup
+  const auditStats = useMemo(() => {
+    const total = devices.length;
+    const ok = devices.filter((d) => d.auditInfo?.status === 'OK').length;
+    const missing = devices.filter((d) => d.auditInfo?.status === 'COM_PENDENCIA').length;
+    const pending = devices.filter((d) => !d.auditInfo || d.auditInfo.status === 'NAO_AUDITADO').length;
+    const percent = total > 0 ? Math.round(((ok + missing) / total) * 100) : 0;
+    return { total, ok, missing, pending, percent };
+  }, [devices]);
 
   // Contagem de Celulares Pessoais encontrados na filtragem atual
   const filteredPersonalCount = useMemo(() => {
@@ -254,6 +279,34 @@ export default function App() {
     }
   };
 
+  const handleSaveAudit = async (updatedDevice: Device) => {
+    setDevices((prev) => {
+      const updated = prev.map((d) => (d.id === updatedDevice.id ? updatedDevice : d));
+      saveStoredDevices(updated);
+      return updated;
+    });
+    if (detailDevice && detailDevice.id === updatedDevice.id) {
+      setDetailDevice(updatedDevice);
+    }
+    if (historyDevice && historyDevice.id === updatedDevice.id) {
+      setHistoryDevice(updatedDevice);
+    }
+
+    try {
+      await saveDeviceToFirestore(updatedDevice);
+      setIsFirebaseConnected(true);
+      const isOk = updatedDevice.auditInfo?.status === 'OK';
+      showToast(
+        isOk
+          ? `✅ Checkup 100% OK gravado para ${updatedDevice.employeeName}!`
+          : `⚠️ Checkup com Pendência gravado para ${updatedDevice.employeeName}!`
+      );
+    } catch (e) {
+      console.error('[App] Erro ao gravar auditoria no Firebase:', e);
+      showToast('Checkup gravado localmente.');
+    }
+  };
+
   const handleDeleteDevice = async (deviceToDelete: Device) => {
     const confirmMessage = `Tem certeza que deseja remover o celular de ${deviceToDelete.employeeName} (Patrimônio: ${deviceToDelete.assetNumber})?`;
     if (window.confirm(confirmMessage)) {
@@ -309,6 +362,7 @@ export default function App() {
     setVpnOnly(false);
     setSemPtOnly(false);
     setPersonalOnly(false);
+    setAuditFilter('ALL');
     setMainAdvancedCriteria(INITIAL_ADVANCED_FILTERS);
   };
 
@@ -321,6 +375,7 @@ export default function App() {
     (vpnOnly ? 1 : 0) +
     (semPtOnly ? 1 : 0) +
     (personalOnly ? 1 : 0) +
+    (auditFilter !== 'ALL' ? 1 : 0) +
     (searchQuery.trim() ? 1 : 0) +
     activeMainAdvCount;
 
@@ -637,6 +692,81 @@ export default function App() {
           </div>
         </div>
 
+        {/* Painel de Auditoria & Checkup em Tempo Real */}
+        <div className="bg-white border border-zinc-200 rounded-xl p-3.5 mb-4 shadow-2xs no-print flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+              <ClipboardCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-xs uppercase tracking-wider text-zinc-950">
+                  Auditoria & Checkup Presencial de Itens
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.2 bg-zinc-100 text-zinc-700 rounded-full border border-zinc-200 font-mono">
+                  {auditStats.ok + auditStats.missing} de {auditStats.total} conferidos ({auditStats.percent}%)
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-500 mt-0.5">
+                Conferência física: verifique se está tudo OK ou se faltam carregador, cabo, capa e película
+              </p>
+            </div>
+          </div>
+
+          {/* Filtros Rápidos de Auditoria */}
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            <button
+              type="button"
+              onClick={() => setAuditFilter('ALL')}
+              className={`px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${
+                auditFilter === 'ALL'
+                  ? 'bg-zinc-950 text-white border-zinc-950 shadow-2xs'
+                  : 'bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100'
+              }`}
+            >
+              Todos ({auditStats.total})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setAuditFilter(auditFilter === 'OK' ? 'ALL' : 'OK')}
+              className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${
+                auditFilter === 'OK'
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                  : 'bg-emerald-50 text-emerald-900 border-emerald-200 hover:bg-emerald-100'
+              }`}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Conferidos 100% OK ({auditStats.ok})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setAuditFilter(auditFilter === 'MISSING' ? 'ALL' : 'MISSING')}
+              className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${
+                auditFilter === 'MISSING'
+                  ? 'bg-red-600 text-white border-red-600 shadow-2xs'
+                  : 'bg-red-50 text-red-950 border-red-200 hover:bg-red-100'
+              }`}
+            >
+              <AlertCircle className="w-3.5 h-3.5 text-red-600" />
+              <span>Faltando Itens ({auditStats.missing})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setAuditFilter(auditFilter === 'PENDING' ? 'ALL' : 'PENDING')}
+              className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${
+                auditFilter === 'PENDING'
+                  ? 'bg-zinc-700 text-white border-zinc-700 shadow-2xs'
+                  : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200'
+              }`}
+            >
+              <span>Pendentes ({auditStats.pending})</span>
+            </button>
+          </div>
+        </div>
+
         {/* Visão de Conteúdo Principal (Tabela ou Cards) */}
         {viewMode === 'table' ? (
           <DeviceTable
@@ -651,6 +781,7 @@ export default function App() {
             onOpenTerm={(d) => setTermDevice(d)}
             onQuickTransfer={(d) => setTransferDevice(d)}
             onDeleteDevice={handleDeleteDevice}
+            onOpenAudit={(d) => setAuditDevice(d)}
             isGroupedBySector={isGroupedBySector}
             onToggleGrouped={() => setIsGroupedBySector(!isGroupedBySector)}
           />
@@ -665,6 +796,7 @@ export default function App() {
             onOpenTerm={(d) => setTermDevice(d)}
             onQuickTransfer={(d) => setTransferDevice(d)}
             onDeleteDevice={handleDeleteDevice}
+            onOpenAudit={(d) => setAuditDevice(d)}
           />
         )}
       </main>
@@ -761,6 +893,10 @@ export default function App() {
           setDetailDevice(null);
           setTransferDevice(d);
         }}
+        onOpenAudit={(d) => {
+          setDetailDevice(null);
+          setAuditDevice(d);
+        }}
       />
 
       {/* 9. Janelinha Dedicada: Filtro Avançado de Acessórios & Estado */}
@@ -770,6 +906,15 @@ export default function App() {
         criteria={mainAdvancedCriteria}
         onApplyCriteria={(c) => setMainAdvancedCriteria(c)}
         devices={devices}
+      />
+
+      {/* 10. Modal de Checkup e Auditoria Presencial */}
+      <DeviceAuditModal
+        isOpen={Boolean(auditDevice)}
+        onClose={() => setAuditDevice(null)}
+        device={auditDevice}
+        onSaveAudit={handleSaveAudit}
+        currentAuditorName={currentTechnician?.name || 'Mateus (Auditoria T.I.)'}
       />
     </div>
   );

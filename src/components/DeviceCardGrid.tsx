@@ -1,5 +1,21 @@
 import React from 'react';
-import { Smartphone, Shield, FileText, ArrowRightLeft, Edit3, Trash2, Eye, Calendar, User, Phone, Wrench, History } from 'lucide-react';
+import { 
+  Smartphone, 
+  Shield, 
+  FileText, 
+  ArrowRightLeft, 
+  Edit3, 
+  Trash2, 
+  Eye, 
+  Calendar, 
+  User, 
+  Phone, 
+  Wrench, 
+  History,
+  ClipboardCheck,
+  CheckCircle2,
+  AlertTriangle
+} from 'lucide-react';
 import { Device, DeviceStatus } from '../types/device';
 
 interface DeviceCardGridProps {
@@ -9,6 +25,7 @@ interface DeviceCardGridProps {
   onOpenTerm: (device: Device) => void;
   onQuickTransfer: (device: Device) => void;
   onDeleteDevice: (device: Device) => void;
+  onOpenAudit?: (device: Device) => void;
 }
 
 export const DeviceCardGrid: React.FC<DeviceCardGridProps> = ({
@@ -18,6 +35,7 @@ export const DeviceCardGrid: React.FC<DeviceCardGridProps> = ({
   onOpenTerm,
   onQuickTransfer,
   onDeleteDevice,
+  onOpenAudit,
 }) => {
   if (devices.length === 0) {
     return (
@@ -146,18 +164,47 @@ export const DeviceCardGrid: React.FC<DeviceCardGridProps> = ({
                   <Calendar className="w-4 h-4 text-zinc-400 shrink-0" />
                   <span>Aquisição: <strong className="text-zinc-800 font-mono-nums">{device.acquisitionDate}</strong></span>
                 </div>
+
+                {/* Status do Checkup de Auditoria */}
+                {device.auditInfo?.status === 'OK' ? (
+                  <div className="flex items-center gap-1.5 text-xs text-emerald-800 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>Checkup: <strong>100% OK</strong> ({device.auditInfo.lastAuditedAt?.split(' às')[0]})</span>
+                  </div>
+                ) : device.auditInfo?.status === 'COM_PENDENCIA' ? (
+                  <div className="flex items-start gap-1.5 text-xs text-red-900 bg-red-50 px-2 py-1 rounded-lg border border-red-200">
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold">Checkup: Faltando {device.auditInfo.missingAccessories?.length} item(ns)</span>
+                      <span className="block text-[10px] text-red-700">{device.auditInfo.missingAccessories?.join(', ')}</span>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
 
             {/* Bottom Actions */}
             <div className="pt-3 border-t border-zinc-100 flex items-center justify-between text-xs">
-              <button
-                onClick={() => onViewDetails(device)}
-                className="text-red-600 hover:text-red-800 font-bold inline-flex items-center gap-1 cursor-pointer"
-              >
-                <Eye className="w-3.5 h-3.5" />
-                <span>Ver Ficha</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => onViewDetails(device)}
+                  className="text-red-600 hover:text-red-800 font-bold inline-flex items-center gap-1 cursor-pointer"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Ver Ficha</span>
+                </button>
+
+                {onOpenAudit && (
+                  <button
+                    onClick={() => onOpenAudit(device)}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg cursor-pointer"
+                    title="Realizar Checkup de Auditoria"
+                  >
+                    <ClipboardCheck className="w-3 h-3 text-red-600" />
+                    <span>Checkup</span>
+                  </button>
+                )}
+              </div>
 
               <div className="flex items-center gap-1">
                 <button

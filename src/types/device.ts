@@ -38,6 +38,21 @@ export interface DeviceOccurrence {
   attachmentData?: string; // Base64 ou URL de prévia
 }
 
+export type AuditStatus = 'OK' | 'COM_PENDENCIA' | 'NAO_AUDITADO';
+
+export interface DeviceAuditInfo {
+  status: AuditStatus;
+  lastAuditedAt: string; // Ex: "02/10/2026 14:30"
+  auditedBy: string; // Ex: "Mateus (Auditor T.I.)"
+  verifiedAccessories: string[]; // Itens que foram conferidos e estão presentes
+  missingAccessories: string[]; // Itens que deveriam ter sido entregues mas estão ausentes/faltando
+  screenOk: boolean; // Tela sem trincas ou defeitos
+  batteryOk: boolean; // Bateria operando normalmente
+  chargerOk?: boolean; // Carregador original presente e testado
+  conditionVerified: DeviceCondition;
+  auditNotes?: string; // Observações da auditoria
+}
+
 export interface Device {
   id: string;
   store: 'LOJA ACARAÚ' | 'LOJA PRÉA' | string;
@@ -64,6 +79,9 @@ export interface Device {
   // Aparelho Pessoal do Colaborador (Uso de chip/aplicativos da empresa em celular próprio)
   isPersonalDevice?: boolean;
   
+  // Controle de Auditoria & Checkup de Itens
+  auditInfo?: DeviceAuditInfo;
+
   // Fichário de Histórico e Ocorrências (Manutenção, Troca, Perda, Entrega)
   occurrences: DeviceOccurrence[];
   
