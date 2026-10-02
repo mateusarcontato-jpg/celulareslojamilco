@@ -55,6 +55,7 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
   const [missingItems, setMissingItems] = useState<string[]>([]);
   const [screenOk, setScreenOk] = useState<boolean>(true);
   const [batteryOk, setBatteryOk] = useState<boolean>(true);
+  const [peliculaStatus, setPeliculaStatus] = useState<'COM_PELICULA_OK' | 'PELICULA_TRINCADA' | 'SEM_PELICULA'>('COM_PELICULA_OK');
   const [condition, setCondition] = useState<DeviceCondition>(device.condition || 'BOM');
   const [auditNotes, setAuditNotes] = useState<string>('');
   const [auditorName, setAuditorName] = useState<string>(currentAuditorName);
@@ -75,6 +76,11 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
       setMissingItems(device.auditInfo.missingAccessories || []);
       setScreenOk(device.auditInfo.screenOk !== false);
       setBatteryOk(device.auditInfo.batteryOk !== false);
+      setPeliculaStatus(device.auditInfo.peliculaStatus || (
+        device.auditInfo.missingAccessories?.some(i => i.toLowerCase().includes('película') || i.toLowerCase().includes('pelicula'))
+          ? 'SEM_PELICULA'
+          : 'COM_PELICULA_OK'
+      ));
       setCondition(device.auditInfo.conditionVerified || device.condition || 'BOM');
       setAuditNotes(device.auditInfo.auditNotes || '');
       setAuditorName(device.auditInfo.auditedBy || currentAuditorName);
@@ -90,6 +96,13 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
       setBatteryOk(
         !((device.notes || '').toLowerCase().includes('bateria') || 
           (device.notes || '').toLowerCase().includes('viciad'))
+      );
+      setPeliculaStatus(
+        (device.notes || '').toLowerCase().includes('sem pelicula') || (device.notes || '').toLowerCase().includes('sem película')
+          ? 'SEM_PELICULA'
+          : (device.notes || '').toLowerCase().includes('pelicula trincad') || (device.notes || '').toLowerCase().includes('película trincad')
+            ? 'PELICULA_TRINCADA'
+            : 'COM_PELICULA_OK'
       );
       setCondition(device.condition || 'BOM');
       setAuditNotes('');
@@ -107,9 +120,31 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
     }
   };
 
+  const handlePeliculaChange = (newStatus: 'COM_PELICULA_OK' | 'PELICULA_TRINCADA' | 'SEM_PELICULA') => {
+    setPeliculaStatus(newStatus);
+    const peliculaItemName = expectedItems.find(i => i.toLowerCase().includes('película') || i.toLowerCase().includes('pelicula')) || 'Película de Vidro';
+
+    if (newStatus === 'SEM_PELICULA') {
+      // Marca como faltando nos acessórios
+      setMissingItems((prev) => (prev.includes(peliculaItemName) ? prev : [...prev, peliculaItemName]));
+      setVerifiedItems((prev) => prev.filter((i) => i !== peliculaItemName));
+    } else {
+      // Película presente (ou trincada precisando de troca)
+      setVerifiedItems((prev) => (prev.includes(peliculaItemName) ? prev : [...prev, peliculaItemName]));
+      setMissingItems((prev) => prev.filter((i) => i !== peliculaItemName));
+      if (newStatus === 'PELICULA_TRINCADA') {
+        setAuditNotes((prev) => {
+          if (prev.includes('Película trincada')) return prev;
+          return prev ? `${prev}. Película trincada (necessita troca, tela intacta).` : 'Película de proteção trincada (necessita troca, tela intacta).';
+        });
+      }
+    }
+  };
+
   const markAllAsVerified = () => {
     setVerifiedItems([...expectedItems]);
     setMissingItems([]);
+    setPeliculaStatus('COM_PELICULA_OK');
   };
 
   const handleAddNewItem = () => {
@@ -125,7 +160,7 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
   const handleSave = (forcedStatus?: 'OK' | 'COM_PENDENCIA') => {
     const isOk = forcedStatus 
       ? forcedStatus === 'OK' 
-      : (missingItems.length === 0 && screenOk && batteryOk && condition !== 'TELA TRINCADA' && condition !== 'EM REPARO');
+      : (missingItems.length === 0 && screenOk && batteryOk && peliculaStatus !== 'SEM_PELICULA' && condition !== 'TELA TRINCADA' && condition !== 'EM REPARO');
 
     const nowStr = new Date().toLocaleDateString('pt-BR') + ' às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
@@ -137,6 +172,7 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
       missingAccessories: missingItems,
       screenOk,
       batteryOk,
+      peliculaStatus,
       chargerOk: verifiedItems.some((i) => i.toLowerCase().includes('carregador')),
       conditionVerified: condition,
       auditNotes: auditNotes.trim()
@@ -145,7 +181,8 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
     // Build occurrence history description
     const statusText = isOk ? '100% CONFORME (Tudo OK)' : `PENDÊNCIA APONTADA (Faltando ${missingItems.length} item(ns))`;
     const missingDesc = missingItems.length > 0 ? `\nItens Ausentes: ${missingItems.join(', ')}.` : '';
-    const physicalDesc = `\nEstado: ${condition} | Tela: ${screenOk ? 'OK' : 'Trincada/Defeito'} | Bateria: ${batteryOk ? 'OK' : 'Defeito/Viciada'}.`;
+    const peliculaDesc = peliculaStatus === 'COM_PELICULA_OK' ? 'Com Película Íntegra' : peliculaStatus === 'PELICULA_TRINCADA' ? 'Película Trincada' : 'Sem Película';
+    const physicalDesc = `\nEstado: ${condition} | Tela: ${screenOk ? 'OK' : 'Trincada/Defeito'} | Película: ${peliculaDesc} | Bateria: ${batteryOk ? 'OK' : 'Defeito/Viciada'}.`;
     const notesDesc = auditNotes.trim() ? `\nObs: "${auditNotes.trim()}"` : '';
 
     const newOccurrence: DeviceOccurrence = {
@@ -373,26 +410,26 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
             )}
           </div>
 
-          {/* SEÇÃO 2: ESTADO FÍSICO, TELA E BATERIA */}
+          {/* SEÇÃO 2: ESTADO FÍSICO, TELA, PELÍCULA E BATERIA */}
           <div className="border border-zinc-200 rounded-xl p-4 bg-zinc-50/70 space-y-3">
             <div className="flex items-center gap-2 border-b border-zinc-200 pb-2">
               <span className="w-5 h-5 rounded bg-red-100 text-red-700 font-bold flex items-center justify-center text-xs">
                 2
               </span>
               <span className="font-bold text-zinc-950 uppercase tracking-wide">
-                Condição Física, Tela & Bateria
+                Condição Física, Tela, Película & Bateria
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Tela */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* 1. Tela / Vidro */}
               <div className={`p-3 rounded-xl border ${screenOk ? 'bg-white border-zinc-200' : 'bg-red-50 border-red-300'}`}>
-                <span className="font-bold text-zinc-900 block mb-1.5">Estado da Tela / Vidro:</span>
-                <div className="flex items-center gap-2">
+                <span className="font-bold text-zinc-900 block mb-1.5 text-xs">Estado da Tela / Vidro:</span>
+                <div className="flex flex-col gap-1.5">
                   <button
                     type="button"
                     onClick={() => setScreenOk(true)}
-                    className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                    className={`py-1.5 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
                       screenOk ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs' : 'bg-zinc-100 text-zinc-700 border-zinc-200'
                     }`}
                   >
@@ -404,7 +441,7 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
                       setScreenOk(false);
                       setCondition('TELA TRINCADA');
                     }}
-                    className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                    className={`py-1.5 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
                       !screenOk ? 'bg-red-600 text-white border-red-600 shadow-2xs' : 'bg-zinc-100 text-zinc-700 border-zinc-200'
                     }`}
                   >
@@ -413,14 +450,76 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
                 </div>
               </div>
 
-              {/* Bateria & Conector */}
+              {/* 2. Película Protetora (NOVO) */}
+              <div className={`p-3 rounded-xl border ${
+                peliculaStatus === 'COM_PELICULA_OK'
+                  ? 'bg-white border-zinc-200'
+                  : peliculaStatus === 'PELICULA_TRINCADA'
+                    ? 'bg-amber-50 border-amber-300'
+                    : 'bg-red-50 border-red-300'
+              }`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="font-bold text-zinc-900 text-xs">Película de Proteção:</span>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
+                    peliculaStatus === 'COM_PELICULA_OK' 
+                      ? 'bg-emerald-100 text-emerald-900' 
+                      : peliculaStatus === 'PELICULA_TRINCADA'
+                        ? 'bg-amber-100 text-amber-900'
+                        : 'bg-red-100 text-red-900'
+                  }`}>
+                    {peliculaStatus === 'COM_PELICULA_OK' ? 'OK' : peliculaStatus === 'PELICULA_TRINCADA' ? 'Trocar' : 'Falta'}
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handlePeliculaChange('COM_PELICULA_OK')}
+                    className={`py-1 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
+                      peliculaStatus === 'COM_PELICULA_OK'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                        : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200'
+                    }`}
+                  >
+                    ✓ Com Película (Íntegra)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handlePeliculaChange('PELICULA_TRINCADA')}
+                    className={`py-1 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
+                      peliculaStatus === 'PELICULA_TRINCADA'
+                        ? 'bg-amber-600 text-white border-amber-600 shadow-2xs'
+                        : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200'
+                    }`}
+                    title="A película está trincada/riscada, mas a tela original do aparelho está boa"
+                  >
+                    ⚠️ Película Trincada
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handlePeliculaChange('SEM_PELICULA')}
+                    className={`py-1 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
+                      peliculaStatus === 'SEM_PELICULA'
+                        ? 'bg-red-600 text-white border-red-600 shadow-2xs'
+                        : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200'
+                    }`}
+                    title="Aparelho está sem película de proteção"
+                  >
+                    ❌ Sem Película (Falta)
+                  </button>
+                </div>
+              </div>
+
+              {/* 3. Bateria & Conector */}
               <div className={`p-3 rounded-xl border ${batteryOk ? 'bg-white border-zinc-200' : 'bg-orange-50 border-orange-300'}`}>
-                <span className="font-bold text-zinc-900 block mb-1.5">Bateria & Conector de Carga:</span>
-                <div className="flex items-center gap-2">
+                <span className="font-bold text-zinc-900 block mb-1.5 text-xs">Bateria & Conector:</span>
+                <div className="flex flex-col gap-1.5">
                   <button
                     type="button"
                     onClick={() => setBatteryOk(true)}
-                    className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                    className={`py-1.5 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
                       batteryOk ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs' : 'bg-zinc-100 text-zinc-700 border-zinc-200'
                     }`}
                   >
@@ -429,7 +528,7 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setBatteryOk(false)}
-                    className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                    className={`py-1.5 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
                       !batteryOk ? 'bg-orange-600 text-white border-orange-600 shadow-2xs' : 'bg-zinc-100 text-zinc-700 border-zinc-200'
                     }`}
                   >
@@ -504,6 +603,24 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
                   className="px-2 py-0.5 bg-emerald-100 text-emerald-950 rounded hover:bg-emerald-200 font-semibold cursor-pointer"
                 >
                   + Tudo Perfeito
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handlePeliculaChange('PELICULA_TRINCADA');
+                  }}
+                  className="px-2 py-0.5 bg-amber-100 text-amber-950 rounded hover:bg-amber-200 font-semibold cursor-pointer"
+                >
+                  + Trocar Película
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handlePeliculaChange('SEM_PELICULA');
+                  }}
+                  className="px-2 py-0.5 bg-red-100 text-red-950 rounded hover:bg-red-200 font-semibold cursor-pointer"
+                >
+                  + Sem Película
                 </button>
                 <button
                   type="button"

@@ -195,7 +195,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
               ✓ Todos os itens entregues estão presentes e conferidos
             </p>
             <p className="text-[8.5px] text-emerald-800 leading-tight">
-              ✓ Tela íntegra sem trincas · Bateria operando normalmente · Estado: <strong>{d.condition || 'BOM'}</strong>
+              ✓ Tela íntegra sem trincas · Película aplicada (OK) · Bateria normal · Estado: <strong>{d.condition || 'BOM'}</strong>
             </p>
 
             {d.auditInfo?.lastAuditedAt && (
@@ -230,6 +230,13 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
             {isScreenDefect && (
               <div className="mt-1 p-1 bg-red-200/80 border border-red-400 rounded text-[9.5px] text-red-950 font-black">
                 🔨 TELA QUEBRADA / TRINCADA
+              </div>
+            )}
+
+            {/* Película Trincada */}
+            {d.auditInfo?.peliculaStatus === 'PELICULA_TRINCADA' && (
+              <div className="mt-1 p-1 bg-amber-200/90 border border-amber-400 rounded text-[9.5px] text-amber-950 font-black">
+                ⚠️ PELÍCULA DE PROTEÇÃO TRINCADA (Necessita substituição)
               </div>
             )}
 

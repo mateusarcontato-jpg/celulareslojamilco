@@ -50,6 +50,7 @@ export interface DeviceAuditInfo {
   screenOk: boolean; // Tela sem trincas ou defeitos
   batteryOk: boolean; // Bateria operando normalmente
   chargerOk?: boolean; // Carregador original presente e testado
+  peliculaStatus?: 'COM_PELICULA_OK' | 'PELICULA_TRINCADA' | 'SEM_PELICULA';
   conditionVerified: DeviceCondition;
   auditNotes?: string; // Observações da auditoria
 }
