@@ -38,7 +38,8 @@ const COMMON_ACCESSORIES_LIST = [
 ];
 
 const CONDITION_PRESETS = [
-  { id: 'TELA_QUEBRADA', label: 'Tela Quebrada / Trincada', icon: '🔨', color: 'border-red-500 bg-red-50 text-red-900' },
+  { id: 'TELA_QUEBRADA', label: 'Tela Quebrada (Display)', icon: '🔨', color: 'border-red-500 bg-red-50 text-red-900' },
+  { id: 'PELICULA_TRINCADA', label: 'Película Trincada (Tela OK)', icon: '⚠️', color: 'border-amber-500 bg-amber-50 text-amber-950' },
   { id: 'COM_AVARIAS', label: 'Com Avarias / Desgaste', icon: '⚠️', color: 'border-amber-500 bg-amber-50 text-amber-900' },
   { id: 'BATERIA_DEFEITO', label: 'Bateria / Conector de Carga', icon: '🔋', color: 'border-orange-500 bg-orange-50 text-orange-900' },
   { id: 'EM_REPARO', label: 'Em Reparo / Manutenção', icon: '🛠️', color: 'border-blue-500 bg-blue-50 text-blue-900' },

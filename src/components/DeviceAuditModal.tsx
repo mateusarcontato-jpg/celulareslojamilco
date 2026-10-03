@@ -76,16 +76,21 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
       setVerifiedItems(device.auditInfo.verifiedAccessories || []);
       setMissingItems(device.auditInfo.missingAccessories || []);
       setDamagedAccessories(device.auditInfo.damagedAccessories || []);
-      setScreenOk(device.auditInfo.screenOk !== false);
+      const initialScreenOk = device.auditInfo.screenOk !== false;
+      setScreenOk(initialScreenOk);
       setBatteryOk(device.auditInfo.batteryOk !== false);
-      setPeliculaStatus(device.auditInfo.peliculaStatus || (
+      const initialPelicula = device.auditInfo.peliculaStatus || (
         device.auditInfo.missingAccessories?.some(i => i.toLowerCase().includes('película') || i.toLowerCase().includes('pelicula'))
           ? 'SEM_PELICULA'
           : device.auditInfo.damagedAccessories?.some(i => i.toLowerCase().includes('película') || i.toLowerCase().includes('pelicula'))
             ? 'PELICULA_TRINCADA'
             : 'COM_PELICULA_OK'
-      ));
-      setCondition(device.auditInfo.conditionVerified || device.condition || 'BOM');
+      );
+      setPeliculaStatus(initialPelicula);
+
+      // Se a tela original estiver íntegra (initialScreenOk === true), a condição física NUNCA deve ser TELA TRINCADA
+      const baseCond = device.auditInfo.conditionVerified || device.condition || 'BOM';
+      setCondition(initialScreenOk && baseCond === 'TELA TRINCADA' ? 'BOM' : baseCond);
       setAuditNotes(device.auditInfo.auditNotes || '');
       setAuditorName(device.auditInfo.auditedBy || currentAuditorName);
     } else {
@@ -93,23 +98,31 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
       setVerifiedItems([...initialExpected]);
       setMissingItems([]);
       setDamagedAccessories([]);
-      setScreenOk(
-        !((device.condition || '').toUpperCase().includes('TRINC') || 
-          (device.condition || '').toUpperCase().includes('QUEBRAD') ||
-          (device.notes || '').toLowerCase().includes('tela'))
-      );
+      
+      // Separar completamente tela quebrada de película trincada
+      const notesLower = (device.notes || '').toLowerCase();
+      const occText = (device.occurrences || []).map(o => `${o.title} ${o.description}`).join(' ').toLowerCase();
+
+      const isPeliculaMention = notesLower.includes('pelicula trincad') || notesLower.includes('película trincad') ||
+        occText.includes('película trincad') || occText.includes('pelicula trincad');
+      const hasExplicitScreenDamage = notesLower.includes('tela quebrada') || notesLower.includes('tela trincada') || notesLower.includes('display quebrado') ||
+        occText.includes('tela quebrada') || occText.includes('tela trincada') || occText.includes('display quebrado');
+
+      // Se for apenas menção a película e não tiver dano real comprovado na tela
+      const isActualScreenBroken = hasExplicitScreenDamage || (device.condition === 'TELA TRINCADA' && !isPeliculaMention);
+
+      setScreenOk(!isActualScreenBroken);
       setBatteryOk(
-        !((device.notes || '').toLowerCase().includes('bateria') || 
-          (device.notes || '').toLowerCase().includes('viciad'))
+        !(notesLower.includes('bateria') || notesLower.includes('viciad'))
       );
       setPeliculaStatus(
-        (device.notes || '').toLowerCase().includes('sem pelicula') || (device.notes || '').toLowerCase().includes('sem película')
+        notesLower.includes('sem pelicula') || notesLower.includes('sem película')
           ? 'SEM_PELICULA'
-          : (device.notes || '').toLowerCase().includes('pelicula trincad') || (device.notes || '').toLowerCase().includes('película trincad')
+          : isPeliculaMention
             ? 'PELICULA_TRINCADA'
             : 'COM_PELICULA_OK'
       );
-      setCondition(device.condition || 'BOM');
+      setCondition(isActualScreenBroken ? 'TELA TRINCADA' : (device.condition === 'TELA TRINCADA' ? 'BOM' : (device.condition || 'BOM')));
       setAuditNotes('');
       setAuditorName(currentAuditorName);
     }
@@ -154,9 +167,15 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
       setDamagedAccessories((prev) => (prev.includes(peliculaItemName) ? prev : [...prev, peliculaItemName]));
       setVerifiedItems((prev) => (prev.includes(peliculaItemName) ? prev : [...prev, peliculaItemName]));
       setMissingItems((prev) => prev.filter((i) => i !== peliculaItemName));
+      // Película trincada NÃO é tela quebrada: se a tela estiver boa, manter condition como BOM
+      if (condition === 'TELA TRINCADA') {
+        setCondition('BOM');
+      }
       setAuditNotes((prev) => {
-        if (prev.includes('Película trincada')) return prev;
-        return prev ? `${prev}. Película trincada (danificada, requer substituição).` : 'Película de proteção trincada (danificada, requer substituição).';
+        if (prev.includes('Película trincada') || prev.includes('Película de proteção trincada')) return prev;
+        return prev 
+          ? `${prev}. Película de proteção trincada (a tela do celular está íntegra/intacta).` 
+          : 'Película de proteção trincada (a tela original do celular está íntegra/intacta).';
       });
     } else {
       setVerifiedItems((prev) => (prev.includes(peliculaItemName) ? prev : [...prev, peliculaItemName]));
@@ -199,6 +218,11 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
   const handleSave = (forcedStatus?: 'OK' | 'COM_PENDENCIA') => {
     const isOk = forcedStatus ? forcedStatus === 'OK' : !hasDivergence;
 
+    // Se a tela original do aparelho estiver íntegra (screenOk === true), a condição NUNCA pode ser 'TELA TRINCADA'
+    const finalCondition: DeviceCondition = !screenOk 
+      ? 'TELA TRINCADA' 
+      : (condition === 'TELA TRINCADA' ? 'BOM' : condition);
+
     const allDamaged = Array.from(new Set([
       ...damagedAccessories,
       ...(peliculaStatus === 'PELICULA_TRINCADA' ? ['Película de Proteção (Trincada)'] : [])
@@ -217,23 +241,47 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
       batteryOk,
       peliculaStatus,
       chargerOk: verifiedItems.some((i) => i.toLowerCase().includes('carregador')),
-      conditionVerified: condition,
+      conditionVerified: finalCondition,
       auditNotes: auditNotes.trim()
     };
 
-    // Build occurrence history description
-    const statusText = isOk ? '100% CONFORME (Tudo OK)' : `DIVERGÊNCIA APONTADA (Item Ausente ou Danificado)`;
+    // Build occurrence history description com distinção inequívoca
+    let occurrenceTitle = 'CHECKUP DE AUDITORIA: 100% CONFORME (Tudo OK)';
+    if (!isOk) {
+      if (!screenOk && peliculaStatus === 'PELICULA_TRINCADA') {
+        occurrenceTitle = 'CHECKUP: 🔨 TELA DO APARELHO QUEBRADA & ⚠️ PELÍCULA TRINCADA';
+      } else if (!screenOk) {
+        occurrenceTitle = 'CHECKUP: 🔨 TELA DO APARELHO QUEBRADA / TRINCADA';
+      } else if (peliculaStatus === 'PELICULA_TRINCADA') {
+        occurrenceTitle = 'CHECKUP: ⚠️ PELÍCULA DE PROTEÇÃO TRINCADA (Tela Original Íntegra)';
+      } else if (missingItems.length > 0) {
+        occurrenceTitle = `CHECKUP: ❌ ITENS FALTANDO (${missingItems.join(', ')})`;
+      } else if (allDamaged.length > 0) {
+        occurrenceTitle = `CHECKUP: ⚠️ ACESSÓRIO DANIFICADO (${allDamaged.join(', ')})`;
+      } else {
+        occurrenceTitle = 'CHECKUP: ⚠️ DIVERGÊNCIA APONTADA';
+      }
+    }
+
     const missingDesc = missingItems.length > 0 ? `\nItens Ausentes: ${missingItems.join(', ')}.` : '';
-    const damagedDesc = allDamaged.length > 0 ? `\nItens/Acessórios Danificados: ${allDamaged.join(', ')}.` : '';
-    const peliculaDesc = peliculaStatus === 'COM_PELICULA_OK' ? 'Com Película Íntegra' : peliculaStatus === 'PELICULA_TRINCADA' ? 'Película Trincada (Danificada)' : 'Sem Película';
-    const physicalDesc = `\nEstado: ${condition} | Tela: ${screenOk ? 'OK' : 'Trincada/Defeito'} | Película: ${peliculaDesc} | Bateria: ${batteryOk ? 'OK' : 'Defeito/Viciada'}.`;
+    const damagedDesc = allDamaged.length > 0 ? `\nAcessórios Danificados: ${allDamaged.join(', ')}.` : '';
+    const telaDesc = screenOk 
+      ? 'Tela Original do Aparelho: ÍNTEGRA / SEM TRINCA' 
+      : '🚨 TELA DO APARELHO QUEBRADA/TRINCADA (Dano no Display/Vidro)';
+    const peliculaDesc = peliculaStatus === 'COM_PELICULA_OK' 
+      ? 'Película: Íntegra e Aplicada' 
+      : peliculaStatus === 'PELICULA_TRINCADA' 
+        ? '⚠️ PELÍCULA DE PROTEÇÃO TRINCADA (Necessita substituição · Tela do aparelho está íntegra)' 
+        : '❌ SEM PELÍCULA (Aparelho desprotegido)';
+
+    const physicalDesc = `\nEstado Geral: ${finalCondition} | ${telaDesc} | ${peliculaDesc} | Bateria: ${batteryOk ? 'OK' : 'Defeito/Viciada'}.`;
     const notesDesc = auditNotes.trim() ? `\nObs: "${auditNotes.trim()}"` : '';
 
     const newOccurrence: DeviceOccurrence = {
       id: `occ-audit-${Date.now()}`,
       date: new Date().toLocaleDateString('pt-BR'),
       type: 'AUDITORIA',
-      title: `CHECKUP DE AUDITORIA: ${statusText}`,
+      title: occurrenceTitle,
       description: `Auditoria presencial realizada por ${auditorName.trim() || 'Auditor T.I.'}.${missingDesc}${damagedDesc}${physicalDesc}${notesDesc}`,
       recordedBy: auditorName.trim() || 'Auditor T.I.'
     };
@@ -241,7 +289,7 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
     // Update condition on device if changed
     const updatedDevice: Device = {
       ...device,
-      condition,
+      condition: finalCondition,
       auditInfo,
       occurrences: [newOccurrence, ...(device.occurrences || [])],
       updatedAt: new Date().toISOString()
@@ -307,27 +355,55 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
         {/* Modal Scrollable Body */}
         <div className="p-5 overflow-y-auto space-y-5 text-xs text-zinc-900 leading-relaxed font-sans">
 
-          {/* Status Geral Atual */}
-          <div className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 ${
+          {/* Status Geral Atual / Diagnóstico */}
+          <div className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
             isAuditCurrentlyOk
               ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
               : 'bg-red-50 border-red-300 text-red-950'
           }`}>
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-start gap-2.5">
               {isAuditCurrentlyOk ? (
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
               ) : (
-                <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+                <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
               )}
               <div>
                 <h4 className="font-bold uppercase tracking-wider text-xs">
                   {isAuditCurrentlyOk ? 'Diagnóstico: 100% Conforme (Tudo OK)' : 'Diagnóstico: Divergência Constatada'}
                 </h4>
-                <p className="text-[11px] mt-0.5">
-                  {isAuditCurrentlyOk 
-                    ? 'Todos os itens entregues estão presentes e nenhum acessório ou tela possui avarias.' 
-                    : `Atenção: Constatada divergência (item ausente, película trincada ou acessório danificado).`}
-                </p>
+                {isAuditCurrentlyOk ? (
+                  <p className="text-[11px] mt-0.5 text-emerald-900">
+                    ✓ Todos os itens entregues presentes · Tela íntegra · Película OK · Sem avarias.
+                  </p>
+                ) : (
+                  <div className="mt-1 flex flex-wrap gap-1 items-center">
+                    {!screenOk && (
+                      <span className="inline-block px-2 py-0.5 rounded bg-red-600 text-white font-black text-[9.5px] uppercase shadow-2xs">
+                        🔨 TELA DO APARELHO QUEBRADA (Dano no Display)
+                      </span>
+                    )}
+                    {peliculaStatus === 'PELICULA_TRINCADA' && (
+                      <span className="inline-block px-2 py-0.5 rounded bg-amber-100 border border-amber-500 text-amber-950 font-black text-[9.5px] uppercase">
+                        ⚠️ PELÍCULA TRINCADA (Necessita troca · Tela do aparelho está {screenOk ? 'ÍNTEGRA' : 'QUEBRADA'})
+                      </span>
+                    )}
+                    {peliculaStatus === 'SEM_PELICULA' && (
+                      <span className="inline-block px-2 py-0.5 rounded bg-red-100 border border-red-400 text-red-950 font-bold text-[9.5px] uppercase">
+                        ❌ SEM PELÍCULA PROTETORA
+                      </span>
+                    )}
+                    {missingItems.length > 0 && (
+                      <span className="inline-block px-2 py-0.5 rounded bg-red-100 border border-red-400 text-red-950 font-bold text-[9.5px]">
+                        ❌ Faltando: {missingItems.join(', ')}
+                      </span>
+                    )}
+                    {damagedAccessories.filter(a => !a.toLowerCase().includes('película') && !a.toLowerCase().includes('pelicula')).length > 0 && (
+                      <span className="inline-block px-2 py-0.5 rounded bg-amber-100 border border-amber-400 text-amber-950 font-bold text-[9.5px]">
+                        ⚠️ Avaria: {damagedAccessories.filter(a => !a.toLowerCase().includes('película') && !a.toLowerCase().includes('pelicula')).join(', ')}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -511,52 +587,82 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {/* 1. Tela / Vidro */}
-              <div className={`p-3 rounded-xl border ${screenOk ? 'bg-white border-zinc-200' : 'bg-red-50 border-red-300'}`}>
-                <span className="font-bold text-zinc-900 block mb-1.5 text-xs">Estado da Tela / Vidro:</span>
+              {/* 1. Tela / Vidro do Aparelho */}
+              <div className={`p-3 rounded-xl border flex flex-col justify-between ${screenOk ? 'bg-white border-zinc-200' : 'bg-red-50 border-red-300'}`}>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-bold text-zinc-900 text-xs">Tela / Display do Celular:</span>
+                    <span className={`text-[10px] font-black px-1.5 py-0.2 rounded uppercase ${
+                      screenOk ? 'bg-emerald-100 text-emerald-950' : 'bg-red-600 text-white shadow-2xs'
+                    }`}>
+                      {screenOk ? 'Íntegra' : 'Quebrada'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-zinc-500 block mb-2 leading-tight">
+                    Vidro e touch original do celular. Se for apenas a película trincada, marque como ÍNTEGRA.
+                  </span>
+                </div>
+
                 <div className="flex flex-col gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setScreenOk(true)}
+                    onClick={() => {
+                      setScreenOk(true);
+                      if (condition === 'TELA TRINCADA') {
+                        setCondition('BOM');
+                      }
+                      setAuditNotes((prev) => prev.replace(/\.?\s*Tela do aparelho quebrada\/trincada[^\.]*/i, ''));
+                    }}
                     className={`py-1.5 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
-                      screenOk ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs' : 'bg-zinc-100 text-zinc-700 border-zinc-200'
+                      screenOk ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs' : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200'
                     }`}
                   >
-                    ✓ Íntegra / Sem Trinca
+                    ✓ Tela Íntegra (Display OK)
                   </button>
                   <button
                     type="button"
                     onClick={() => {
                       setScreenOk(false);
                       setCondition('TELA TRINCADA');
+                      setAuditNotes((prev) => {
+                        if (prev.includes('Tela do aparelho quebrada') || prev.includes('Tela quebrada')) return prev;
+                        return prev 
+                          ? `${prev}. Tela do aparelho quebrada/trincada (dano físico no display/vidro).`
+                          : 'Tela do aparelho quebrada/trincada (dano físico no display/vidro).';
+                      });
                     }}
                     className={`py-1.5 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
-                      !screenOk ? 'bg-red-600 text-white border-red-600 shadow-2xs' : 'bg-zinc-100 text-zinc-700 border-zinc-200'
+                      !screenOk ? 'bg-red-600 text-white border-red-600 shadow-2xs' : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200'
                     }`}
                   >
-                    🔨 Trincada / Quebrada
+                    🔨 Tela Quebrada (Display/Vidro)
                   </button>
                 </div>
               </div>
 
-              {/* 2. Película Protetora (NOVO) */}
-              <div className={`p-3 rounded-xl border ${
+              {/* 2. Película Protetora */}
+              <div className={`p-3 rounded-xl border flex flex-col justify-between ${
                 peliculaStatus === 'COM_PELICULA_OK'
                   ? 'bg-white border-zinc-200'
                   : peliculaStatus === 'PELICULA_TRINCADA'
                     ? 'bg-amber-50 border-amber-300'
                     : 'bg-red-50 border-red-300'
               }`}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="font-bold text-zinc-900 text-xs">Película de Proteção:</span>
-                  <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
-                    peliculaStatus === 'COM_PELICULA_OK' 
-                      ? 'bg-emerald-100 text-emerald-900' 
-                      : peliculaStatus === 'PELICULA_TRINCADA'
-                        ? 'bg-amber-100 text-amber-900'
-                        : 'bg-red-100 text-red-900'
-                  }`}>
-                    {peliculaStatus === 'COM_PELICULA_OK' ? 'OK' : peliculaStatus === 'PELICULA_TRINCADA' ? 'Trocar' : 'Falta'}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-bold text-zinc-900 text-xs">Película de Proteção:</span>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded uppercase ${
+                      peliculaStatus === 'COM_PELICULA_OK' 
+                        ? 'bg-emerald-100 text-emerald-900' 
+                        : peliculaStatus === 'PELICULA_TRINCADA'
+                          ? 'bg-amber-100 text-amber-950 font-black'
+                          : 'bg-red-100 text-red-900'
+                    }`}>
+                      {peliculaStatus === 'COM_PELICULA_OK' ? 'OK' : peliculaStatus === 'PELICULA_TRINCADA' ? '⚠️ Trincada' : 'Falta'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-zinc-500 block mb-2 leading-tight">
+                    Película protetora aplicada. Película trincada é divergência de acessório, mas a tela original permanece boa.
                   </span>
                 </div>
 
@@ -570,7 +676,7 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
                         : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200'
                     }`}
                   >
-                    ✓ Com Película (Íntegra)
+                    ✓ Película Íntegra (OK)
                   </button>
 
                   <button
@@ -583,7 +689,7 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
                     }`}
                     title="A película está trincada/riscada, mas a tela original do aparelho está boa"
                   >
-                    ⚠️ Película Trincada
+                    ⚠️ Película Trincada (Trocar)
                   </button>
 
                   <button
@@ -698,9 +804,23 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
                   onClick={() => {
                     handlePeliculaChange('PELICULA_TRINCADA');
                   }}
-                  className="px-2 py-0.5 bg-amber-100 text-amber-950 rounded hover:bg-amber-200 font-semibold cursor-pointer"
+                  className="px-2 py-0.5 bg-amber-100 text-amber-950 rounded hover:bg-amber-200 font-bold border border-amber-300 cursor-pointer"
                 >
-                  + Trocar Película
+                  + Película Trincada (Tela OK)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScreenOk(false);
+                    setCondition('TELA TRINCADA');
+                    setAuditNotes((prev) => {
+                      if (prev.includes('Tela do aparelho quebrada') || prev.includes('Tela quebrada')) return prev;
+                      return prev ? `${prev}. Tela do aparelho quebrada/trincada (dano físico no display/vidro).` : 'Tela do aparelho quebrada/trincada (dano físico no display/vidro).';
+                    });
+                  }}
+                  className="px-2 py-0.5 bg-red-100 text-red-950 rounded hover:bg-red-200 font-bold border border-red-300 cursor-pointer"
+                >
+                  + Tela Quebrada (Display)
                 </button>
                 <button
                   type="button"

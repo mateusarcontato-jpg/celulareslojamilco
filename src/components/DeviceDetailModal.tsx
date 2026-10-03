@@ -22,6 +22,7 @@ interface DeviceDetailModalProps {
   onOpenTerm: (device: Device) => void;
   onQuickTransfer: (device: Device) => void;
   onOpenAudit?: (device: Device) => void;
+  onDeleteOccurrence?: (deviceId: string, occurrenceId: string) => void;
 }
 
 export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
@@ -31,6 +32,7 @@ export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
   onOpenTerm,
   onQuickTransfer,
   onOpenAudit,
+  onDeleteOccurrence,
 }) => {
   if (!device) return null;
 
@@ -137,10 +139,33 @@ export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                   )}
                 </div>
 
-                {device.auditInfo?.status === 'COM_PENDENCIA' && device.auditInfo.missingAccessories && device.auditInfo.missingAccessories.length > 0 && (
-                  <p className="text-red-800 text-xs mt-1 font-bold">
-                    ⚠️ Itens Faltando: {device.auditInfo.missingAccessories.join(', ')}
-                  </p>
+                {device.auditInfo?.status === 'COM_PENDENCIA' && (
+                  <div className="space-y-1 mt-1.5">
+                    {device.auditInfo.screenOk === false && (
+                      <p className="text-red-700 text-xs font-black flex items-center gap-1">
+                        <span>🔨 TELA DO APARELHO QUEBRADA:</span>
+                        <span className="font-normal text-red-900">Dano físico no display/vidro do aparelho.</span>
+                      </p>
+                    )}
+                    {device.auditInfo.peliculaStatus === 'PELICULA_TRINCADA' && (
+                      <p className="text-amber-900 text-xs font-bold flex items-center gap-1">
+                        <span>⚠️ PELÍCULA DE PROTEÇÃO TRINCADA:</span>
+                        <span className="font-medium text-amber-950">
+                          Película danificada (a tela original do aparelho está {device.auditInfo.screenOk === false ? 'também quebrada' : 'íntegra/sem danos'}).
+                        </span>
+                      </p>
+                    )}
+                    {device.auditInfo.missingAccessories && device.auditInfo.missingAccessories.length > 0 && (
+                      <p className="text-red-800 text-xs font-bold">
+                        ❌ Itens Faltando: {device.auditInfo.missingAccessories.join(', ')}
+                      </p>
+                    )}
+                    {device.auditInfo.damagedAccessories && device.auditInfo.damagedAccessories.filter(a => !a.toLowerCase().includes('película') && !a.toLowerCase().includes('pelicula')).length > 0 && (
+                      <p className="text-amber-900 text-xs font-semibold">
+                        ⚠️ Outros Danificados: {device.auditInfo.damagedAccessories.filter(a => !a.toLowerCase().includes('película') && !a.toLowerCase().includes('pelicula')).join(', ')}
+                      </p>
+                    )}
+                  </div>
                 )}
 
                 {device.auditInfo?.auditNotes && (
@@ -303,7 +328,23 @@ export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <strong className="text-zinc-950 uppercase text-[11px]">{item.title}</strong>
-                        <span className="text-[10px] text-zinc-500 font-mono">{item.date}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-zinc-500 font-mono">{item.date}</span>
+                          {onDeleteOccurrence && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (window.confirm(`Deseja excluir este registro de histórico/manutenção?\n"${item.title}"`)) {
+                                  onDeleteOccurrence(device.id, item.id || `occ-${idx}`);
+                                }
+                              }}
+                              className="p-1 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                              title="Excluir ocorrência (X)"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <p className="text-zinc-600 text-xs mt-0.5">{item.description}</p>
                     </div>

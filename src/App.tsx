@@ -98,6 +98,7 @@ export default function App() {
   const [auditFilter, setAuditFilter] = useState<'ALL' | 'OK' | 'MISSING' | 'PENDING'>('ALL');
   const [isImportExportOpen, setIsImportExportOpen] = useState(false);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+  const [pdfReportInitialMode, setPdfReportInitialMode] = useState<'INVENTARIO' | 'AUDITORIA'>('INVENTARIO');
   const [isMainAdvancedModalOpen, setIsMainAdvancedModalOpen] = useState(false);
   const [mainAdvancedCriteria, setMainAdvancedCriteria] = useState<AdvancedFilterCriteria>(INITIAL_ADVANCED_FILTERS);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -307,6 +308,43 @@ export default function App() {
     }
   };
 
+  const handleDeleteOccurrence = async (deviceId: string, occurrenceId: string) => {
+    const targetDevice = devices.find((d) => d.id === deviceId);
+    if (!targetDevice) return;
+
+    const updatedOccurrences = (targetDevice.occurrences || []).filter((o, idx) => {
+      return o.id !== occurrenceId && `occ-${idx}` !== occurrenceId;
+    });
+
+    const updatedDevice: Device = {
+      ...targetDevice,
+      occurrences: updatedOccurrences,
+      updatedAt: new Date().toISOString()
+    };
+
+    setDevices((prev) => {
+      const updated = prev.map((d) => (d.id === deviceId ? updatedDevice : d));
+      saveStoredDevices(updated);
+      return updated;
+    });
+
+    if (detailDevice && detailDevice.id === deviceId) {
+      setDetailDevice(updatedDevice);
+    }
+    if (historyDevice && historyDevice.id === deviceId) {
+      setHistoryDevice(updatedDevice);
+    }
+
+    try {
+      await saveDeviceToFirestore(updatedDevice);
+      setIsFirebaseConnected(true);
+      showToast('Registro de histórico/manutenção excluído com sucesso!');
+    } catch (e) {
+      console.error('[App] Erro ao sincronizar exclusão no Firebase:', e);
+      showToast('Registro excluído localmente.');
+    }
+  };
+
   const handleDeleteDevice = async (deviceToDelete: Device) => {
     const confirmMessage = `Tem certeza que deseja remover o celular de ${deviceToDelete.employeeName} (Patrimônio: ${deviceToDelete.assetNumber})?`;
     if (window.confirm(confirmMessage)) {
@@ -447,14 +485,31 @@ export default function App() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2 self-start md:self-auto">
-            {/* Botão de Filtro e Exportação de PDF */}
+          <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+            {/* Botão de Exportação de Inventário Geral */}
             <button
-              onClick={() => setIsPdfModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-zinc-950 hover:bg-zinc-800 border-b-2 border-red-600 rounded-lg shadow-sm transition-colors cursor-pointer"
+              onClick={() => {
+                setPdfReportInitialMode('INVENTARIO');
+                setIsPdfModalOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-zinc-950 hover:bg-zinc-800 border-b-2 border-zinc-700 rounded-lg shadow-sm transition-colors cursor-pointer"
+              title="Exportar inventário patrimonial completo"
             >
-              <FileText className="w-4 h-4 text-red-500" />
-              <span>Exportar Relatório PDF</span>
+              <FileText className="w-4 h-4 text-zinc-400" />
+              <span>Exportar Inventário</span>
+            </button>
+
+            {/* Botão Exclusivo de Exportação de Auditoria */}
+            <button
+              onClick={() => {
+                setPdfReportInitialMode('AUDITORIA');
+                setIsPdfModalOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-red-700 hover:bg-red-800 border-b-2 border-red-500 rounded-lg shadow-sm transition-colors cursor-pointer"
+              title="Exportar exclusivamente o relatório de auditoria e conformidade"
+            >
+              <ClipboardCheck className="w-4 h-4 text-white" />
+              <span>Exportar Auditoria</span>
             </button>
 
             <button
@@ -832,6 +887,7 @@ export default function App() {
         isOpen={Boolean(historyDevice)}
         onClose={() => setHistoryDevice(null)}
         onOpenAddOccurrence={(d) => setOccurrenceDevice(d)}
+        onDeleteOccurrence={handleDeleteOccurrence}
       />
 
       {/* 3. Modal de Anexar Ocorrência (Manutenção / Troca / Perda) */}
@@ -865,6 +921,7 @@ export default function App() {
         devices={devices}
         stores={stores}
         sectors={sectors}
+        initialMode={pdfReportInitialMode}
       />
 
       {/* 7. Modal de Importação e Exportação Excel / Backup */}
@@ -897,6 +954,7 @@ export default function App() {
           setDetailDevice(null);
           setAuditDevice(d);
         }}
+        onDeleteOccurrence={handleDeleteOccurrence}
       />
 
       {/* 9. Janelinha Dedicada: Filtro Avançado de Acessórios & Estado */}

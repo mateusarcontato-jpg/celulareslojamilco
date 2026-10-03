@@ -273,17 +273,60 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                 </span>
               </div>
             ) : device.auditInfo?.status === 'COM_PENDENCIA' ? (
-              <div className="flex flex-col">
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-950 border border-red-300 w-fit">
-                  <AlertTriangle className="w-3 h-3 text-red-600" />
-                  FALTANDO ITENS
-                </span>
-                {device.auditInfo.missingAccessories && device.auditInfo.missingAccessories.length > 0 && (
-                  <span className="text-[9px] text-red-700 font-bold block truncate max-w-[125px]" title={device.auditInfo.missingAccessories.join(', ')}>
-                    Falta: {device.auditInfo.missingAccessories.join(', ')}
-                  </span>
-                )}
-              </div>
+              (() => {
+                const isScreenBroken = device.auditInfo.screenOk === false;
+                const isPeliculaBroken = device.auditInfo.peliculaStatus === 'PELICULA_TRINCADA' ||
+                  Boolean(device.auditInfo.damagedAccessories?.some(a => a.toLowerCase().includes('película') || a.toLowerCase().includes('pelicula')));
+                const missingList = device.auditInfo.missingAccessories || [];
+                const otherDamaged = (device.auditInfo.damagedAccessories || []).filter(
+                  a => !a.toLowerCase().includes('película') && !a.toLowerCase().includes('pelicula')
+                );
+
+                return (
+                  <div className="flex flex-col gap-0.5 max-w-[150px]">
+                    {isScreenBroken ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9.5px] font-black bg-red-600 text-white shadow-xs w-fit uppercase">
+                        🔨 TELA QUEBRADA
+                      </span>
+                    ) : isPeliculaBroken ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9.5px] font-black bg-amber-100 text-amber-950 border border-amber-400 w-fit uppercase">
+                        ⚠️ PELÍCULA TRINCADA
+                      </span>
+                    ) : missingList.length > 0 ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9.5px] font-bold bg-red-100 text-red-950 border border-red-300 w-fit">
+                        ❌ FALTANDO ITENS
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9.5px] font-bold bg-red-100 text-red-950 border border-red-300 w-fit">
+                        <AlertTriangle className="w-3 h-3 text-red-600" />
+                        DIVERGÊNCIA
+                      </span>
+                    )}
+
+                    {/* Subtítulo informativo */}
+                    {isPeliculaBroken && !isScreenBroken && (
+                      <span className="text-[8.5px] text-amber-900 font-semibold leading-tight block">
+                        Película trincada (tela boa)
+                      </span>
+                    )}
+                    {isScreenBroken && (
+                      <span className="text-[8.5px] text-red-700 font-bold leading-tight block">
+                        Display/Vidro danificado
+                      </span>
+                    )}
+                    {missingList.length > 0 && (
+                      <span className="text-[8.5px] text-red-700 font-bold truncate block" title={missingList.join(', ')}>
+                        Falta: {missingList.join(', ')}
+                      </span>
+                    )}
+                    {otherDamaged.length > 0 && (
+                      <span className="text-[8.5px] text-amber-850 font-medium truncate block" title={otherDamaged.join(', ')}>
+                        Avaria: {otherDamaged.join(', ')}
+                      </span>
+                    )}
+                  </div>
+                );
+              })()
             ) : (
               <button
                 type="button"

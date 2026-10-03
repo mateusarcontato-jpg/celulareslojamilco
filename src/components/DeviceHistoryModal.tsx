@@ -24,6 +24,7 @@ interface DeviceHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenAddOccurrence: (device: Device) => void;
+  onDeleteOccurrence?: (deviceId: string, occurrenceId: string) => void;
 }
 
 export const DeviceHistoryModal: React.FC<DeviceHistoryModalProps> = ({
@@ -31,6 +32,7 @@ export const DeviceHistoryModal: React.FC<DeviceHistoryModalProps> = ({
   isOpen,
   onClose,
   onOpenAddOccurrence,
+  onDeleteOccurrence,
 }) => {
   const [filterType, setFilterType] = useState<string>('TODOS');
   const [viewingAttachment, setViewingAttachment] = useState<string | null>(null);
@@ -217,6 +219,21 @@ export const DeviceHistoryModal: React.FC<DeviceHistoryModalProps> = ({
                     <span>{occ.date}</span>
                     <span>·</span>
                     <span className="font-sans">Registrado por: <strong>{occ.recordedBy}</strong></span>
+
+                    {onDeleteOccurrence && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(`Deseja excluir este registro de histórico/manutenção?\n"${occ.title}"`)) {
+                            onDeleteOccurrence(device.id, occ.id || `occ-${idx}`);
+                          }
+                        }}
+                        className="ml-1 p-1 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors cursor-pointer border border-transparent hover:border-red-200"
+                        title="Excluir este histórico/manutenção (X)"
+                      >
+                        <X className="w-3.5 h-3.5 text-zinc-500 hover:text-red-600" />
+                      </button>
+                    )}
                   </div>
                 </div>
 

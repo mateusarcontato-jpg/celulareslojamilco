@@ -172,13 +172,58 @@ export const DeviceCardGrid: React.FC<DeviceCardGridProps> = ({
                     <span>Checkup: <strong>100% OK</strong> ({device.auditInfo.lastAuditedAt?.split(' às')[0]})</span>
                   </div>
                 ) : device.auditInfo?.status === 'COM_PENDENCIA' ? (
-                  <div className="flex items-start gap-1.5 text-xs text-red-900 bg-red-50 px-2 py-1 rounded-lg border border-red-200">
-                    <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-bold">Checkup: Faltando {device.auditInfo.missingAccessories?.length} item(ns)</span>
-                      <span className="block text-[10px] text-red-700">{device.auditInfo.missingAccessories?.join(', ')}</span>
-                    </div>
-                  </div>
+                  (() => {
+                    const isScreenBroken = device.auditInfo.screenOk === false;
+                    const isPeliculaBroken = device.auditInfo.peliculaStatus === 'PELICULA_TRINCADA' ||
+                      Boolean(device.auditInfo.damagedAccessories?.some(a => a.toLowerCase().includes('película') || a.toLowerCase().includes('pelicula')));
+                    const missingCount = device.auditInfo.missingAccessories?.length || 0;
+
+                    return (
+                      <div className={`flex items-start gap-1.5 text-xs px-2 py-1.5 rounded-lg border ${
+                        isScreenBroken
+                          ? 'bg-red-50 text-red-950 border-red-300'
+                          : isPeliculaBroken
+                            ? 'bg-amber-50 text-amber-950 border-amber-300'
+                            : 'bg-red-50 text-red-900 border-red-200'
+                      }`}>
+                        {isScreenBroken ? (
+                          <span className="text-red-600 font-black text-sm shrink-0">🔨</span>
+                        ) : isPeliculaBroken ? (
+                          <span className="text-amber-600 font-black text-sm shrink-0">⚠️</span>
+                        ) : (
+                          <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0 mt-0.5" />
+                        )}
+                        <div>
+                          {isScreenBroken ? (
+                            <>
+                              <span className="font-black text-red-950 block">TELA QUEBRADA (Display danificado)</span>
+                              {isPeliculaBroken && (
+                                <span className="block text-[10px] text-amber-900 font-semibold">Película também trincada</span>
+                              )}
+                            </>
+                          ) : isPeliculaBroken ? (
+                            <>
+                              <span className="font-bold text-amber-950 block">PELÍCULA TRINCADA</span>
+                              <span className="block text-[10px] text-emerald-800 font-semibold">✓ Tela original intacta (trocar película)</span>
+                            </>
+                          ) : missingCount > 0 ? (
+                            <>
+                              <span className="font-bold">Faltando {missingCount} item(ns)</span>
+                              <span className="block text-[10px] text-red-700">{device.auditInfo.missingAccessories?.join(', ')}</span>
+                            </>
+                          ) : (
+                            <span className="font-bold">Divergência Constatada</span>
+                          )}
+
+                          {missingCount > 0 && (isScreenBroken || isPeliculaBroken) && (
+                            <span className="block text-[10px] text-red-700 font-semibold mt-0.5">
+                              + Faltando: {device.auditInfo.missingAccessories?.join(', ')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()
                 ) : null}
               </div>
             </div>

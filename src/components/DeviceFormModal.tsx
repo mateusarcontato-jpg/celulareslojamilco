@@ -524,13 +524,26 @@ export const DeviceFormModal: React.FC<DeviceFormModalProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  const tag = 'Tela trincada';
+                  const tag = 'Película de proteção trincada (tela original intacta)';
+                  setNotes((prev) => (prev ? `${prev}, ${tag}` : tag));
+                  if (condition === 'TELA TRINCADA') {
+                    setCondition('BOM');
+                  }
+                }}
+                className="px-2 py-0.5 rounded-md bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold border border-amber-300 transition-colors cursor-pointer"
+              >
+                + Película Trincada (Tela OK)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const tag = 'Tela do aparelho quebrada/trincada (dano no display)';
                   setNotes((prev) => (prev ? `${prev}, ${tag}` : tag));
                   setCondition('TELA TRINCADA');
                 }}
                 className="px-2 py-0.5 rounded-md bg-red-100 hover:bg-red-200 text-red-900 font-bold border border-red-300 transition-colors cursor-pointer"
               >
-                + Tela Trincada
+                + Tela Quebrada (Display)
               </button>
               <button
                 type="button"

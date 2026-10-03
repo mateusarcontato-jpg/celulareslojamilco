@@ -1,23 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Printer, 
   FileText, 
-  Filter, 
-  Check, 
   Layers, 
-  Building,
-  Shield,
-  SlidersHorizontal,
-  RotateCcw,
-  Sparkles,
-  Plug,
-  Wrench,
-  AlertTriangle
+  Shield, 
+  SlidersHorizontal, 
+  AlertTriangle,
+  ClipboardCheck,
 } from 'lucide-react';
 import { Device, AdvancedFilterCriteria, INITIAL_ADVANCED_FILTERS } from '../types/device';
 import { matchAdvancedCriteria, countActiveAdvancedFilters } from '../utils/filterUtils';
 import { AdvancedFilterModal } from './AdvancedFilterModal';
+
+export type ReportMode = 'INVENTARIO' | 'AUDITORIA';
 
 interface PdfReportModalProps {
   isOpen: boolean;
@@ -25,6 +21,7 @@ interface PdfReportModalProps {
   devices: Device[];
   stores: string[];
   sectors: string[];
+  initialMode?: ReportMode;
 }
 
 export const PdfReportModal: React.FC<PdfReportModalProps> = ({
@@ -33,26 +30,143 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
   devices,
   stores,
   sectors,
+  initialMode = 'INVENTARIO',
 }) => {
+  // Modo de Exportação: Inventário Geral ou Relatório Exclusivo de Auditoria
+  const [reportMode, setReportMode] = useState<ReportMode>(initialMode);
+
+  // Filtros Gerais
   const [selectedStore, setSelectedStore] = useState<string>('TODAS');
   const [selectedSector, setSelectedSector] = useState<string>('TODOS');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [groupBySector, setGroupBySector] = useState<boolean>(true);
-  const [includeOccurrences, setIncludeOccurrences] = useState<boolean>(false);
   const [showAccessoriesColumn, setShowAccessoriesColumn] = useState<boolean>(true);
+
+  // Filtros Específicos para o Relatório de Auditoria
+  const [auditStatusFilter, setAuditStatusFilter] = useState<'TODOS' | 'OK' | 'COM_PENDENCIA' | 'NAO_AUDITADO'>('TODOS');
+  const [auditOnlyDivergent, setAuditOnlyDivergent] = useState<boolean>(false);
 
   // Janelinha de Filtro Avançado de Acessórios & Estado
   const [isAdvancedModalOpen, setIsAdvancedModalOpen] = useState<boolean>(false);
   const [advancedCriteria, setAdvancedCriteria] = useState<AdvancedFilterCriteria>(INITIAL_ADVANCED_FILTERS);
 
+  useEffect(() => {
+    if (initialMode) {
+      setReportMode(initialMode);
+    }
+  }, [initialMode, isOpen]);
+
   if (!isOpen) return null;
 
-  // Filtra aparelhos com base em todos os critérios, incluindo acessórios e estado
+  // Determina se a TELA DO APARELHO está quebrada/trincada (dano real no vidro/display)
+  const isScreenActuallyBroken = (d: Device): boolean => {
+    if (d.auditInfo) {
+      return d.auditInfo.screenOk === false;
+    }
+    const notesLower = (d.notes || '').toLowerCase();
+    const condUpper = (d.condition || '').toUpperCase();
+    const occText = (d.occurrences || []).map(o => `${o.title} ${o.description}`).join(' ').toLowerCase();
+
+    // Não pode acusar tela quebrada se a anotação for apenas sobre película
+    const isPeliculaMention = notesLower.includes('pelicula trincad') || notesLower.includes('película trincad') ||
+      occText.includes('película trincad') || occText.includes('pelicula trincad');
+    const isExplicitScreenDamage = notesLower.includes('tela quebrada') || notesLower.includes('tela trincada') || notesLower.includes('display quebrado') ||
+      occText.includes('tela quebrada') || occText.includes('tela trincada') || occText.includes('display quebrado');
+
+    if (isPeliculaMention && !isExplicitScreenDamage && condUpper !== 'TELA TRINCADA') {
+      return false;
+    }
+    return condUpper === 'TELA TRINCADA' || isExplicitScreenDamage;
+  };
+
+  // Determina se a PELÍCULA DE PROTEÇÃO está trincada/danificada (tela boa)
+  const isPeliculaActuallyBroken = (d: Device): boolean => {
+    if (d.auditInfo) {
+      return (
+        d.auditInfo.peliculaStatus === 'PELICULA_TRINCADA' ||
+        Boolean(d.auditInfo.damagedAccessories?.some(a => a.toLowerCase().includes('película') || a.toLowerCase().includes('pelicula')))
+      );
+    }
+    const notesLower = (d.notes || '').toLowerCase();
+    const occText = (d.occurrences || []).map(o => `${o.title} ${o.description}`).join(' ').toLowerCase();
+    return notesLower.includes('pelicula trincad') || notesLower.includes('película trincad') ||
+      occText.includes('pelicula trincad') || occText.includes('película trincad');
+  };
+
+  // Determina se o aparelho está SEM PELÍCULA
+  const isPeliculaActuallyMissing = (d: Device): boolean => {
+    if (d.auditInfo) {
+      return (
+        d.auditInfo.peliculaStatus === 'SEM_PELICULA' ||
+        (d.auditInfo.missingAccessories || []).some(a => a.toLowerCase().includes('película') || a.toLowerCase().includes('pelicula'))
+      );
+    }
+    const notesLower = (d.notes || '').toLowerCase();
+    const occText = (d.occurrences || []).map(o => `${o.title} ${o.description}`).join(' ').toLowerCase();
+    return notesLower.includes('sem pelicula') || notesLower.includes('sem película') ||
+      occText.includes('sem pelicula') || occText.includes('sem película');
+  };
+
+  // Função auxiliar para determinar se o aparelho possui qualquer divergência/avaria
+  const isDeviceDivergent = (d: Device): boolean => {
+    const notesLower = (d.notes || '').toLowerCase();
+
+    // 1. Falta de acessórios
+    const hasMissing = Boolean(
+      (d.auditInfo?.missingAccessories && d.auditInfo.missingAccessories.length > 0) ||
+      (d.auditInfo?.status === 'COM_PENDENCIA' && (!d.auditInfo?.verifiedAccessories || d.auditInfo.verifiedAccessories.length === 0))
+    );
+
+    // 2. Acessório danificado ou película trincada
+    const hasDamaged = Boolean(
+      (d.auditInfo?.damagedAccessories && d.auditInfo.damagedAccessories.length > 0) ||
+      isPeliculaActuallyBroken(d)
+    );
+
+    // 3. Tela do aparelho quebrada
+    const isScreenDefect = isScreenActuallyBroken(d);
+
+    // 4. Bateria com defeito
+    const isBatteryDefect = d.auditInfo
+      ? d.auditInfo.batteryOk === false
+      : (notesLower.includes('bateria viciad') || notesLower.includes('bateria estufad') || notesLower.includes('conector quebrad'));
+
+    // 5. Perda ou manutenção
+    const isPerdaDefect = d.status === 'PERDA / EXTRAVIO' || (d.condition || '').toUpperCase().includes('EXTRAV') || (d.condition || '').toUpperCase().includes('PERDA');
+    const isReparoDefect = d.condition === 'EM REPARO' || d.status === 'MANUTENÇÃO';
+
+    return (
+      hasMissing ||
+      hasDamaged ||
+      isScreenDefect ||
+      isBatteryDefect ||
+      isPerdaDefect ||
+      isReparoDefect ||
+      d.auditInfo?.status === 'COM_PENDENCIA'
+    );
+  };
+
+  // Filtra aparelhos com base no modo selecionado
   const filtered = devices.filter((d) => {
     if (selectedStore !== 'TODAS' && d.store !== selectedStore) return false;
     if (selectedSector !== 'TODOS' && d.sector !== selectedSector) return false;
-    if (selectedStatus !== 'ALL' && d.status !== selectedStatus) return false;
-    if (!matchAdvancedCriteria(d, advancedCriteria)) return false;
+
+    if (reportMode === 'INVENTARIO') {
+      if (selectedStatus !== 'ALL' && d.status !== selectedStatus) return false;
+      if (!matchAdvancedCriteria(d, advancedCriteria)) return false;
+    } else {
+      // Modo AUDITORIA EXCLUSIVA
+      const divergent = isDeviceDivergent(d);
+      if (auditOnlyDivergent && !divergent) return false;
+
+      if (auditStatusFilter === 'OK') {
+        if (!d.auditInfo || d.auditInfo.status !== 'OK' || divergent) return false;
+      } else if (auditStatusFilter === 'COM_PENDENCIA') {
+        if (!divergent) return false;
+      } else if (auditStatusFilter === 'NAO_AUDITADO') {
+        if (d.auditInfo) return false;
+      }
+    }
     return true;
   });
 
@@ -61,27 +175,6 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
   };
 
   const activeAdvCount = countActiveAdvancedFilters(advancedCriteria);
-
-  // Remove um acessório específico do filtro
-  const removeAccessoryFilter = (acc: string) => {
-    setAdvancedCriteria((prev) => ({
-      ...prev,
-      accessories: prev.accessories.filter((a) => a !== acc),
-    }));
-  };
-
-  // Remove uma categoria de condição
-  const removeConditionCategory = (cat: string) => {
-    setAdvancedCriteria((prev) => ({
-      ...prev,
-      conditionCategories: prev.conditionCategories.filter((c) => c !== cat),
-    }));
-  };
-
-  // Limpa todos os filtros avançados
-  const clearAdvancedFilters = () => {
-    setAdvancedCriteria(INITIAL_ADVANCED_FILTERS);
-  };
 
   // Agrupa dispositivos por loja
   const storesToRender = selectedStore === 'TODAS' 
@@ -94,8 +187,24 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
     year: 'numeric',
   });
 
+  // Estatísticas de Auditoria do subconjunto filtrado
+  const totalAuditOk = filtered.filter((d) => d.auditInfo?.status === 'OK' && !isDeviceDivergent(d)).length;
+  const totalAuditDivergent = filtered.filter((d) => isDeviceDivergent(d)).length;
+  const totalPendingAudit = filtered.filter((d) => !d.auditInfo).length;
+
   // Monta texto descritivo dos filtros ativos para o cabeçalho impresso
   const getFilterSummaryText = () => {
+    if (reportMode === 'AUDITORIA') {
+      const parts: string[] = ['Relatório Exclusivo de Auditoria'];
+      if (auditStatusFilter !== 'TODOS') {
+        parts.push(`Status: ${auditStatusFilter === 'OK' ? '100% Conforme' : auditStatusFilter === 'COM_PENDENCIA' ? 'Com Divergência' : 'Não Auditados'}`);
+      }
+      if (auditOnlyDivergent) {
+        parts.push('Apenas Divergências');
+      }
+      return parts.join(' | ');
+    }
+
     const parts: string[] = [];
     if (advancedCriteria.accessories.length > 0) {
       const modeText = advancedCriteria.accessoryMode === 'has' ? 'Com' : 'Sem';
@@ -103,7 +212,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
     }
     if (advancedCriteria.conditionCategories.length > 0) {
       const condLabels = advancedCriteria.conditionCategories.map((c) => {
-        if (c === 'TELA_QUEBRADA') return 'Tela Quebrada/Trincada';
+        if (c === 'TELA_QUEBRADA') return 'Tela Quebrada';
         if (c === 'COM_AVARIAS') return 'Com Avarias';
         if (c === 'BATERIA_DEFEITO') return 'Bateria/Conector';
         if (c === 'EM_REPARO') return 'Em Manutenção';
@@ -112,88 +221,32 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
       });
       parts.push(`Condição: ${condLabels.join(', ')}`);
     }
-    if (advancedCriteria.conditionCustomText.trim()) {
-      parts.push(`Anotação: "${advancedCriteria.conditionCustomText}"`);
-    }
-    if (advancedCriteria.vpnFilter !== 'ALL') {
-      parts.push(advancedCriteria.vpnFilter === 'WITH_VPN' ? 'Com VPN' : 'Sem VPN');
-    }
     return parts.join(' | ');
   };
 
   const filterSummary = getFilterSummaryText();
 
+  // Renderizador de célula de Acessórios & Estado para o Inventário Geral
   const renderAccessoriesAndConditionCell = (d: Device) => {
-    const condUpper = (d.condition || '').toUpperCase();
-    const notesLower = (d.notes || '').toLowerCase();
-    
-    // Ocorrências reais de sinistro ou manutenção (excluindo checkups normais de auditoria)
-    const incidentOccurrences = (d.occurrences || []).filter((o) => {
-      if (o.type === 'AUDITORIA') return false;
-      const text = (o.title + ' ' + o.description).toLowerCase();
-      // Não acusa defeito se for apenas relatório de status OK
-      if (text.includes('tela: ok') || text.includes('bateria: ok') || text.includes('tudo ok')) return false;
-      return (
-        text.includes('trinc') ||
-        text.includes('quebrad') ||
-        text.includes('viciad') ||
-        text.includes('estufad') ||
-        (text.includes('avaria') && !text.includes('sem avaria')) ||
-        o.type === 'MANUTENÇÃO' ||
-        o.type === 'PERDA'
-      );
-    });
+    const hasDivergence = isDeviceDivergent(d);
+    const isAllOk = !hasDivergence && (d.auditInfo ? d.auditInfo.status === 'OK' : true);
 
-    // 1. Verifica se há acessórios faltando / não entregues / extraviados
-    const hasMissingItems = Boolean(
-      (d.auditInfo?.missingAccessories && d.auditInfo.missingAccessories.length > 0) ||
-      (d.auditInfo?.status === 'COM_PENDENCIA' && (!d.auditInfo?.verifiedAccessories || d.auditInfo.verifiedAccessories.length === 0))
-    );
+    const isScreenBroken = isScreenActuallyBroken(d);
+    const isPeliculaBroken = isPeliculaActuallyBroken(d);
+    const isPeliculaMissing = isPeliculaActuallyMissing(d);
+
     const missingList = d.auditInfo?.missingAccessories || [];
-
-    // 2. PELÍCULA TRINCADA OU QUALQUER ACESSÓRIO DANIFICADO FAZ PARTE DA DIVERGÊNCIA!
-    const hasDamagedItems = Boolean(
-      (d.auditInfo?.damagedAccessories && d.auditInfo.damagedAccessories.length > 0) ||
-      d.auditInfo?.peliculaStatus === 'PELICULA_TRINCADA'
+    // Acessórios danificados excluindo a película (já que a película tem box exclusivo)
+    const otherDamagedList = (d.auditInfo?.damagedAccessories || []).filter(
+      a => !a.toLowerCase().includes('película') && !a.toLowerCase().includes('pelicula')
     );
-    const damagedList = Array.from(new Set([
-      ...(d.auditInfo?.damagedAccessories || []),
-      ...(d.auditInfo?.peliculaStatus === 'PELICULA_TRINCADA' ? ['Película de Proteção (Trincada)'] : [])
-    ]));
 
-    // 3. Verifica se a tela está danificada
-    const isScreenDefect = d.auditInfo
-      ? d.auditInfo.screenOk === false
-      : condUpper.includes('TRINC') || condUpper.includes('QUEBRAD') || notesLower.includes('tela trinc') || notesLower.includes('tela quebrad');
-
-    // 4. Verifica defeito de bateria / conector
-    const isBatteryDefect = d.auditInfo
-      ? d.auditInfo.batteryOk === false
-      : notesLower.includes('bateria viciad') || notesLower.includes('bateria estufad') || notesLower.includes('conector quebrad');
-
-    // 5. Avaria geral, perda ou manutenção
-    const isAvariaDefect = condUpper.includes('AVARIA') || (notesLower.includes('avaria') && !notesLower.includes('sem avaria'));
-    const isReparoDefect = condUpper.includes('REPARO') || d.status === 'MANUTENÇÃO';
-    const isPerdaDefect = d.status === 'PERDA / EXTRAVIO' || condUpper.includes('EXTRAV') || condUpper.includes('PERDA') || (d.occurrences || []).some(o => o.type === 'PERDA');
-
-    // Película trincada ou qualquer acessório danificado faz parte da DIVERGÊNCIA!
-    const hasAnyDivergence = 
-      hasMissingItems || 
-      hasDamagedItems || 
-      isScreenDefect || 
-      isBatteryDefect || 
-      isAvariaDefect || 
-      isReparoDefect || 
-      isPerdaDefect ||
-      d.auditInfo?.status === 'COM_PENDENCIA';
-
-    const isAllOk = !hasAnyDivergence && (d.auditInfo ? d.auditInfo.status === 'OK' : true);
+    const isBatteryDefect = d.auditInfo ? d.auditInfo.batteryOk === false : false;
 
     return (
       <td className={`border border-zinc-300 py-2 px-2.5 text-[10px] min-w-[210px] max-w-[340px] ${
-        hasAnyDivergence ? 'bg-red-50/50' : 'bg-emerald-50/30'
+        hasDivergence ? 'bg-red-50/50' : 'bg-emerald-50/30'
       }`}>
-        {/* Acessórios Vinculados */}
         <div className="text-zinc-800 text-[9.5px] leading-tight mb-1.5">
           <span className="font-bold text-zinc-600">Acessórios da Ficha: </span>
           <span className="font-semibold text-zinc-950">
@@ -201,23 +254,18 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
           </span>
         </div>
 
-        {/* ========================================================================= */}
-        {/* CASO 1: SE O APARELHO ESTIVER TUDO OK -> CAMPO EM VERDE SEM AVARIA/PERDA */}
-        {/* ========================================================================= */}
         {isAllOk ? (
           <div className="p-2 rounded-lg bg-emerald-100/90 border border-emerald-500 text-emerald-950 shadow-2xs">
             <div className="flex items-center gap-1.5 font-black text-[10.5px] text-emerald-950 uppercase tracking-wide">
               <span className="text-emerald-700 font-black text-xs leading-none">✓</span>
               <span>APARELHO 100% OK — SEM AVARIA OU PERDA</span>
             </div>
-            
             <p className="text-[9px] text-emerald-900 mt-1 font-semibold leading-snug">
               ✓ Todos os itens entregues estão presentes e conferidos
             </p>
             <p className="text-[8.5px] text-emerald-800 leading-tight">
               ✓ Tela íntegra sem trincas · Película aplicada (OK) · Bateria normal · Estado: <strong>{d.condition || 'BOM'}</strong>
             </p>
-
             {d.auditInfo?.lastAuditedAt && (
               <div className="mt-1 text-[8.5px] text-emerald-700 font-mono">
                 Checkup presencial realizado por {d.auditInfo.auditedBy || 'T.I.'} ({d.auditInfo.lastAuditedAt})
@@ -225,89 +273,72 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
             )}
           </div>
         ) : (
-          /* ========================================================================= */
-          /* CASO 2: QUANDO TIVER ALGUM ITEM FALTANDO OU DIVERGÊNCIA -> CAMPO VERMELHO */
-          /* ========================================================================= */
-          <div className="p-2 rounded-lg bg-red-100 border-2 border-red-600 text-red-950 shadow-2xs">
+          <div className="p-2 rounded-lg bg-red-100 border-2 border-red-600 text-red-950 shadow-2xs space-y-1">
             <div className="flex items-center gap-1.5 font-black text-[11px] text-red-950 uppercase tracking-wide">
               <span className="text-red-700 font-black text-xs leading-none">⚠️</span>
               <span>DIVERGÊNCIA CONSTATADA</span>
             </div>
 
-            {/* Destaque em VERMELHO FORTE dos itens que estão faltando */}
-            {hasMissingItems && (
-              <div className="mt-1.5 p-1.5 bg-white border border-red-500 rounded text-[10px] text-red-950">
-                <span className="font-black text-red-700 block uppercase text-[9px] tracking-wider">
+            {/* 1. SE A PELÍCULA ESTIVER TRINCADA (Informa com clareza total que é a película e não a tela) */}
+            {isPeliculaBroken && (
+              <div className="p-1.5 bg-amber-50 border-2 border-amber-500 rounded text-[9.5px] text-amber-950">
+                <span className="font-black text-amber-900 block uppercase text-[9px] tracking-wider">
+                  ⚠️ PELÍCULA DE PROTEÇÃO TRINCADA:
+                </span>
+                <span className="font-bold block text-amber-950">
+                  Película protetora danificada/trincada (necessita troca).
+                </span>
+                {!isScreenBroken && (
+                  <span className="block text-[8.5px] text-emerald-800 font-bold mt-0.5">
+                    ✓ Tela original do aparelho está íntegra e sem trincas.
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* 2. SE A TELA DO CELULAR ESTIVER QUEBRADA (Dano real no display do aparelho) */}
+            {isScreenBroken && (
+              <div className="p-1.5 bg-red-600 text-white rounded text-[9.5px] font-black uppercase shadow-xs">
+                🔨 TELA DO APARELHO QUEBRADA / TRINCADA (Dano no display/vidro)
+              </div>
+            )}
+
+            {/* 3. ITENS FALTANDO */}
+            {missingList.length > 0 && (
+              <div className="p-1 bg-white border border-red-500 rounded text-[9.5px] text-red-950">
+                <span className="font-black text-red-700 block uppercase text-[8.5px] tracking-wider">
                   ❌ ITEM(NS) FALTANDO / NÃO APRESENTADO:
                 </span>
-                <span className="font-black text-red-900 underline text-[10.5px]">
-                  {missingList.length > 0 ? missingList.join(', ') : 'Acessórios entregues não apresentados'}
+                <span className="font-black text-red-900 underline text-[10px]">
+                  {missingList.join(', ')}
                 </span>
               </div>
             )}
 
-            {/* Avaria na Tela */}
-            {isScreenDefect && (
-              <div className="mt-1 p-1 bg-red-200/80 border border-red-400 rounded text-[9.5px] text-red-950 font-black">
-                🔨 TELA QUEBRADA / TRINCADA
-              </div>
-            )}
-
-            {/* Película Trincada ou Acessório Danificado (Divergência) */}
-            {hasDamagedItems && (
-              <div className="mt-1.5 p-1.5 bg-white border-2 border-red-600 rounded text-[10px] text-red-950">
-                <span className="font-black text-red-700 block uppercase text-[9px] tracking-wider">
-                  ⚠️ ACESSÓRIO(S) OU PELÍCULA DANIFICADA [DIVERGÊNCIA]:
+            {/* 4. OUTROS ACESSÓRIOS DANIFICADOS (Cabo, Capa, etc) */}
+            {otherDamagedList.length > 0 && (
+              <div className="p-1 bg-white border border-amber-500 rounded text-[9.5px] text-amber-950">
+                <span className="font-black text-amber-800 block uppercase text-[8.5px] tracking-wider">
+                  ⚠️ OUTRO(S) ACESSÓRIO(S) DANIFICADO(S):
                 </span>
-                <span className="font-black text-red-900 underline text-[10.5px]">
-                  {damagedList.join(', ')}
-                </span>
-                <span className="block text-[8.5px] text-red-700 font-semibold mt-0.5">
-                  Constatado na conferência: avariado/trincado, requer substituição imediata.
+                <span className="font-bold text-amber-950">
+                  {otherDamagedList.join(', ')}
                 </span>
               </div>
             )}
 
-            {/* Defeito na Bateria */}
+            {/* 5. DEFEITO DE BATERIA */}
             {isBatteryDefect && (
-              <div className="mt-1 p-1 bg-orange-200/80 border border-orange-400 rounded text-[9.5px] text-orange-950 font-black">
+              <div className="p-1 bg-orange-200/80 border border-orange-400 rounded text-[9px] text-orange-950 font-black">
                 🔋 DEFEITO: BATERIA OU CONECTOR DE CARGA
               </div>
             )}
 
-            {/* Registro de Perda */}
-            {isPerdaDefect && (
-              <div className="mt-1 p-1 bg-red-700 text-white rounded text-[9.5px] font-black uppercase">
-                🚨 APARELHO COM REGISTRO DE PERDA OU EXTRAVIO
-              </div>
-            )}
-
-            {/* Observações da Auditoria */}
             {d.auditInfo?.auditNotes && (
-              <div className="mt-1 text-[9px] text-red-900 font-medium italic">
+              <div className="text-[9px] text-red-900 font-medium italic pt-0.5">
                 Obs da Auditoria: "{d.auditInfo.auditNotes}"
               </div>
             )}
-          </div>
-        )}
-
-        {/* Anotação textual da ficha se houver */}
-        {d.notes && d.notes.trim() && !d.notes.toLowerCase().includes('ok') && (
-          <div className="mt-1 p-1 bg-zinc-50 border border-zinc-300 rounded text-[9px] text-zinc-800 leading-tight">
-            <span className="font-bold text-zinc-700">Ficha: </span>
-            <span>{d.notes}</span>
-          </div>
-        )}
-
-        {/* Ocorrências reais de manutenção (se houver histórico de conserto anterior) */}
-        {incidentOccurrences.length > 0 && (
-          <div className="mt-1 space-y-0.5">
-            {incidentOccurrences.map(occ => (
-              <div key={occ.id} className="p-1 bg-zinc-50 border border-zinc-300 rounded text-[8.5px] text-zinc-900 leading-tight">
-                <span className="font-bold text-red-700">[{occ.type}] </span>
-                <span className="font-semibold">{occ.title}:</span> {occ.description}
-              </div>
-            ))}
           </div>
         )}
       </td>
@@ -321,17 +352,17 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
           
           {/* Controls Toolbar (Oculto na Impressão) */}
           <div className="no-print px-6 py-4 border-b border-zinc-200 bg-zinc-950 text-white flex flex-col gap-3 shrink-0">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center text-white">
                   <FileText className="w-4 h-4" />
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-white tracking-wide">
-                    Filtro & Exportação de Relatório PDF
+                    Exportação de Relatórios Oficiais em PDF
                   </h2>
                   <p className="text-xs text-zinc-300">
-                    Modelo oficial Amilco Home Center (separado por grupos e unidades)
+                    Amilco Home Center · Separe entre Inventário Geral e Auditoria Presencial
                   </p>
                 </div>
               </div>
@@ -354,155 +385,216 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
               </div>
             </div>
 
-            {/* Linha 1 de Filtros do Relatório */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-zinc-800 text-xs">
-              <div>
-                <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
-                  Filtrar Loja:
-                </label>
-                <select
-                  value={selectedStore}
-                  onChange={(e) => setSelectedStore(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-red-500"
-                >
-                  <option value="TODAS">Todas as Lojas</option>
-                  {stores.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
-                  Filtrar Setor:
-                </label>
-                <select
-                  value={selectedSector}
-                  onChange={(e) => setSelectedSector(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-red-500"
-                >
-                  <option value="TODOS">Todos os Setores</option>
-                  {sectors.map((sec) => (
-                    <option key={sec} value={sec}>{sec}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
-                  Filtrar Status:
-                </label>
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-red-500"
-                >
-                  <option value="ALL">Todos os Status</option>
-                  <option value="EM USO">Em Uso</option>
-                  <option value="SEM PATRIMÔNIO">Sem Patrimônio (SEM PT)</option>
-                  <option value="MANUTENÇÃO">Manutenção</option>
-                  <option value="DISPONÍVEL">Disponível / Estoque</option>
-                </select>
-              </div>
-
-              {/* Botão para abrir a Janelinha de Acessórios & Estado da Tela */}
-              <div>
-                <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
-                  Filtro Completo:
-                </label>
+            {/* SELETOR DE SEÇÃO / TIPO DE RELATÓRIO (SEPARAÇÃO EXIGIDA PELO USUÁRIO) */}
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-zinc-800">
+              <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+                Tipo de Relatório:
+              </span>
+              <div className="flex items-center p-1 bg-zinc-900 rounded-xl border border-zinc-800">
                 <button
                   type="button"
-                  onClick={() => setIsAdvancedModalOpen(true)}
-                  className={`w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
-                    activeAdvCount > 0
-                      ? 'bg-red-600 text-white border-red-500 shadow-sm ring-1 ring-white/20'
-                      : 'bg-zinc-800 text-zinc-100 hover:bg-zinc-700 border-zinc-700'
+                  onClick={() => setReportMode('INVENTARIO')}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    reportMode === 'INVENTARIO'
+                      ? 'bg-zinc-100 text-zinc-950 shadow-xs'
+                      : 'text-zinc-400 hover:text-white'
                   }`}
-                  title="Abrir janela com filtros de carregador, capa, tela quebrada e avarias"
                 >
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-white shrink-0" />
-                  <span className="truncate">Acessórios & Estado</span>
-                  {activeAdvCount > 0 && (
-                    <span className="bg-white text-black text-[10px] font-black px-1.5 py-0.2 rounded-full font-mono">
-                      {activeAdvCount}
-                    </span>
-                  )}
+                  <Layers className="w-3.5 h-3.5 text-red-600" />
+                  <span>📋 Relatório Geral de Inventário</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setReportMode('AUDITORIA')}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    reportMode === 'AUDITORIA'
+                      ? 'bg-red-600 text-white shadow-xs'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  <ClipboardCheck className="w-4 h-4" />
+                  <span>🔍 Relatório Exclusivo de Auditoria (Conferência & Pendências)</span>
                 </button>
               </div>
             </div>
 
-            {/* Linha 2 de Opções e Tags de Filtros Ativos */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-zinc-900 text-xs">
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-1.5 cursor-pointer text-zinc-200 font-medium select-none">
-                  <input
-                    type="checkbox"
-                    checked={groupBySector}
-                    onChange={(e) => setGroupBySector(e.target.checked)}
-                    className="rounded text-red-600 focus:ring-red-500 w-3.5 h-3.5"
-                  />
-                  <span className="text-[11px]">Agrupar por Setores</span>
-                </label>
-
-                <label className="flex items-center gap-1.5 cursor-pointer text-zinc-200 font-medium select-none">
-                  <input
-                    type="checkbox"
-                    checked={showAccessoriesColumn}
-                    onChange={(e) => setShowAccessoriesColumn(e.target.checked)}
-                    className="rounded text-red-600 focus:ring-red-500 w-3.5 h-3.5"
-                  />
-                  <span className="text-[11px]">Coluna de Acessórios & Estado</span>
-                </label>
-
-                <label className="flex items-center gap-1.5 cursor-pointer text-zinc-200 font-medium select-none">
-                  <input
-                    type="checkbox"
-                    checked={includeOccurrences}
-                    onChange={(e) => setIncludeOccurrences(e.target.checked)}
-                    className="rounded text-red-600 focus:ring-red-500 w-3.5 h-3.5"
-                  />
-                  <span className="text-[11px]">Incluir Fichário / O.S.</span>
-                </label>
-              </div>
-
-              {/* Botão de abrir janelinha e limpar */}
-              {activeAdvCount > 0 && (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] text-zinc-400 font-medium">Filtro Ativo:</span>
-                  {advancedCriteria.accessories.map((acc) => (
-                    <span
-                      key={acc}
-                      className="inline-flex items-center gap-1 bg-red-950 text-red-300 border border-red-800 px-2 py-0.5 rounded text-[10px] font-bold"
-                    >
-                      {advancedCriteria.accessoryMode === 'has' ? '🔌 Com ' : '🔴 Sem '}{acc}
-                      <button
-                        onClick={() => removeAccessoryFilter(acc)}
-                        className="hover:text-white"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                  {advancedCriteria.conditionCategories.map((cat) => (
-                    <span
-                      key={cat}
-                      className="inline-flex items-center gap-1 bg-red-950 text-red-300 border border-red-800 px-2 py-0.5 rounded text-[10px] font-bold"
-                    >
-                      {cat === 'TELA_QUEBRADA' ? '🔨 Tela Trincada' : cat}
-                      <button
-                        onClick={() => removeConditionCategory(cat)}
-                        className="hover:text-white"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                  <button
-                    onClick={clearAdvancedFilters}
-                    className="text-[10px] font-bold text-zinc-400 hover:text-white underline ml-1 cursor-pointer"
+            {/* BARRA DE FILTROS ESPECÍFICOS DEPENDENDO DA SEÇÃO */}
+            {reportMode === 'INVENTARIO' ? (
+              /* Filtros do Inventário Geral */
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-zinc-800 text-xs">
+                <div>
+                  <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
+                    Filtrar Loja:
+                  </label>
+                  <select
+                    value={selectedStore}
+                    onChange={(e) => setSelectedStore(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-red-500"
                   >
-                    Limpar
+                    <option value="TODAS">Todas as Lojas</option>
+                    {stores.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
+                    Filtrar Setor:
+                  </label>
+                  <select
+                    value={selectedSector}
+                    onChange={(e) => setSelectedSector(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-red-500"
+                  >
+                    <option value="TODOS">Todos os Setores</option>
+                    {sectors.map((sec) => (
+                      <option key={sec} value={sec}>{sec}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
+                    Filtrar Status:
+                  </label>
+                  <select
+                    value={selectedStatus}
+                    onChange={(e) => setSelectedStatus(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-red-500"
+                  >
+                    <option value="ALL">Todos os Status</option>
+                    <option value="EM USO">Em Uso</option>
+                    <option value="SEM PATRIMÔNIO">Sem Patrimônio (SEM PT)</option>
+                    <option value="MANUTENÇÃO">Manutenção</option>
+                    <option value="DISPONÍVEL">Disponível / Estoque</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
+                    Acessórios & Estado:
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsAdvancedModalOpen(true)}
+                    className={`w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                      activeAdvCount > 0
+                        ? 'bg-red-600 text-white border-red-500 shadow-sm'
+                        : 'bg-zinc-800 text-zinc-100 hover:bg-zinc-700 border-zinc-700'
+                    }`}
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-white shrink-0" />
+                    <span className="truncate">Filtro Avançado</span>
+                    {activeAdvCount > 0 && (
+                      <span className="bg-white text-black text-[10px] font-black px-1.5 py-0.2 rounded-full font-mono">
+                        {activeAdvCount}
+                      </span>
+                    )}
                   </button>
+                </div>
+              </div>
+            ) : (
+              /* Filtros Exclusivos de Auditoria */
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-zinc-800 text-xs">
+                <div>
+                  <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
+                    Unidade / Loja da Auditoria:
+                  </label>
+                  <select
+                    value={selectedStore}
+                    onChange={(e) => setSelectedStore(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-red-500"
+                  >
+                    <option value="TODAS">Todas as Lojas</option>
+                    {stores.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
+                    Filtrar Setor Auditado:
+                  </label>
+                  <select
+                    value={selectedSector}
+                    onChange={(e) => setSelectedSector(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-red-500"
+                  >
+                    <option value="TODOS">Todos os Setores</option>
+                    {sectors.map((sec) => (
+                      <option key={sec} value={sec}>{sec}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
+                    Situação da Auditoria:
+                  </label>
+                  <select
+                    value={auditStatusFilter}
+                    onChange={(e) => setAuditStatusFilter(e.target.value as any)}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-red-500 font-bold"
+                  >
+                    <option value="TODOS">Todos os Aparelhos ({filtered.length})</option>
+                    <option value="OK">✓ Apenas 100% Conformes (Tudo OK)</option>
+                    <option value="COM_PENDENCIA">⚠️ Apenas com Divergências / Pendências</option>
+                    <option value="NAO_AUDITADO">⏳ Apenas Não Auditados (Pendente Checkup)</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* Opções de visualização */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-zinc-900 text-xs">
+              {reportMode === 'INVENTARIO' ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-1.5 cursor-pointer text-zinc-200 font-medium select-none">
+                    <input
+                      type="checkbox"
+                      checked={groupBySector}
+                      onChange={(e) => setGroupBySector(e.target.checked)}
+                      className="rounded text-red-600 focus:ring-red-500 w-3.5 h-3.5"
+                    />
+                    <span className="text-[11px]">Agrupar por Setores</span>
+                  </label>
+
+                  <label className="flex items-center gap-1.5 cursor-pointer text-zinc-200 font-medium select-none">
+                    <input
+                      type="checkbox"
+                      checked={showAccessoriesColumn}
+                      onChange={(e) => setShowAccessoriesColumn(e.target.checked)}
+                      className="rounded text-red-600 focus:ring-red-500 w-3.5 h-3.5"
+                    />
+                    <span className="text-[11px]">Coluna de Acessórios & Estado</span>
+                  </label>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-1.5 cursor-pointer text-amber-300 font-bold select-none">
+                    <input
+                      type="checkbox"
+                      checked={auditOnlyDivergent}
+                      onChange={(e) => setAuditOnlyDivergent(e.target.checked)}
+                      className="rounded text-red-600 focus:ring-red-500 w-3.5 h-3.5"
+                    />
+                    <span className="text-[11px]">⚠️ Filtrar somente aparelhos com divergência/avaria</span>
+                  </label>
+
+                  <div className="flex items-center gap-2 text-[11px]">
+                    <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold">
+                      ✓ {totalAuditOk} Conforme(s)
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-red-950 text-red-300 border border-red-800 font-bold">
+                      ⚠️ {totalAuditDivergent} com Divergência
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 font-bold">
+                      ⏳ {totalPendingAudit} Pendente(s)
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
@@ -510,14 +602,17 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
 
           {/* Printable PDF Canvas - Modelo Oficial Amilco Home Center */}
           <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-white print:p-0 print:m-0 space-y-6 text-black text-xs font-sans">
-            {/* Header Document */}
+            
+            {/* CABEÇALHO DO DOCUMENTO */}
             <div className="border-b-2 border-black pb-3 flex items-center justify-between">
               <div>
                 <h1 className="text-lg sm:text-xl font-bold tracking-tight text-black uppercase">
                   AMILCO HOME CENTER
                 </h1>
                 <p className="text-xs font-semibold text-red-600 uppercase tracking-wide">
-                  RELATÓRIO DE CONTROLE DE PATRIMÔNIO DE CELULARES
+                  {reportMode === 'AUDITORIA' 
+                    ? 'RELATÓRIO OFICIAL DE AUDITORIA, CONFORMIDADE & PENDÊNCIAS' 
+                    : 'RELATÓRIO DE CONTROLE DE PATRIMÔNIO DE CELULARES'}
                 </p>
                 {filterSummary && (
                   <div className="mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 bg-zinc-100 border border-zinc-300 rounded text-[10px] font-bold uppercase text-zinc-900">
@@ -529,7 +624,13 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
               <div className="text-right text-[11px] text-zinc-600 font-mono">
                 <p>Emissão: <strong>{currentDate}</strong></p>
                 <p>Total Listado: <strong className="text-black font-bold">{filtered.length} Aparelhos</strong></p>
-                <p className="text-purple-950">Aparelhos Pessoais: <strong className="font-bold">{filtered.filter(d => Boolean(d.isPersonalDevice)).length}</strong></p>
+                {reportMode === 'AUDITORIA' ? (
+                  <p className="text-red-700 font-bold">
+                    Divergências: <strong>{totalAuditDivergent}</strong>
+                  </p>
+                ) : (
+                  <p className="text-purple-950">Aparelhos Pessoais: <strong className="font-bold">{filtered.filter(d => Boolean(d.isPersonalDevice)).length}</strong></p>
+                )}
               </div>
             </div>
 
@@ -541,216 +642,487 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                   Nenhum aparelho encontrado para os filtros selecionados
                 </h3>
                 <p className="text-xs text-zinc-500 mt-1">
-                  Experimente abrir o botão <strong>"Acessórios & Estado"</strong> para ajustar os critérios.
+                  Ajuste a loja, setor ou situação da auditoria para visualizar os registros.
                 </p>
-                <button
-                  onClick={clearAdvancedFilters}
-                  className="mt-3 px-3 py-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg cursor-pointer"
-                >
-                  Limpar Filtros Avançados
-                </button>
               </div>
             )}
 
-            {/* Render by Store Sections */}
-            {storesToRender.map((storeName) => {
-              const storeDevices = filtered.filter((d) => d.store === storeName);
-              if (storeDevices.length === 0) return null;
-
-              // Grupos de setores
-              const sectorGroups = Array.from(new Set(storeDevices.map((d) => d.sector)));
-
-              return (
-                <div key={storeName} className="space-y-4 page-break-inside-avoid">
-                  {/* Store Header Banner in Amilco Red & Black */}
-                  <div className="bg-zinc-950 text-white p-2 px-3 rounded flex items-center justify-between border-l-4 border-red-600">
-                    <h2 className="font-bold text-xs uppercase tracking-wider">
-                      CONTROLE DE PATRIMÔNIO DE CELULARES DA EMPRESA AMILCO HOME CENTER - {storeName}
-                    </h2>
-                    <span className="text-xs font-mono font-bold bg-red-600 px-2 py-0.5 rounded">
-                      {storeDevices.length} APARELHOS
-                    </span>
+            {/* ========================================================================= */}
+            {/* RELATÓRIO EXCLUSIVO DE AUDITORIA (STATUS, PENDÊNCIAS, AUDITORES)          */}
+            {/* ========================================================================= */}
+            {reportMode === 'AUDITORIA' && filtered.length > 0 && (
+              <div className="space-y-6">
+                {/* Resumo Executivo da Auditoria (Cards Impressos) */}
+                <div className="grid grid-cols-4 gap-3 bg-zinc-50 p-3 rounded-lg border border-zinc-300 text-center">
+                  <div className="border-r border-zinc-200 pr-2">
+                    <span className="block text-[10px] font-semibold text-zinc-500 uppercase">Total Aparelhos</span>
+                    <strong className="text-base text-zinc-950 font-bold">{filtered.length}</strong>
                   </div>
-
-                  {groupBySector ? (
-                    // Agrupado por setores igual ao PDF original
-                    sectorGroups.map((secName) => {
-                      const secDevices = storeDevices.filter((d) => d.sector === secName);
-                      return (
-                        <div key={secName} className="space-y-1.5">
-                          <div className="flex items-center justify-between text-[11px] font-bold text-zinc-800 bg-zinc-100 px-2 py-1 border border-zinc-300 rounded">
-                            <span className="uppercase text-red-700">SETOR: {secName}</span>
-                            <span className="font-mono text-zinc-600">{secDevices.length} aparelho(s)</span>
-                          </div>
-
-                          <table className="w-full border-collapse border border-zinc-400 text-left text-[11px]">
-                            <thead>
-                              <tr className="bg-zinc-200 text-black font-bold uppercase text-[10px]">
-                                <th className="border border-zinc-400 py-1.5 px-2 w-[85px]">N° PATRIMÔNIO</th>
-                                <th className="border border-zinc-400 py-1.5 px-2">COLABORADOR / USUÁRIO</th>
-                                <th className="border border-zinc-400 py-1.5 px-2">MODELO</th>
-                                {showAccessoriesColumn && (
-                                  <th className="border border-zinc-400 py-1.5 px-2">ACESSÓRIOS & ESTADO</th>
-                                )}
-                                <th className="border border-zinc-400 py-1.5 px-2 w-[70px]">VPN</th>
-                                <th className="border border-zinc-400 py-1.5 px-2 w-[85px]">AQUISIÇÃO</th>
-                                <th className="border border-zinc-400 py-1.5 px-2 w-[90px]">STATUS</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {secDevices.map((d) => {
-                                const isTelaTrincada = (d.condition || '').toUpperCase().includes('TRINC') || (d.condition || '').toUpperCase().includes('QUEBRAD');
-                                return (
-                                  <tr key={d.id} className="hover:bg-zinc-50 border-b border-zinc-300">
-                                    <td className="border border-zinc-300 py-1.5 px-2 font-mono font-bold">
-                                      {d.isPersonalDevice ? (
-                                        <span className="text-purple-900 font-bold bg-purple-50 px-1 py-0.2 rounded border border-purple-200 text-[10px]">
-                                          PESSOAL
-                                        </span>
-                                      ) : d.hasAssetTag ? (
-                                        d.assetNumber
-                                      ) : (
-                                        'SEM PT'
-                                      )}
-                                    </td>
-                                    <td className="border border-zinc-300 py-1.5 px-2">
-                                      <span className="font-bold uppercase text-black">{d.employeeName}</span>
-                                      {d.previousEmployeeName && (
-                                        <span className="text-[10px] text-zinc-500 block">
-                                          (Anterior: {d.previousEmployeeName})
-                                        </span>
-                                      )}
-                                      {d.phoneNumber && (
-                                        <span className="text-[10px] text-zinc-600 block font-mono">
-                                          Linha: {d.phoneNumber}
-                                        </span>
-                                      )}
-                                    </td>
-                                    <td className="border border-zinc-300 py-1.5 px-2 font-medium">
-                                      <span>{d.brand} {d.model}</span>
-                                      {d.imei1 && (
-                                        <span className="text-[9px] text-zinc-500 block font-mono">
-                                          IMEI: {d.imei1}
-                                        </span>
-                                      )}
-                                    </td>
-                                    {showAccessoriesColumn && renderAccessoriesAndConditionCell(d)}
-                                    <td className="border border-zinc-300 py-1.5 px-2 font-semibold">
-                                      {d.hasVpn ? (
-                                        <span className="text-emerald-700 font-bold">SIM</span>
-                                      ) : (
-                                        <span className="text-zinc-400">NÃO</span>
-                                      )}
-                                    </td>
-                                    <td className="border border-zinc-300 py-1.5 px-2 font-mono text-[10px]">
-                                      {d.acquisitionDate || '—'}
-                                    </td>
-                                    <td className="border border-zinc-300 py-1.5 px-2 font-semibold">
-                                      <span className={`px-1.5 py-0.5 rounded text-[10px] ${
-                                        d.isPersonalDevice && (d.status === 'SEM PATRIMÔNIO' || d.status === 'PESSOAL')
-                                          ? 'bg-purple-100 text-purple-900 font-bold border border-purple-300'
-                                          : d.status === 'EM USO'
-                                            ? 'bg-zinc-100 text-zinc-900 font-bold'
-                                            : d.status === 'MANUTENÇÃO'
-                                              ? 'bg-amber-100 text-amber-900 font-bold'
-                                              : 'bg-red-100 text-red-900 font-bold'
-                                      }`}>
-                                        {d.isPersonalDevice && (d.status === 'SEM PATRIMÔNIO' || d.status === 'PESSOAL')
-                                          ? 'PESSOAL'
-                                          : d.status}
-                                      </span>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    // Tabela consolidada da loja
-                    <table className="w-full border-collapse border border-zinc-400 text-left text-[11px]">
-                      <thead>
-                        <tr className="bg-zinc-200 text-black font-bold uppercase text-[10px]">
-                          <th className="border border-zinc-400 py-1.5 px-2 w-[85px]">N° PATRIMÔNIO</th>
-                          <th className="border border-zinc-400 py-1.5 px-2">COLABORADOR / USUÁRIO</th>
-                          <th className="border border-zinc-400 py-1.5 px-2">SETOR</th>
-                          <th className="border border-zinc-400 py-1.5 px-2">MODELO</th>
-                          {showAccessoriesColumn && (
-                            <th className="border border-zinc-400 py-1.5 px-2">ACESSÓRIOS & ESTADO</th>
-                          )}
-                          <th className="border border-zinc-400 py-1.5 px-2 w-[70px]">VPN</th>
-                          <th className="border border-zinc-400 py-1.5 px-2 w-[90px]">STATUS</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {storeDevices.map((d) => {
-                          const isTelaTrincada = (d.condition || '').toUpperCase().includes('TRINC') || (d.condition || '').toUpperCase().includes('QUEBRAD');
-                          return (
-                            <tr key={d.id} className="hover:bg-zinc-50 border-b border-zinc-300">
-                              <td className="border border-zinc-300 py-1.5 px-2 font-mono font-bold">
-                                {d.isPersonalDevice ? (
-                                  <span className="text-purple-900 font-bold bg-purple-50 px-1 py-0.2 rounded border border-purple-200 text-[10px]">
-                                    PESSOAL
-                                  </span>
-                                ) : d.hasAssetTag ? (
-                                  d.assetNumber
-                                ) : (
-                                  'SEM PT'
-                                )}
-                              </td>
-                              <td className="border border-zinc-300 py-1.5 px-2 font-semibold">
-                                <span className="font-bold uppercase text-black">{d.employeeName}</span>
-                                {d.previousEmployeeName && (
-                                  <span className="text-[10px] text-zinc-500 block">
-                                    (Anterior: {d.previousEmployeeName})
-                                  </span>
-                                )}
-                              </td>
-                              <td className="border border-zinc-300 py-1.5 px-2">{d.sector}</td>
-                              <td className="border border-zinc-300 py-1.5 px-2 font-medium">{d.brand} {d.model}</td>
-                              {showAccessoriesColumn && renderAccessoriesAndConditionCell(d)}
-                              <td className="border border-zinc-300 py-1.5 px-2 font-semibold">
-                                {d.hasVpn ? (
-                                  <span className="text-emerald-700 font-bold">SIM</span>
-                                ) : (
-                                  <span className="text-zinc-400">NÃO</span>
-                                )}
-                              </td>
-                              <td className="border border-zinc-300 py-1.5 px-2 font-semibold">
-                                {d.isPersonalDevice && (d.status === 'SEM PATRIMÔNIO' || d.status === 'PESSOAL') ? (
-                                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-purple-100 text-purple-900 font-bold border border-purple-300">
-                                    PESSOAL
-                                  </span>
-                                ) : (
-                                  d.status
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  )}
+                  <div className="border-r border-zinc-200 pr-2">
+                    <span className="block text-[10px] font-semibold text-emerald-700 uppercase">100% Conformes</span>
+                    <strong className="text-base text-emerald-800 font-bold">{totalAuditOk}</strong>
+                  </div>
+                  <div className="border-r border-zinc-200 pr-2">
+                    <span className="block text-[10px] font-semibold text-red-700 uppercase">Com Divergência</span>
+                    <strong className="text-base text-red-700 font-bold">{totalAuditDivergent}</strong>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-semibold text-zinc-500 uppercase">Pendente Checkup</span>
+                    <strong className="text-base text-zinc-600 font-bold">{totalPendingAudit}</strong>
+                  </div>
                 </div>
-              );
-            })}
+
+                {/* Tabelas de Auditoria por Unidade */}
+                {storesToRender.map((storeName) => {
+                  const storeDevices = filtered.filter((d) => d.store === storeName);
+                  if (storeDevices.length === 0) return null;
+
+                  return (
+                    <div key={storeName} className="space-y-3 page-break-inside-avoid">
+                      {/* Banner Loja */}
+                      <div className="bg-zinc-950 text-white p-2 px-3 rounded flex items-center justify-between border-l-4 border-red-600">
+                        <div className="flex items-center gap-2">
+                          <ClipboardCheck className="w-4 h-4 text-red-500" />
+                          <h2 className="font-bold text-xs uppercase tracking-wider">
+                            AUDITORIA & CONFERÊNCIA PRESENCIAL - {storeName}
+                          </h2>
+                        </div>
+                        <span className="text-xs font-mono font-bold bg-red-600 text-white px-2 py-0.5 rounded">
+                          {storeDevices.length} APARELHOS
+                        </span>
+                      </div>
+
+                      {/* Tabela Exclusiva de Auditoria */}
+                      <table className="w-full border-collapse border border-zinc-400 text-left text-[10px]">
+                        <thead>
+                          <tr className="bg-zinc-200 text-black font-bold uppercase text-[9px]">
+                            <th className="border border-zinc-400 py-1.5 px-2 w-[70px]">Nº / PT</th>
+                            <th className="border border-zinc-400 py-1.5 px-2 min-w-[120px]">COLABORADOR & SETOR</th>
+                            <th className="border border-zinc-400 py-1.5 px-2 min-w-[100px]">APARELHO</th>
+                            <th className="border border-zinc-400 py-1.5 px-2 w-[130px] text-center">DIAGNÓSTICO</th>
+                            <th className="border border-zinc-400 py-1.5 px-2 min-w-[145px]">ACESSÓRIOS & ITENS</th>
+                            <th className="border border-zinc-400 py-1.5 px-2 w-[115px]">TELA & PELÍCULA</th>
+                            <th className="border border-zinc-400 py-1.5 px-2 w-[110px]">CONFERÊNCIA</th>
+                            <th className="border border-zinc-400 py-1.5 px-2 min-w-[120px]">PARECER / PENDÊNCIAS</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {storeDevices.map((d) => {
+                            const divergent = isDeviceDivergent(d);
+                            const isOk = d.auditInfo?.status === 'OK' && !divergent;
+                            const notAudited = !d.auditInfo;
+
+                            const isScreenBroken = isScreenActuallyBroken(d);
+                            const isPeliculaBroken = isPeliculaActuallyBroken(d);
+                            const isPeliculaMissing = isPeliculaActuallyMissing(d);
+
+                            const missingList = d.auditInfo?.missingAccessories || [];
+                            const otherDamagedList = (d.auditInfo?.damagedAccessories || []).filter(
+                              a => !a.toLowerCase().includes('película') && !a.toLowerCase().includes('pelicula')
+                            );
+
+                            return (
+                              <tr 
+                                key={d.id} 
+                                className={`border-b border-zinc-300 ${
+                                  divergent ? 'bg-red-50/50' : isOk ? 'bg-emerald-50/30' : 'hover:bg-zinc-50'
+                                }`}
+                              >
+                                {/* PT */}
+                                <td className="border border-zinc-300 py-1.5 px-2 font-mono font-bold">
+                                  {d.isPersonalDevice ? (
+                                    <span className="text-purple-900 bg-purple-50 px-1 py-0.2 rounded border border-purple-200 text-[9px]">
+                                      PESSOAL
+                                    </span>
+                                  ) : d.hasAssetTag ? (
+                                    d.assetNumber
+                                  ) : (
+                                    'SEM PT'
+                                  )}
+                                </td>
+
+                                {/* Colaborador & Setor */}
+                                <td className="border border-zinc-300 py-1.5 px-2">
+                                  <span className="font-bold uppercase text-black block">{d.employeeName}</span>
+                                  <span className="text-[9px] text-zinc-600 block">{d.sector}</span>
+                                </td>
+
+                                {/* Modelo */}
+                                <td className="border border-zinc-300 py-1.5 px-2 font-medium">
+                                  <span className="font-semibold block">{d.brand} {d.model}</span>
+                                  <span className="text-[8.5px] text-zinc-500 font-mono">Linha: {d.phoneNumber || 'Sem chip'}</span>
+                                </td>
+
+                                {/* Diagnóstico da Auditoria: Totalmente Diferenciado */}
+                                <td className="border border-zinc-300 py-1.5 px-2 text-center">
+                                  {isOk ? (
+                                    <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-950 font-black text-[9px] border border-emerald-500 uppercase tracking-wide">
+                                      ✓ 100% CONFORME
+                                    </span>
+                                  ) : isScreenBroken && isPeliculaBroken ? (
+                                    <div className="flex flex-col gap-0.5 items-center">
+                                      <span className="inline-block px-1.5 py-0.5 rounded bg-red-600 text-white font-black text-[9px] shadow-xs uppercase tracking-wide">
+                                        🔨 TELA QUEBRADA
+                                      </span>
+                                      <span className="inline-block px-1 py-0.2 rounded bg-amber-100 text-amber-950 font-bold text-[8px] border border-amber-400 uppercase">
+                                        ⚠️ PELÍCULA TRINCADA
+                                      </span>
+                                    </div>
+                                  ) : isScreenBroken ? (
+                                    <span className="inline-block px-1.5 py-0.5 rounded bg-red-600 text-white font-black text-[9px] shadow-xs uppercase tracking-wide">
+                                      🔨 TELA QUEBRADA
+                                    </span>
+                                  ) : isPeliculaBroken ? (
+                                    <span className="inline-block px-1.5 py-0.5 rounded bg-amber-100 text-amber-950 font-black text-[9px] border-2 border-amber-500 uppercase tracking-wide">
+                                      ⚠️ PELÍCULA TRINCADA
+                                    </span>
+                                  ) : divergent ? (
+                                    <span className="inline-block px-1.5 py-0.5 rounded bg-red-100 text-red-950 font-black text-[9px] border-2 border-red-600 uppercase tracking-wide">
+                                      ⚠️ DIVERGÊNCIA
+                                    </span>
+                                  ) : (
+                                    <span className="inline-block px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 font-bold text-[8.5px] border border-zinc-300 uppercase">
+                                      ⏳ NÃO AUDITADO
+                                    </span>
+                                  )}
+                                </td>
+
+                                {/* Acessórios & Itens Entregues */}
+                                <td className="border border-zinc-300 py-1.5 px-2 text-[9px]">
+                                  {notAudited ? (
+                                    <span className="text-zinc-400 italic">Cadastrado: {d.accessories?.join(', ') || 'Padrão'}</span>
+                                  ) : isOk ? (
+                                    <div className="text-emerald-900 font-medium">
+                                      <span className="font-bold text-emerald-800">✓ Todos presentes:</span>
+                                      <div className="text-[8.5px] text-emerald-950">
+                                        {d.auditInfo?.verifiedAccessories?.join(', ') || d.accessories?.join(', ') || 'Completo'}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-0.5">
+                                      {missingList.length > 0 && (
+                                        <div className="text-red-900 font-bold">
+                                          <span className="text-red-700">❌ FALTANDO: </span>
+                                          <span className="underline">{missingList.join(', ')}</span>
+                                        </div>
+                                      )}
+                                      {otherDamagedList.length > 0 && (
+                                        <div className="text-amber-950 font-bold">
+                                          <span className="text-amber-800">⚠️ AVARIA: </span>
+                                          <span>{otherDamagedList.join(', ')}</span>
+                                        </div>
+                                      )}
+                                      <div className="text-[8.5px] text-zinc-500">
+                                        Presentes: {d.auditInfo?.verifiedAccessories?.join(', ') || 'Nenhum'}
+                                      </div>
+                                    </div>
+                                  )}
+                                </td>
+
+                                {/* Tela & Película: Separados com Clareza Absoluta */}
+                                <td className="border border-zinc-300 py-1.5 px-2 text-[9px]">
+                                  {notAudited ? (
+                                    <span className="text-zinc-400 italic">Estado: {d.condition || 'BOM'}</span>
+                                  ) : (
+                                    <div className="space-y-1">
+                                      {/* TELA ORIGINAL DO APARELHO */}
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-zinc-700 font-bold shrink-0">Tela:</span>
+                                        {!isScreenBroken ? (
+                                          <span className="text-emerald-800 font-bold bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
+                                            ✓ Íntegra
+                                          </span>
+                                        ) : (
+                                          <span className="text-white font-black bg-red-600 px-1.5 py-0.2 rounded uppercase">
+                                            🔨 QUEBRADA
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      {/* PELÍCULA DE PROTEÇÃO */}
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-zinc-700 font-bold shrink-0">Película:</span>
+                                        {isPeliculaBroken ? (
+                                          <span className="text-amber-950 font-black bg-amber-100 px-1.5 py-0.2 rounded border border-amber-400 uppercase">
+                                            ⚠️ TRINCADA
+                                          </span>
+                                        ) : isPeliculaMissing ? (
+                                          <span className="text-red-900 font-bold bg-red-50 px-1 py-0.2 rounded border border-red-200 uppercase">
+                                            ❌ SEM PELÍCULA
+                                          </span>
+                                        ) : (
+                                          <span className="text-emerald-800 font-bold bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
+                                            ✓ Íntegra
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </td>
+
+                                {/* Conferência / Auditor */}
+                                <td className="border border-zinc-300 py-1.5 px-2 text-[9px]">
+                                  {d.auditInfo ? (
+                                    <div>
+                                      <strong className="text-zinc-900 block font-bold">{d.auditInfo.auditedBy}</strong>
+                                      <span className="text-[8px] text-zinc-500 font-mono block">{d.auditInfo.lastAuditedAt}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-zinc-400 italic">Pendente</span>
+                                  )}
+                                </td>
+
+                                {/* Parecer / Observações / Pendências */}
+                                <td className="border border-zinc-300 py-1.5 px-2 text-[9px]">
+                                  {isScreenBroken && (
+                                    <div className="text-red-700 font-black mb-0.5">
+                                      • Tela do aparelho quebrada/trincada (necessita troca de display).
+                                    </div>
+                                  )}
+                                  {isPeliculaBroken && (
+                                    <div className="text-amber-900 font-bold mb-0.5">
+                                      • Substituir película de proteção (tela do celular está intacta).
+                                    </div>
+                                  )}
+                                  {d.auditInfo?.auditNotes ? (
+                                    <span className="text-zinc-900 italic font-medium">"{d.auditInfo.auditNotes}"</span>
+                                  ) : d.notes ? (
+                                    <span className="text-zinc-600 text-[8.5px]">{d.notes}</span>
+                                  ) : (
+                                    <span className="text-zinc-400">—</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })}
+
+                {/* Termo de Encerramento e Assinaturas Formais da Auditoria */}
+                <div className="pt-6 border-t-2 border-black space-y-8 page-break-inside-avoid">
+                  <p className="text-[10px] text-zinc-600 italic leading-relaxed text-center">
+                    Declaramos que a auditoria presencial de conformidade física, verificação de integridade 
+                    e conferência de acessórios entregues aos colaboradores da unidade foi realizada nos termos 
+                    dos regulamentos internos da <strong>AMILCO HOME CENTER</strong>.
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-12 pt-4 text-center">
+                    <div>
+                      <div className="border-t border-black w-4/5 mx-auto mb-1"></div>
+                      <strong className="block text-xs font-bold text-black uppercase">Auditor T.I. Responsável</strong>
+                      <span className="text-[10px] text-zinc-500">Tecnologia da Informação · Amilco Home Center</span>
+                    </div>
+
+                    <div>
+                      <div className="border-t border-black w-4/5 mx-auto mb-1"></div>
+                      <strong className="block text-xs font-bold text-black uppercase">Gerência / Coordenação da Loja</strong>
+                      <span className="text-[10px] text-zinc-500">Ciência e Visto da Unidade</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* RELATÓRIO GERAL DE INVENTÁRIO & PATRIMÔNIO (PADRÃO COMPLETO)              */}
+            {/* ========================================================================= */}
+            {reportMode === 'INVENTARIO' && filtered.length > 0 && (
+              <div className="space-y-6">
+                {storesToRender.map((storeName) => {
+                  const storeDevices = filtered.filter((d) => d.store === storeName);
+                  if (storeDevices.length === 0) return null;
+
+                  const sectorGroups = Array.from(new Set(storeDevices.map((d) => d.sector)));
+
+                  return (
+                    <div key={storeName} className="space-y-4 page-break-inside-avoid">
+                      {/* Store Header Banner */}
+                      <div className="bg-zinc-950 text-white p-2 px-3 rounded flex items-center justify-between border-l-4 border-red-600">
+                        <h2 className="font-bold text-xs uppercase tracking-wider">
+                          CONTROLE DE PATRIMÔNIO DE CELULARES DA EMPRESA AMILCO HOME CENTER - {storeName}
+                        </h2>
+                        <span className="text-xs font-mono font-bold bg-red-600 px-2 py-0.5 rounded">
+                          {storeDevices.length} APARELHOS
+                        </span>
+                      </div>
+
+                      {groupBySector ? (
+                        sectorGroups.map((secName) => {
+                          const secDevices = storeDevices.filter((d) => d.sector === secName);
+                          return (
+                            <div key={secName} className="space-y-1.5">
+                              <div className="flex items-center justify-between text-[11px] font-bold text-zinc-800 bg-zinc-100 px-2 py-1 border border-zinc-300 rounded">
+                                <span className="uppercase text-red-700">SETOR: {secName}</span>
+                                <span className="font-mono text-zinc-600">{secDevices.length} aparelho(s)</span>
+                              </div>
+
+                              <table className="w-full border-collapse border border-zinc-400 text-left text-[11px]">
+                                <thead>
+                                  <tr className="bg-zinc-200 text-black font-bold uppercase text-[10px]">
+                                    <th className="border border-zinc-400 py-1.5 px-2 w-[85px]">N° PATRIMÔNIO</th>
+                                    <th className="border border-zinc-400 py-1.5 px-2">COLABORADOR / USUÁRIO</th>
+                                    <th className="border border-zinc-400 py-1.5 px-2">MODELO</th>
+                                    {showAccessoriesColumn && (
+                                      <th className="border border-zinc-400 py-1.5 px-2">ACESSÓRIOS & ESTADO</th>
+                                    )}
+                                    <th className="border border-zinc-400 py-1.5 px-2 w-[70px]">VPN</th>
+                                    <th className="border border-zinc-400 py-1.5 px-2 w-[85px]">AQUISIÇÃO</th>
+                                    <th className="border border-zinc-400 py-1.5 px-2 w-[90px]">STATUS</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {secDevices.map((d) => (
+                                    <tr key={d.id} className="hover:bg-zinc-50 border-b border-zinc-300">
+                                      <td className="border border-zinc-300 py-1.5 px-2 font-mono font-bold">
+                                        {d.isPersonalDevice ? (
+                                          <span className="text-purple-900 font-bold bg-purple-50 px-1 py-0.2 rounded border border-purple-200 text-[10px]">
+                                            PESSOAL
+                                          </span>
+                                        ) : d.hasAssetTag ? (
+                                          d.assetNumber
+                                        ) : (
+                                          'SEM PT'
+                                        )}
+                                      </td>
+                                      <td className="border border-zinc-300 py-1.5 px-2">
+                                        <span className="font-bold uppercase text-black">{d.employeeName}</span>
+                                        {d.previousEmployeeName && (
+                                          <span className="text-[10px] text-zinc-500 block">
+                                            (Anterior: {d.previousEmployeeName})
+                                          </span>
+                                        )}
+                                        {d.phoneNumber && (
+                                          <span className="text-[10px] text-zinc-600 block font-mono">
+                                            Linha: {d.phoneNumber}
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td className="border border-zinc-300 py-1.5 px-2 font-medium">
+                                        <span>{d.brand} {d.model}</span>
+                                        {d.imei1 && (
+                                          <span className="text-[9px] text-zinc-500 block font-mono">
+                                            IMEI: {d.imei1}
+                                          </span>
+                                        )}
+                                      </td>
+                                      {showAccessoriesColumn && renderAccessoriesAndConditionCell(d)}
+                                      <td className="border border-zinc-300 py-1.5 px-2 font-semibold">
+                                        {d.hasVpn ? (
+                                          <span className="text-emerald-700 font-bold">SIM</span>
+                                        ) : (
+                                          <span className="text-zinc-400">NÃO</span>
+                                        )}
+                                      </td>
+                                      <td className="border border-zinc-300 py-1.5 px-2 font-mono text-[10px]">
+                                        {d.acquisitionDate || '—'}
+                                      </td>
+                                      <td className="border border-zinc-300 py-1.5 px-2 font-semibold">
+                                        <span className={`px-1.5 py-0.5 rounded text-[10px] ${
+                                          d.isPersonalDevice && (d.status === 'SEM PATRIMÔNIO' || d.status === 'PESSOAL')
+                                            ? 'bg-purple-100 text-purple-900 font-bold border border-purple-300'
+                                            : d.status === 'EM USO'
+                                              ? 'bg-zinc-100 text-zinc-900 font-bold'
+                                              : d.status === 'MANUTENÇÃO'
+                                                ? 'bg-amber-100 text-amber-900 font-bold'
+                                                : 'bg-red-100 text-red-900 font-bold'
+                                        }`}>
+                                          {d.isPersonalDevice && (d.status === 'SEM PATRIMÔNIO' || d.status === 'PESSOAL')
+                                            ? 'PESSOAL'
+                                            : d.status}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <table className="w-full border-collapse border border-zinc-400 text-left text-[11px]">
+                          <thead>
+                            <tr className="bg-zinc-200 text-black font-bold uppercase text-[10px]">
+                              <th className="border border-zinc-400 py-1.5 px-2 w-[85px]">N° PATRIMÔNIO</th>
+                              <th className="border border-zinc-400 py-1.5 px-2">COLABORADOR / USUÁRIO</th>
+                              <th className="border border-zinc-400 py-1.5 px-2">SETOR</th>
+                              <th className="border border-zinc-400 py-1.5 px-2">MODELO</th>
+                              {showAccessoriesColumn && (
+                                <th className="border border-zinc-400 py-1.5 px-2">ACESSÓRIOS & ESTADO</th>
+                              )}
+                              <th className="border border-zinc-400 py-1.5 px-2 w-[70px]">VPN</th>
+                              <th className="border border-zinc-400 py-1.5 px-2 w-[90px]">STATUS</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {storeDevices.map((d) => (
+                              <tr key={d.id} className="hover:bg-zinc-50 border-b border-zinc-300">
+                                <td className="border border-zinc-300 py-1.5 px-2 font-mono font-bold">
+                                  {d.isPersonalDevice ? (
+                                    <span className="text-purple-900 font-bold bg-purple-50 px-1 py-0.2 rounded border border-purple-200 text-[10px]">
+                                      PESSOAL
+                                    </span>
+                                  ) : d.hasAssetTag ? (
+                                    d.assetNumber
+                                  ) : (
+                                    'SEM PT'
+                                  )}
+                                </td>
+                                <td className="border border-zinc-300 py-1.5 px-2 font-semibold">
+                                  <span className="font-bold uppercase text-black">{d.employeeName}</span>
+                                  {d.previousEmployeeName && (
+                                    <span className="text-[10px] text-zinc-500 block">
+                                      (Anterior: {d.previousEmployeeName})
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="border border-zinc-300 py-1.5 px-2">{d.sector}</td>
+                                <td className="border border-zinc-300 py-1.5 px-2 font-medium">{d.brand} {d.model}</td>
+                                {showAccessoriesColumn && renderAccessoriesAndConditionCell(d)}
+                                <td className="border border-zinc-300 py-1.5 px-2 font-semibold">
+                                  {d.hasVpn ? (
+                                    <span className="text-emerald-700 font-bold">SIM</span>
+                                  ) : (
+                                    <span className="text-zinc-400">NÃO</span>
+                                  )}
+                                </td>
+                                <td className="border border-zinc-300 py-1.5 px-2 font-semibold">
+                                  {d.isPersonalDevice && (d.status === 'SEM PATRIMÔNIO' || d.status === 'PESSOAL') ? (
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-purple-100 text-purple-900 font-bold border border-purple-300">
+                                      PESSOAL
+                                    </span>
+                                  ) : (
+                                    d.status
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Modal Bottom Toolbar */}
           <div className="no-print px-6 py-3 border-t border-zinc-200 flex items-center justify-between bg-zinc-50 text-xs text-zinc-600 shrink-0">
             <span>
-              Total no Relatório: <strong>{filtered.length} aparelhos</strong>
-              {activeAdvCount > 0 && ` (com ${activeAdvCount} filtro(s) avançados ativos)`}
+              Modo: <strong>{reportMode === 'AUDITORIA' ? 'Auditoria Exclusiva' : 'Inventário Geral'}</strong> · Total listado: <strong>{filtered.length} aparelho(s)</strong>
             </span>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setIsAdvancedModalOpen(true)}
-                className="px-3 py-1.5 text-xs font-semibold text-zinc-800 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-100 transition-colors cursor-pointer"
-              >
-                Configurar Acessórios / Tela
-              </button>
+              {reportMode === 'INVENTARIO' && (
+                <button
+                  onClick={() => setIsAdvancedModalOpen(true)}
+                  className="px-3 py-1.5 text-xs font-semibold text-zinc-800 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-100 transition-colors cursor-pointer"
+                >
+                  Configurar Acessórios / Tela
+                </button>
+              )}
               <button
                 onClick={onClose}
                 className="px-3.5 py-1.5 text-xs font-semibold text-white bg-zinc-950 hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"

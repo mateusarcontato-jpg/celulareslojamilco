@@ -37,10 +37,37 @@ export function matchAdvancedCriteria(device: Device, criteria: AdvancedFilterCr
     const matchesAnyCategory = criteria.conditionCategories.some((cat) => {
       switch (cat) {
         case 'TELA_QUEBRADA': {
-          const isTelaTrincada = condStr.includes('TRINC') || condStr.includes('QUEBRAD');
-          const hasTelaInNotes = notesStr.includes('tela') || notesStr.includes('display') || notesStr.includes('trincad') || notesStr.includes('touch');
-          const hasTelaInOcc = occurrencesText.includes('tela') || occurrencesText.includes('display') || occurrencesText.includes('trincad') || occurrencesText.includes('touch');
-          return isTelaTrincada || hasTelaInNotes || hasTelaInOcc;
+          // Apenas dano real na tela/display do aparelho (NÃO apenas película trincada)
+          if (device.auditInfo) {
+            return device.auditInfo.screenOk === false;
+          }
+          const condUpper = (device.condition || '').toUpperCase();
+          const notesLower = (device.notes || '').toLowerCase();
+          const occLower = occurrencesText;
+
+          // Se a menção for apenas de película trincada e NÃO tiver dano na tela/display
+          const isPeliculaMention = notesLower.includes('pelicula trincad') || notesLower.includes('película trincad') ||
+            occLower.includes('película trincad') || occLower.includes('pelicula trincad');
+          const hasExplicitScreenDamage = notesLower.includes('tela quebrada') || notesLower.includes('tela trincada') || notesLower.includes('display quebrado') ||
+            occLower.includes('tela quebrada') || occLower.includes('tela trincada') || occLower.includes('display quebrado');
+
+          if (isPeliculaMention && !hasExplicitScreenDamage && condUpper !== 'TELA TRINCADA') {
+            return false;
+          }
+
+          const isTelaTrincada = condUpper === 'TELA TRINCADA';
+          return isTelaTrincada || hasExplicitScreenDamage;
+        }
+        case 'PELICULA_TRINCADA': {
+          // Apenas película de proteção trincada (com tela boa ou necessitando reposição de película)
+          if (device.auditInfo) {
+            return device.auditInfo.peliculaStatus === 'PELICULA_TRINCADA' ||
+              Boolean(device.auditInfo.damagedAccessories?.some(a => a.toLowerCase().includes('película') || a.toLowerCase().includes('pelicula')));
+          }
+          const notesLower = (device.notes || '').toLowerCase();
+          const occLower = occurrencesText;
+          return notesLower.includes('pelicula trincad') || notesLower.includes('película trincad') ||
+                 occLower.includes('pelicula trincad') || occLower.includes('película trincad');
         }
         case 'COM_AVARIAS': {
           return condStr.includes('AVARIA') || notesStr.includes('avaria') || notesStr.includes('defeito') || notesStr.includes('quebrad');
