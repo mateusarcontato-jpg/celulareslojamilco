@@ -57,6 +57,7 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
   const [screenOk, setScreenOk] = useState<boolean>(true);
   const [batteryOk, setBatteryOk] = useState<boolean>(true);
   const [peliculaStatus, setPeliculaStatus] = useState<'COM_PELICULA_OK' | 'PELICULA_TRINCADA' | 'SEM_PELICULA'>('COM_PELICULA_OK');
+  const [capaStatus, setCapaStatus] = useState<'COM_CAPA_OK' | 'CAPA_DANIFICADA' | 'SEM_CAPA'>('COM_CAPA_OK');
   const [condition, setCondition] = useState<DeviceCondition>(device.condition || 'BOM');
   const [auditNotes, setAuditNotes] = useState<string>('');
   const [auditorName, setAuditorName] = useState<string>(currentAuditorName);
@@ -88,6 +89,13 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
       );
       setPeliculaStatus(initialPelicula);
 
+      const initialCapa = device.auditInfo.missingAccessories?.some(i => i.toLowerCase().includes('capa'))
+        ? 'SEM_CAPA'
+        : device.auditInfo.damagedAccessories?.some(i => i.toLowerCase().includes('capa'))
+          ? 'CAPA_DANIFICADA'
+          : 'COM_CAPA_OK';
+      setCapaStatus(initialCapa);
+
       // Se a tela original estiver íntegra (initialScreenOk === true), a condição física NUNCA deve ser TELA TRINCADA
       const baseCond = device.auditInfo.conditionVerified || device.condition || 'BOM';
       setCondition(initialScreenOk && baseCond === 'TELA TRINCADA' ? 'BOM' : baseCond);
@@ -107,6 +115,8 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
         occText.includes('película trincad') || occText.includes('pelicula trincad');
       const hasExplicitScreenDamage = notesLower.includes('tela quebrada') || notesLower.includes('tela trincada') || notesLower.includes('display quebrado') ||
         occText.includes('tela quebrada') || occText.includes('tela trincada') || occText.includes('display quebrado');
+      const isCapaDamagedMention = notesLower.includes('capa desgastad') || notesLower.includes('capa rasgad') || notesLower.includes('capa danificad') ||
+        occText.includes('capa desgastad') || occText.includes('capa rasgad') || occText.includes('capa danificad');
 
       // Se for apenas menção a película e não tiver dano real comprovado na tela
       const isActualScreenBroken = hasExplicitScreenDamage || (device.condition === 'TELA TRINCADA' && !isPeliculaMention);
@@ -122,6 +132,13 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
             ? 'PELICULA_TRINCADA'
             : 'COM_PELICULA_OK'
       );
+      setCapaStatus(
+        notesLower.includes('sem capa')
+          ? 'SEM_CAPA'
+          : isCapaDamagedMention
+            ? 'CAPA_DANIFICADA'
+            : 'COM_CAPA_OK'
+      );
       setCondition(isActualScreenBroken ? 'TELA TRINCADA' : (device.condition === 'TELA TRINCADA' ? 'BOM' : (device.condition || 'BOM')));
       setAuditNotes('');
       setAuditorName(currentAuditorName);
@@ -130,6 +147,7 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
 
   const toggleItemStatus = (item: string, targetStatus: 'verified' | 'missing' | 'damaged') => {
     const isPelicula = item.toLowerCase().includes('película') || item.toLowerCase().includes('pelicula');
+    const isCapa = item.toLowerCase().includes('capa');
 
     if (targetStatus === 'verified') {
       setVerifiedItems((prev) => (prev.includes(item) ? prev : [...prev, item]));
@@ -138,12 +156,18 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
       if (isPelicula) {
         setPeliculaStatus('COM_PELICULA_OK');
       }
+      if (isCapa) {
+        setCapaStatus('COM_CAPA_OK');
+      }
     } else if (targetStatus === 'missing') {
       setMissingItems((prev) => (prev.includes(item) ? prev : [...prev, item]));
       setVerifiedItems((prev) => prev.filter((i) => i !== item));
       setDamagedAccessories((prev) => prev.filter((i) => i !== item));
       if (isPelicula) {
         setPeliculaStatus('SEM_PELICULA');
+      }
+      if (isCapa) {
+        setCapaStatus('SEM_CAPA');
       }
     } else if (targetStatus === 'damaged') {
       setDamagedAccessories((prev) => (prev.includes(item) ? prev : [...prev, item]));
@@ -152,6 +176,41 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
       if (isPelicula) {
         setPeliculaStatus('PELICULA_TRINCADA');
       }
+      if (isCapa) {
+        setCapaStatus('CAPA_DANIFICADA');
+        setAuditNotes((prev) => {
+          if (prev.toLowerCase().includes('capa desgastada') || prev.toLowerCase().includes('capa rasgada') || prev.toLowerCase().includes('capa protetora desgastada')) return prev;
+          return prev
+            ? `${prev}. Capa protetora desgastada/rasgada (necessita substituição).`
+            : 'Capa protetora desgastada/rasgada (necessita substituição).';
+        });
+      }
+    }
+  };
+
+  const handleCapaChange = (newStatus: 'COM_CAPA_OK' | 'CAPA_DANIFICADA' | 'SEM_CAPA') => {
+    setCapaStatus(newStatus);
+    const capaItemName = expectedItems.find(i => i.toLowerCase().includes('capa')) || 'Capa Protetora';
+
+    if (newStatus === 'SEM_CAPA') {
+      setMissingItems((prev) => (prev.includes(capaItemName) ? prev : [...prev, capaItemName]));
+      setVerifiedItems((prev) => prev.filter((i) => i !== capaItemName));
+      setDamagedAccessories((prev) => prev.filter((i) => i !== capaItemName && !i.toLowerCase().includes('capa')));
+    } else if (newStatus === 'CAPA_DANIFICADA') {
+      setDamagedAccessories((prev) => (prev.includes(capaItemName) ? prev : [...prev, capaItemName]));
+      setVerifiedItems((prev) => (prev.includes(capaItemName) ? prev : [...prev, capaItemName]));
+      setMissingItems((prev) => prev.filter((i) => i !== capaItemName));
+      setAuditNotes((prev) => {
+        if (prev.toLowerCase().includes('capa desgastada') || prev.toLowerCase().includes('capa rasgada') || prev.toLowerCase().includes('capa protetora desgastada')) return prev;
+        return prev
+          ? `${prev}. Capa protetora desgastada/rasgada (necessita substituição).`
+          : 'Capa protetora desgastada/rasgada (necessita substituição).';
+      });
+    } else {
+      setVerifiedItems((prev) => (prev.includes(capaItemName) ? prev : [...prev, capaItemName]));
+      setMissingItems((prev) => prev.filter((i) => i !== capaItemName));
+      setDamagedAccessories((prev) => prev.filter((i) => i !== capaItemName && !i.toLowerCase().includes('capa')));
+      setAuditNotes((prev) => prev.replace(/\.?\s*Capa protetora desgastada\/rasgada[^\.]*/i, ''));
     }
   };
 
@@ -189,6 +248,7 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
     setMissingItems([]);
     setDamagedAccessories([]);
     setPeliculaStatus('COM_PELICULA_OK');
+    setCapaStatus('COM_CAPA_OK');
     setScreenOk(true);
     setBatteryOk(true);
     if (condition === 'TELA TRINCADA' || condition === 'COM AVARIAS') {
@@ -206,12 +266,16 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
     setNewItemText('');
   };
 
-  // Película trincada ou qualquer acessório danificado FAZ PARTE DA DIVERGÊNCIA!
+  const isCapaDamaged = capaStatus === 'CAPA_DANIFICADA' || damagedAccessories.some(i => i.toLowerCase().includes('capa'));
+
+  // Película trincada, capa danificada ou qualquer acessório danificado FAZ PARTE DA DIVERGÊNCIA!
   const hasDivergence = 
     missingItems.length > 0 || 
     damagedAccessories.length > 0 || 
     peliculaStatus === 'PELICULA_TRINCADA' || 
     peliculaStatus === 'SEM_PELICULA' || 
+    capaStatus === 'CAPA_DANIFICADA' ||
+    capaStatus === 'SEM_CAPA' ||
     !screenOk || 
     !batteryOk || 
     condition === 'TELA TRINCADA' || 
@@ -228,9 +292,11 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
       ? 'TELA TRINCADA' 
       : (condition === 'TELA TRINCADA' ? 'BOM' : condition);
 
+    const capaItemName = expectedItems.find(i => i.toLowerCase().includes('capa')) || 'Capa Protetora';
     const allDamaged = Array.from(new Set([
       ...damagedAccessories,
-      ...(peliculaStatus === 'PELICULA_TRINCADA' ? ['Película de Proteção (Trincada)'] : [])
+      ...(peliculaStatus === 'PELICULA_TRINCADA' && !damagedAccessories.some(i => i.toLowerCase().includes('película') || i.toLowerCase().includes('pelicula')) ? ['Película de Proteção (Trincada)'] : []),
+      ...(capaStatus === 'CAPA_DANIFICADA' && !damagedAccessories.some(i => i.toLowerCase().includes('capa')) ? [capaItemName] : [])
     ]));
 
     const nowStr = new Date().toLocaleDateString('pt-BR') + ' às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -261,8 +327,12 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
         occurrenceTitle = 'CHECKUP: 🔋 BATERIA INCHADA / DANIFICADA & ⚠️ PELÍCULA TRINCADA';
       } else if (!batteryOk) {
         occurrenceTitle = 'CHECKUP: 🔋 BATERIA INCHADA / DANIFICADA (Problema de Bateria)';
+      } else if (peliculaStatus === 'PELICULA_TRINCADA' && isCapaDamaged) {
+        occurrenceTitle = 'CHECKUP: ⚠️ PELÍCULA TRINCADA & 🛡️ CAPA DESGASTADA / RASGADA';
       } else if (peliculaStatus === 'PELICULA_TRINCADA') {
         occurrenceTitle = 'CHECKUP: ⚠️ PELÍCULA DE PROTEÇÃO TRINCADA (Tela Original Íntegra)';
+      } else if (isCapaDamaged) {
+        occurrenceTitle = 'CHECKUP: 🛡️ CAPA PROTETORA DESGASTADA / RASGADA (Avaria na Capa)';
       } else if (missingItems.length > 0) {
         occurrenceTitle = `CHECKUP: ❌ ITENS FALTANDO (${missingItems.join(', ')})`;
       } else if (allDamaged.length > 0) {
@@ -401,6 +471,11 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
                         ⚠️ PELÍCULA TRINCADA (Necessita troca · Tela do aparelho está {screenOk ? 'ÍNTEGRA' : 'QUEBRADA'})
                       </span>
                     )}
+                    {isCapaDamaged && (
+                      <span className="inline-block px-2 py-0.5 rounded bg-amber-100 border-2 border-amber-600 text-amber-950 font-black text-[9.5px] uppercase shadow-2xs">
+                        🛡️ CAPA DESGASTADA / RASGADA (Avaria na Capa Protetora)
+                      </span>
+                    )}
                     {peliculaStatus === 'SEM_PELICULA' && (
                       <span className="inline-block px-2 py-0.5 rounded bg-red-100 border border-red-400 text-red-950 font-bold text-[9.5px] uppercase">
                         ❌ SEM PELÍCULA PROTETORA
@@ -411,9 +486,9 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
                         ❌ Faltando: {missingItems.join(', ')}
                       </span>
                     )}
-                    {damagedAccessories.filter(a => !a.toLowerCase().includes('película') && !a.toLowerCase().includes('pelicula')).length > 0 && (
+                    {damagedAccessories.filter(a => !a.toLowerCase().includes('película') && !a.toLowerCase().includes('pelicula') && !a.toLowerCase().includes('capa')).length > 0 && (
                       <span className="inline-block px-2 py-0.5 rounded bg-amber-100 border border-amber-400 text-amber-950 font-bold text-[9.5px]">
-                        ⚠️ Avaria: {damagedAccessories.filter(a => !a.toLowerCase().includes('película') && !a.toLowerCase().includes('pelicula')).join(', ')}
+                        ⚠️ Avaria: {damagedAccessories.filter(a => !a.toLowerCase().includes('película') && !a.toLowerCase().includes('pelicula') && !a.toLowerCase().includes('capa')).join(', ')}
                       </span>
                     )}
                   </div>
@@ -589,18 +664,18 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
             </div>
           </div>
 
-          {/* SEÇÃO 2: ESTADO FÍSICO, TELA, PELÍCULA E BATERIA */}
+          {/* SEÇÃO 2: ESTADO FÍSICO, TELA, PELÍCULA, CAPA E BATERIA */}
           <div className="border border-zinc-200 rounded-xl p-4 bg-zinc-50/70 space-y-3">
             <div className="flex items-center gap-2 border-b border-zinc-200 pb-2">
               <span className="w-5 h-5 rounded bg-red-100 text-red-700 font-bold flex items-center justify-center text-xs">
                 2
               </span>
               <span className="font-bold text-zinc-950 uppercase tracking-wide">
-                Condição Física, Tela, Película & Bateria
+                Condição Física, Tela, Película, Capa & Bateria
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* 1. Tela / Vidro do Aparelho */}
               <div className={`p-3 rounded-xl border flex flex-col justify-between ${screenOk ? 'bg-white border-zinc-200' : 'bg-red-50 border-red-300'}`}>
                 <div>
@@ -659,7 +734,7 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
                 peliculaStatus === 'COM_PELICULA_OK'
                   ? 'bg-white border-zinc-200'
                   : peliculaStatus === 'PELICULA_TRINCADA'
-                    ? 'bg-amber-50 border-amber-300'
+                    ? 'bg-amber-50 border-2 border-amber-400'
                     : 'bg-red-50 border-red-300'
               }`}>
                 <div>
@@ -669,7 +744,7 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
                       peliculaStatus === 'COM_PELICULA_OK' 
                         ? 'bg-emerald-100 text-emerald-900' 
                         : peliculaStatus === 'PELICULA_TRINCADA'
-                          ? 'bg-amber-100 text-amber-950 font-black'
+                          ? 'bg-amber-100 text-amber-950 font-black border border-amber-500'
                           : 'bg-red-100 text-red-900'
                     }`}>
                       {peliculaStatus === 'COM_PELICULA_OK' ? 'OK' : peliculaStatus === 'PELICULA_TRINCADA' ? '⚠️ Trincada' : 'Falta'}
@@ -721,7 +796,74 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
                 </div>
               </div>
 
-              {/* 3. Bateria & Conector */}
+              {/* 3. Capa Protetora */}
+              <div className={`p-3 rounded-xl border flex flex-col justify-between ${
+                capaStatus === 'COM_CAPA_OK' && !isCapaDamaged
+                  ? 'bg-white border-zinc-200'
+                  : isCapaDamaged
+                    ? 'bg-amber-50 border-2 border-amber-500'
+                    : 'bg-red-50 border-red-300'
+              }`}>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-bold text-zinc-900 text-xs">Capa Protetora:</span>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded uppercase ${
+                      capaStatus === 'COM_CAPA_OK' && !isCapaDamaged
+                        ? 'bg-emerald-100 text-emerald-900'
+                        : isCapaDamaged
+                          ? 'bg-amber-200 text-amber-950 font-black border border-amber-600'
+                          : 'bg-red-100 text-red-900'
+                    }`}>
+                      {capaStatus === 'COM_CAPA_OK' && !isCapaDamaged ? 'OK' : isCapaDamaged ? '🛡️ Desgastada / Rasgada' : 'Falta'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-zinc-500 block mb-2 leading-tight">
+                    Estado da capa protetora (íntegra, desgastada/rasgada/ressecada precisando de troca, ou ausente).
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleCapaChange('COM_CAPA_OK')}
+                    className={`py-1 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
+                      capaStatus === 'COM_CAPA_OK' && !isCapaDamaged
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                        : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200'
+                    }`}
+                  >
+                    ✓ Capa Íntegra (OK)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleCapaChange('CAPA_DANIFICADA')}
+                    className={`py-1 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
+                      isCapaDamaged
+                        ? 'bg-amber-600 text-white border-amber-600 shadow-2xs'
+                        : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200'
+                    }`}
+                    title="Capa protetora está desgastada, rasgada ou danificada"
+                  >
+                    🛡️ Capa Desgastada / Rasgada
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleCapaChange('SEM_CAPA')}
+                    className={`py-1 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
+                      capaStatus === 'SEM_CAPA'
+                        ? 'bg-red-600 text-white border-red-600 shadow-2xs'
+                        : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200'
+                    }`}
+                    title="Aparelho está sem capa protetora"
+                  >
+                    ❌ Sem Capa (Falta)
+                  </button>
+                </div>
+              </div>
+
+              {/* 4. Bateria & Conector */}
               <div className={`p-3 rounded-xl border flex flex-col justify-between ${batteryOk ? 'bg-white border-zinc-200' : 'bg-orange-50 border-2 border-orange-400'}`}>
                 <div>
                   <div className="flex items-center justify-between mb-1">
@@ -845,6 +987,15 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
                   className="px-2 py-0.5 bg-amber-100 text-amber-950 rounded hover:bg-amber-200 font-bold border border-amber-300 cursor-pointer"
                 >
                   + Película Trincada (Tela OK)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleCapaChange('CAPA_DANIFICADA');
+                  }}
+                  className="px-2 py-0.5 bg-amber-100 text-amber-950 rounded hover:bg-amber-200 font-bold border border-amber-400 cursor-pointer"
+                >
+                  + Capa Desgastada / Rasgada
                 </button>
                 <button
                   type="button"

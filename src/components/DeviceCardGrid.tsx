@@ -167,12 +167,12 @@ export const DeviceCardGrid: React.FC<DeviceCardGridProps> = ({
                   <span>Aquisição: <strong className="text-zinc-800 font-mono-nums">{device.acquisitionDate}</strong></span>
                 </div>
 
-                {/* Status do Checkup de Auditoria (Exibido apenas na lacuna de Auditoria) */}
+                {/* Status do Checkup de Auditoria */}
                 {showAuditColumn && (
                   device.auditInfo?.status === 'OK' ? (
                   <div className="flex items-center gap-1.5 text-xs text-emerald-800 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>Checkup: <strong>100% OK</strong> ({device.auditInfo.lastAuditedAt?.split(' às')[0]})</span>
+                    <span>Checkup: <strong>100% OK</strong> ({device.auditInfo.lastAuditedAt})</span>
                   </div>
                 ) : device.auditInfo?.status === 'COM_PENDENCIA' ? (
                   (() => {
@@ -180,6 +180,12 @@ export const DeviceCardGrid: React.FC<DeviceCardGridProps> = ({
                     const isBatteryBroken = device.auditInfo.batteryOk === false;
                     const isPeliculaBroken = device.auditInfo.peliculaStatus === 'PELICULA_TRINCADA' ||
                       Boolean(device.auditInfo.damagedAccessories?.some(a => a.toLowerCase().includes('película') || a.toLowerCase().includes('pelicula')));
+                    const isCapaBroken = Boolean(
+                      device.auditInfo.damagedAccessories?.some(a => a.toLowerCase().includes('capa')) ||
+                      (device.auditInfo.auditNotes || '').toLowerCase().includes('capa desgastad') ||
+                      (device.auditInfo.auditNotes || '').toLowerCase().includes('capa rasgad') ||
+                      (device.auditInfo.auditNotes || '').toLowerCase().includes('capa danificad')
+                    );
                     const missingCount = device.auditInfo.missingAccessories?.length || 0;
 
                     return (
@@ -188,52 +194,52 @@ export const DeviceCardGrid: React.FC<DeviceCardGridProps> = ({
                           ? 'bg-red-50 text-red-950 border-red-300'
                           : isBatteryBroken
                             ? 'bg-orange-50 text-orange-950 border-2 border-orange-500'
-                            : isPeliculaBroken
-                              ? 'bg-amber-50 text-amber-950 border-amber-300'
+                            : isPeliculaBroken || isCapaBroken
+                              ? 'bg-amber-50 text-amber-950 border-2 border-amber-500'
                               : 'bg-red-50 text-red-900 border-red-200'
                       }`}>
                         {isScreenBroken ? (
                           <span className="text-red-600 font-black text-sm shrink-0">🔨</span>
                         ) : isBatteryBroken ? (
                           <span className="text-orange-600 font-black text-sm shrink-0">🔋</span>
+                        ) : isCapaBroken ? (
+                          <span className="text-amber-700 font-black text-sm shrink-0">🛡️</span>
                         ) : isPeliculaBroken ? (
                           <span className="text-amber-600 font-black text-sm shrink-0">⚠️</span>
                         ) : (
                           <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0 mt-0.5" />
                         )}
                         <div>
-                          {isScreenBroken ? (
-                            <>
-                              <span className="font-black text-red-950 block">TELA QUEBRADA (Display danificado)</span>
-                              {isBatteryBroken && (
-                                <span className="block text-[10px] text-orange-900 font-bold">🔋 Bateria também inchada/danificada</span>
-                              )}
-                              {isPeliculaBroken && (
-                                <span className="block text-[10px] text-amber-900 font-semibold">Película também trincada</span>
-                              )}
-                            </>
-                          ) : isBatteryBroken ? (
-                            <>
-                              <span className="font-black text-orange-950 block uppercase">BATERIA INCHADA / DANIFICADA</span>
-                              <span className="block text-[10px] text-orange-900 font-semibold">Necessita substituição / avaliação técnica</span>
-                            </>
-                          ) : isPeliculaBroken ? (
-                            <>
-                              <span className="font-bold text-amber-950 block">PELÍCULA TRINCADA</span>
-                              <span className="block text-[10px] text-emerald-800 font-semibold">✓ Tela original intacta (trocar película)</span>
-                            </>
-                          ) : missingCount > 0 ? (
+                          {isScreenBroken && (
+                            <span className="font-black text-red-950 block">TELA QUEBRADA (Display danificado)</span>
+                          )}
+                          {isBatteryBroken && (
+                            <span className="font-black text-orange-950 block uppercase">🔋 BATERIA INCHADA / DANIFICADA</span>
+                          )}
+                          {isPeliculaBroken && (
+                            <span className="font-bold text-amber-950 block uppercase">⚠️ PELÍCULA TRINCADA (Tela intacta)</span>
+                          )}
+                          {isCapaBroken && (
+                            <span className="font-black text-amber-950 block uppercase">🛡️ CAPA DESGASTADA / RASGADA</span>
+                          )}
+                          {!isScreenBroken && !isBatteryBroken && !isPeliculaBroken && !isCapaBroken && missingCount > 0 && (
                             <>
                               <span className="font-bold">Faltando {missingCount} item(ns)</span>
                               <span className="block text-[10px] text-red-700">{device.auditInfo.missingAccessories?.join(', ')}</span>
                             </>
-                          ) : (
+                          )}
+                          {!isScreenBroken && !isBatteryBroken && !isPeliculaBroken && !isCapaBroken && missingCount === 0 && (
                             <span className="font-bold">Divergência Constatada</span>
                           )}
 
-                          {missingCount > 0 && (isScreenBroken || isBatteryBroken || isPeliculaBroken) && (
+                          {missingCount > 0 && (isScreenBroken || isBatteryBroken || isPeliculaBroken || isCapaBroken) && (
                             <span className="block text-[10px] text-red-700 font-semibold mt-0.5">
                               + Faltando: {device.auditInfo.missingAccessories?.join(', ')}
+                            </span>
+                          )}
+                          {device.auditInfo.lastAuditedAt && (
+                            <span className="block text-[10px] text-zinc-500 font-mono-nums mt-0.5">
+                              Último checkup: {device.auditInfo.lastAuditedAt}
                             </span>
                           )}
                         </div>
@@ -256,7 +262,7 @@ export const DeviceCardGrid: React.FC<DeviceCardGridProps> = ({
                   <span>Ver Ficha</span>
                 </button>
 
-                {showAuditColumn && onOpenAudit && (
+                {onOpenAudit && (
                   <button
                     onClick={() => onOpenAudit(device)}
                     className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg cursor-pointer"

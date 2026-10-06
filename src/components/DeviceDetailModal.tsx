@@ -154,10 +154,21 @@ export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                       </p>
                     )}
                     {device.auditInfo.peliculaStatus === 'PELICULA_TRINCADA' && (
-                      <p className="text-amber-900 text-xs font-bold flex items-center gap-1">
+                      <p className="text-amber-950 bg-amber-100 border-2 border-amber-500 px-2 py-1 rounded text-xs font-black flex items-center gap-1">
                         <span>⚠️ PELÍCULA DE PROTEÇÃO TRINCADA:</span>
-                        <span className="font-medium text-amber-950">
+                        <span className="font-semibold text-amber-900">
                           Película danificada (a tela original do aparelho está {device.auditInfo.screenOk === false ? 'também quebrada' : 'íntegra/sem danos'}).
+                        </span>
+                      </p>
+                    )}
+                    {(device.auditInfo.damagedAccessories?.some(a => a.toLowerCase().includes('capa')) ||
+                      (device.auditInfo.auditNotes || '').toLowerCase().includes('capa desgastad') ||
+                      (device.auditInfo.auditNotes || '').toLowerCase().includes('capa rasgad') ||
+                      (device.auditInfo.auditNotes || '').toLowerCase().includes('capa danificad')) && (
+                      <p className="text-amber-950 bg-amber-100 border-2 border-amber-600 px-2 py-1 rounded text-xs font-black flex items-center gap-1">
+                        <span>🛡️ CAPA DESGASTADA / RASGADA:</span>
+                        <span className="font-semibold text-amber-900">
+                          Capa protetora com avaria/desgaste (necessita substituição).
                         </span>
                       </p>
                     )}
@@ -166,9 +177,9 @@ export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                         ❌ Itens Faltando: {device.auditInfo.missingAccessories.join(', ')}
                       </p>
                     )}
-                    {device.auditInfo.damagedAccessories && device.auditInfo.damagedAccessories.filter(a => !a.toLowerCase().includes('película') && !a.toLowerCase().includes('pelicula')).length > 0 && (
+                    {device.auditInfo.damagedAccessories && device.auditInfo.damagedAccessories.filter(a => !a.toLowerCase().includes('película') && !a.toLowerCase().includes('pelicula') && !a.toLowerCase().includes('capa')).length > 0 && (
                       <p className="text-amber-900 text-xs font-semibold">
-                        ⚠️ Outros Danificados: {device.auditInfo.damagedAccessories.filter(a => !a.toLowerCase().includes('película') && !a.toLowerCase().includes('pelicula')).join(', ')}
+                        ⚠️ Outros Danificados: {device.auditInfo.damagedAccessories.filter(a => !a.toLowerCase().includes('película') && !a.toLowerCase().includes('pelicula') && !a.toLowerCase().includes('capa')).join(', ')}
                       </p>
                     )}
                   </div>

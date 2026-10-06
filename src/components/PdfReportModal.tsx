@@ -126,6 +126,39 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
     );
   };
 
+  // Determina se a CAPA PROTETORA está desgastada, rasgada ou danificada
+  const isCapaActuallyBroken = (d: Device): boolean => {
+    if (d.auditInfo) {
+      return Boolean(
+        d.auditInfo.damagedAccessories?.some(a => a.toLowerCase().includes('capa')) ||
+        (d.auditInfo.auditNotes || '').toLowerCase().includes('capa desgastad') ||
+        (d.auditInfo.auditNotes || '').toLowerCase().includes('capa rasgad') ||
+        (d.auditInfo.auditNotes || '').toLowerCase().includes('capa danificad') ||
+        (d.auditInfo.auditNotes || '').toLowerCase().includes('capa protetora desgastad')
+      );
+    }
+    const notesLower = (d.notes || '').toLowerCase();
+    const occText = (d.occurrences || []).map(o => `${o.title} ${o.description}`).join(' ').toLowerCase();
+    return (
+      notesLower.includes('capa desgastad') ||
+      notesLower.includes('capa rasgad') ||
+      notesLower.includes('capa danificad') ||
+      notesLower.includes('capa avariad') ||
+      occText.includes('capa desgastad') ||
+      occText.includes('capa rasgad') ||
+      occText.includes('capa danificad')
+    );
+  };
+
+  // Determina se o aparelho está SEM CAPA PROTETORA
+  const isCapaActuallyMissing = (d: Device): boolean => {
+    if (d.auditInfo) {
+      return (d.auditInfo.missingAccessories || []).some(a => a.toLowerCase().includes('capa'));
+    }
+    const notesLower = (d.notes || '').toLowerCase();
+    return notesLower.includes('sem capa');
+  };
+
   // Função auxiliar para determinar se o aparelho possui qualquer divergência/avaria
   const isDeviceDivergent = (d: Device): boolean => {
     // 1. Falta de acessórios
@@ -620,7 +653,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                             <th className="border border-zinc-400 py-1.5 px-1.5 w-[13%]">APARELHO</th>
                             <th className="border border-zinc-400 py-1.5 px-1.5 w-[14%] text-center">DIAGNÓSTICO</th>
                             <th className="border border-zinc-400 py-1.5 px-1.5 w-[18%]">ACESSÓRIOS & ITENS</th>
-                            <th className="border border-zinc-400 py-1.5 px-1.5 w-[14%]">TELA, PELÍCULA & BATERIA</th>
+                            <th className="border border-zinc-400 py-1.5 px-1.5 w-[14%]">TELA, PELÍCULA, CAPA & BATERIA</th>
                             <th className="border border-zinc-400 py-1.5 px-1.5 w-[9%]">CONFERÊNCIA</th>
                             <th className="border border-zinc-400 py-1.5 px-1.5 w-[10%]">PARECER / OBS</th>
                           </tr>
@@ -635,10 +668,12 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                             const isPeliculaBroken = isPeliculaActuallyBroken(d);
                             const isPeliculaMissing = isPeliculaActuallyMissing(d);
                             const isBatteryBroken = isBatteryActuallyBroken(d);
+                            const isCapaBroken = isCapaActuallyBroken(d);
+                            const isCapaMissing = isCapaActuallyMissing(d);
 
                             const missingList = d.auditInfo?.missingAccessories || [];
                             const otherDamagedList = (d.auditInfo?.damagedAccessories || []).filter(
-                              a => !a.toLowerCase().includes('película') && !a.toLowerCase().includes('pelicula')
+                              a => !a.toLowerCase().includes('película') && !a.toLowerCase().includes('pelicula') && !a.toLowerCase().includes('capa')
                             );
 
                             return (
@@ -696,12 +731,17 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                                           ⚠️ PELÍCULA TRINCADA
                                         </span>
                                       )}
-                                      {!isScreenBroken && !isBatteryBroken && !isPeliculaBroken && divergent && (
+                                      {isCapaBroken && (
+                                        <span className="inline-block w-full px-1 py-0.5 rounded bg-amber-100 text-amber-950 font-black text-[8.5px] border-2 border-amber-600 uppercase tracking-wide">
+                                          🛡️ CAPA DESGASTADA
+                                        </span>
+                                      )}
+                                      {!isScreenBroken && !isBatteryBroken && !isPeliculaBroken && !isCapaBroken && divergent && (
                                         <span className="inline-block w-full px-1 py-0.5 rounded bg-red-100 text-red-950 font-black text-[8.5px] border-2 border-red-600 uppercase tracking-wide">
                                           ⚠️ DIVERGÊNCIA
                                         </span>
                                       )}
-                                      {!isScreenBroken && !isBatteryBroken && !isPeliculaBroken && !divergent && (
+                                      {!isScreenBroken && !isBatteryBroken && !isPeliculaBroken && !isCapaBroken && !divergent && (
                                         <span className="inline-block px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 font-bold text-[8px] border border-zinc-300 uppercase">
                                           ⏳ NÃO AUDITADO
                                         </span>
@@ -729,6 +769,12 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                                           <span className="underline">{missingList.join(', ')}</span>
                                         </div>
                                       )}
+                                      {isCapaBroken && (
+                                        <div className="text-amber-950 font-black">
+                                          <span className="text-amber-800">🛡️ CAPA: </span>
+                                          <span>Desgastada / Rasgada</span>
+                                        </div>
+                                      )}
                                       {otherDamagedList.length > 0 && (
                                         <div className="text-amber-950 font-bold">
                                           <span className="text-amber-800">⚠️ AVARIA: </span>
@@ -742,7 +788,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                                   )}
                                 </td>
 
-                                {/* Tela, Película & Bateria: Separados com Clareza Absoluta */}
+                                {/* Tela, Película, Capa & Bateria: Separados com Clareza Absoluta */}
                                 <td className="border border-zinc-300 py-1.5 px-1.5 text-[8.5px]">
                                   {notAudited ? (
                                     <span className="text-zinc-400 italic">Estado: {d.condition || 'BOM'}</span>
@@ -772,6 +818,24 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                                         ) : isPeliculaMissing ? (
                                           <span className="text-red-900 font-bold bg-red-50 px-1 py-0.2 rounded border border-red-200 uppercase">
                                             ❌ SEM PELÍCULA
+                                          </span>
+                                        ) : (
+                                          <span className="text-emerald-800 font-bold bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
+                                            ✓ Íntegra
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      {/* CAPA PROTETORA (Destaque retangular caso desgastada/rasgada) */}
+                                      <div className="flex flex-wrap items-center gap-1">
+                                        <span className="text-zinc-700 font-bold shrink-0">Capa:</span>
+                                        {isCapaBroken ? (
+                                          <span className="text-amber-950 font-black bg-amber-100 px-1 py-0.2 rounded border-2 border-amber-600 uppercase">
+                                            🛡️ DESGASTADA / RASG.
+                                          </span>
+                                        ) : isCapaMissing ? (
+                                          <span className="text-red-900 font-bold bg-red-50 px-1 py-0.2 rounded border border-red-200 uppercase">
+                                            ❌ SEM CAPA
                                           </span>
                                         ) : (
                                           <span className="text-emerald-800 font-bold bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
@@ -824,6 +888,11 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                                   {isPeliculaBroken && (
                                     <div className="text-amber-900 font-bold mb-0.5">
                                       • Trocar película (tela intacta).
+                                    </div>
+                                  )}
+                                  {isCapaBroken && (
+                                    <div className="text-amber-900 font-bold mb-0.5">
+                                      • Capa desgastada/rasgada (trocar capa).
                                     </div>
                                   )}
                                   {d.auditInfo?.auditNotes ? (

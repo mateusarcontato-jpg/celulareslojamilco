@@ -87,7 +87,7 @@ export default function App() {
   const [personalOnly, setPersonalOnly] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [isGroupedBySector, setIsGroupedBySector] = useState<boolean>(true); // Separado por grupos igual no PDF
-  const [mainSectionMode, setMainSectionMode] = useState<'PADRAO' | 'AUDITORIA'>('PADRAO');
+  const [mainSectionMode, setMainSectionMode] = useState<'PADRAO' | 'AUDITORIA'>('AUDITORIA');
 
   // Modals
   const [isFormOpen, setIsFormOpen] = useState(false);

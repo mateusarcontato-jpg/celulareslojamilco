@@ -262,7 +262,7 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
             {getStatusBadge(device.status, device.isPersonalDevice)}
           </td>
 
-          {/* Auditoria / Checkup de Itens (Exibido apenas na lacuna de Auditoria) */}
+          {/* Auditoria / Checkup de Itens */}
           {showAuditColumn && (
           <td className="py-2.5 px-2 whitespace-nowrap">
             {device.auditInfo?.status === 'OK' ? (
@@ -271,8 +271,8 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                   <CheckCircle2 className="w-3 h-3 text-emerald-700" />
                   CHECKUP OK
                 </span>
-                <span className="text-[9px] text-zinc-500 mt-0.5 font-medium">
-                  {device.auditInfo.lastAuditedAt ? device.auditInfo.lastAuditedAt.split(' às')[0] : 'Conferido'}
+                <span className="text-[9px] text-zinc-500 mt-0.5 font-mono-nums font-medium">
+                  {device.auditInfo.lastAuditedAt || 'Conferido'}
                 </span>
               </div>
             ) : device.auditInfo?.status === 'COM_PENDENCIA' ? (
@@ -281,30 +281,45 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                 const isBatteryBroken = device.auditInfo.batteryOk === false;
                 const isPeliculaBroken = device.auditInfo.peliculaStatus === 'PELICULA_TRINCADA' ||
                   Boolean(device.auditInfo.damagedAccessories?.some(a => a.toLowerCase().includes('película') || a.toLowerCase().includes('pelicula')));
+                const isCapaBroken = Boolean(
+                  device.auditInfo.damagedAccessories?.some(a => a.toLowerCase().includes('capa')) ||
+                  (device.auditInfo.auditNotes || '').toLowerCase().includes('capa desgastad') ||
+                  (device.auditInfo.auditNotes || '').toLowerCase().includes('capa rasgad') ||
+                  (device.auditInfo.auditNotes || '').toLowerCase().includes('capa danificad')
+                );
                 const missingList = device.auditInfo.missingAccessories || [];
                 const otherDamaged = (device.auditInfo.damagedAccessories || []).filter(
-                  a => !a.toLowerCase().includes('película') && !a.toLowerCase().includes('pelicula')
+                  a => !a.toLowerCase().includes('película') && !a.toLowerCase().includes('pelicula') && !a.toLowerCase().includes('capa')
                 );
 
                 return (
-                  <div className="flex flex-col gap-0.5 max-w-[135px]">
-                    {isScreenBroken ? (
+                  <div className="flex flex-col gap-0.5 max-w-[145px]">
+                    {isScreenBroken && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9.5px] font-black bg-red-600 text-white shadow-xs w-fit uppercase">
                         🔨 TELA QUEBRADA
                       </span>
-                    ) : isBatteryBroken ? (
+                    )}
+                    {isBatteryBroken && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9.5px] font-black bg-orange-100 text-orange-950 border-2 border-orange-500 w-fit uppercase">
                         🔋 BATERIA INCHADA
                       </span>
-                    ) : isPeliculaBroken ? (
+                    )}
+                    {isPeliculaBroken && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9.5px] font-black bg-amber-100 text-amber-950 border border-amber-400 w-fit uppercase">
                         ⚠️ PELÍCULA TRINCADA
                       </span>
-                    ) : missingList.length > 0 ? (
+                    )}
+                    {isCapaBroken && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9.5px] font-black bg-amber-100 text-amber-950 border-2 border-amber-600 w-fit uppercase">
+                        🛡️ CAPA DESGASTADA
+                      </span>
+                    )}
+                    {!isScreenBroken && !isBatteryBroken && !isPeliculaBroken && !isCapaBroken && missingList.length > 0 && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9.5px] font-bold bg-red-100 text-red-950 border border-red-300 w-fit">
                         ❌ FALTANDO ITENS
                       </span>
-                    ) : (
+                    )}
+                    {!isScreenBroken && !isBatteryBroken && !isPeliculaBroken && !isCapaBroken && missingList.length === 0 && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9.5px] font-bold bg-red-100 text-red-950 border border-red-300 w-fit">
                         <AlertTriangle className="w-3 h-3 text-red-600" />
                         DIVERGÊNCIA
@@ -312,6 +327,11 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                     )}
 
                     {/* Subtítulo informativo */}
+                    {isCapaBroken && (
+                      <span className="text-[8.5px] text-amber-900 font-bold leading-tight block">
+                        Capa desgastada/rasgada
+                      </span>
+                    )}
                     {isBatteryBroken && !isScreenBroken && (
                       <span className="text-[8.5px] text-orange-900 font-bold leading-tight block">
                         Bateria danificada/inchada
@@ -337,6 +357,11 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                         Avaria: {otherDamaged.join(', ')}
                       </span>
                     )}
+                    {device.auditInfo.lastAuditedAt && (
+                      <span className="text-[8.5px] text-zinc-500 font-mono-nums mt-0.5 block">
+                        {device.auditInfo.lastAuditedAt}
+                      </span>
+                    )}
                   </div>
                 );
               })()
@@ -356,17 +381,15 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
           {/* Ações */}
           <td className="py-2.5 px-2.5 whitespace-nowrap text-right">
             <div className="flex items-center justify-end gap-0.5">
-              {/* Checkup da Auditoria (Exibido apenas na lacuna de Auditoria) */}
-              {showAuditColumn && (
-                <button
-                  onClick={() => onOpenAudit(device)}
-                  className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-md transition-colors cursor-pointer mr-0.5 shadow-2xs"
-                  title="Realizar Checkup de Auditoria e Conferir Itens Entregues"
-                >
-                  <ClipboardCheck className="w-3.5 h-3.5 text-red-600" />
-                  <span>Checkup</span>
-                </button>
-              )}
+              {/* Checkup da Auditoria (Sempre visível para acesso rápido) */}
+              <button
+                onClick={() => onOpenAudit(device)}
+                className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-md transition-colors cursor-pointer mr-0.5 shadow-2xs"
+                title="Realizar Checkup de Auditoria e Conferir Itens Entregues"
+              >
+                <ClipboardCheck className="w-3.5 h-3.5 text-red-600" />
+                <span>Checkup</span>
+              </button>
 
               {/* Fichário do Aparelho (Histórico completo) */}
               <button
