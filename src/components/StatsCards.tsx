@@ -4,6 +4,7 @@ import { Device } from '../types/device';
 
 interface StatsCardsProps {
   devices: Device[];
+  currentStore?: string;
   selectedStatus: string;
   onFilterStatus: (status: string) => void;
   vpnOnly: boolean;
@@ -17,6 +18,7 @@ interface StatsCardsProps {
 
 export const StatsCards: React.FC<StatsCardsProps> = ({
   devices,
+  currentStore = 'TODAS',
   selectedStatus,
   onFilterStatus,
   vpnOnly,
@@ -31,160 +33,300 @@ export const StatsCards: React.FC<StatsCardsProps> = ({
   const acarauCount = devices.filter((d) => d.store === 'LOJA ACARAÚ').length;
   const preaCount = devices.filter((d) => d.store === 'LOJA PRÉA').length;
   const maintenance = devices.filter((d) => d.status === 'MANUTENÇÃO').length;
-  const semPt = devices.filter((d) => !d.hasAssetTag || d.assetNumber === 'SEM PT' || d.status === 'SEM PATRIMÔNIO').length;
+  const semPt = devices.filter(
+    (d) => !d.hasAssetTag || d.assetNumber === 'SEM PT' || d.status === 'SEM PATRIMÔNIO'
+  ).length;
   const vpnCount = devices.filter((d) => d.hasVpn).length;
   const personalCount = devices.filter((d) => Boolean(d.isPersonalDevice)).length;
 
+  const isAllActive =
+    currentStore === 'TODAS' &&
+    selectedStatus === 'ALL' &&
+    !vpnOnly &&
+    !semPtOnly &&
+    !personalOnly;
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 sm:gap-3 mb-6 no-print">
+    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 mb-5 no-print">
       {/* 1. Total Geral */}
       <button
         type="button"
         onClick={() => {
+          if (currentStore !== 'TODAS') onFilterStore(currentStore);
           onFilterStatus('ALL');
         }}
-        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-          selectedStatus === 'ALL' && !vpnOnly && !semPtOnly && !personalOnly
-            ? 'bg-zinc-950 border-zinc-950 text-white shadow-sm ring-2 ring-red-600/30'
-            : 'bg-white border-zinc-200 text-zinc-900 hover:border-zinc-300'
+        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+          isAllActive
+            ? 'bg-zinc-950 border-zinc-950 text-white shadow-xs'
+            : 'bg-white border-zinc-200/90 text-zinc-900 hover:border-zinc-300'
         }`}
       >
-        <div className="flex items-center justify-between">
-          <span className={`text-[10px] font-bold uppercase tracking-wide ${selectedStatus === 'ALL' && !vpnOnly && !semPtOnly && !personalOnly ? 'text-zinc-300' : 'text-zinc-500'}`}>
+        <div className="flex items-center justify-between gap-1">
+          <span
+            className={`text-[10px] font-bold uppercase tracking-wider truncate ${
+              isAllActive ? 'text-zinc-400' : 'text-zinc-500'
+            }`}
+          >
             Total Geral
           </span>
-          <Smartphone className={`w-3.5 h-3.5 ${selectedStatus === 'ALL' && !vpnOnly && !semPtOnly && !personalOnly ? 'text-red-500' : 'text-zinc-400'}`} />
+          <Smartphone
+            className={`w-3.5 h-3.5 shrink-0 ${
+              isAllActive ? 'text-red-500' : 'text-zinc-400'
+            }`}
+          />
         </div>
-        <p className="text-xl sm:text-2xl font-bold font-mono-nums mt-1 tracking-tight text-red-600">
-          {total}
-        </p>
-        <p className={`text-[10px] mt-0.5 ${selectedStatus === 'ALL' && !vpnOnly && !semPtOnly && !personalOnly ? 'text-zinc-300' : 'text-zinc-500'}`}>
-          Aparelhos
-        </p>
+        <div className="mt-1.5 flex items-baseline justify-between">
+          <span
+            className={`text-xl font-bold font-mono-nums tracking-tight ${
+              isAllActive ? 'text-white' : 'text-zinc-950'
+            }`}
+          >
+            {total}
+          </span>
+          <span
+            className={`text-[10px] ${
+              isAllActive ? 'text-zinc-400' : 'text-zinc-500'
+            }`}
+          >
+            aparelhos
+          </span>
+        </div>
       </button>
 
       {/* 2. Loja Acaraú */}
       <button
         type="button"
         onClick={() => onFilterStore('LOJA ACARAÚ')}
-        className="p-3 rounded-xl border bg-white border-zinc-200 text-zinc-900 hover:border-red-400 text-left transition-all cursor-pointer hover:shadow-2xs"
+        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+          currentStore === 'LOJA ACARAÚ'
+            ? 'bg-zinc-950 border-zinc-950 text-white shadow-xs'
+            : 'bg-white border-zinc-200/90 text-zinc-900 hover:border-zinc-300'
+        }`}
       >
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold uppercase text-zinc-600">Loja Acaraú</span>
-          <Building className="w-3.5 h-3.5 text-zinc-500" />
+        <div className="flex items-center justify-between gap-1">
+          <span
+            className={`text-[10px] font-bold uppercase tracking-wider truncate ${
+              currentStore === 'LOJA ACARAÚ' ? 'text-zinc-400' : 'text-zinc-500'
+            }`}
+          >
+            Loja Acaraú
+          </span>
+          <Building
+            className={`w-3.5 h-3.5 shrink-0 ${
+              currentStore === 'LOJA ACARAÚ' ? 'text-red-500' : 'text-zinc-400'
+            }`}
+          />
         </div>
-        <p className="text-xl sm:text-2xl font-bold font-mono-nums text-zinc-900 mt-1 tracking-tight">
-          {acarauCount}
-        </p>
-        <p className="text-[10px] text-red-600 font-semibold mt-0.5">
-          Filtrar Acaraú
-        </p>
+        <div className="mt-1.5 flex items-baseline justify-between">
+          <span className="text-xl font-bold font-mono-nums tracking-tight">
+            {acarauCount}
+          </span>
+          <span
+            className={`text-[10px] font-medium ${
+              currentStore === 'LOJA ACARAÚ' ? 'text-red-400' : 'text-zinc-500'
+            }`}
+          >
+            {currentStore === 'LOJA ACARAÚ' ? 'Ativo' : 'Filtrar'}
+          </span>
+        </div>
       </button>
 
       {/* 3. Loja Préa */}
       <button
         type="button"
         onClick={() => onFilterStore('LOJA PRÉA')}
-        className="p-3 rounded-xl border bg-white border-zinc-200 text-zinc-900 hover:border-red-400 text-left transition-all cursor-pointer hover:shadow-2xs"
+        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+          currentStore === 'LOJA PRÉA'
+            ? 'bg-zinc-950 border-zinc-950 text-white shadow-xs'
+            : 'bg-white border-zinc-200/90 text-zinc-900 hover:border-zinc-300'
+        }`}
       >
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold uppercase text-zinc-600">Loja Préa</span>
-          <Building className="w-3.5 h-3.5 text-zinc-500" />
+        <div className="flex items-center justify-between gap-1">
+          <span
+            className={`text-[10px] font-bold uppercase tracking-wider truncate ${
+              currentStore === 'LOJA PRÉA' ? 'text-zinc-400' : 'text-zinc-500'
+            }`}
+          >
+            Loja Préa
+          </span>
+          <Building
+            className={`w-3.5 h-3.5 shrink-0 ${
+              currentStore === 'LOJA PRÉA' ? 'text-red-500' : 'text-zinc-400'
+            }`}
+          />
         </div>
-        <p className="text-xl sm:text-2xl font-bold font-mono-nums text-zinc-900 mt-1 tracking-tight">
-          {preaCount}
-        </p>
-        <p className="text-[10px] text-red-600 font-semibold mt-0.5">
-          Filtrar Préa
-        </p>
+        <div className="mt-1.5 flex items-baseline justify-between">
+          <span className="text-xl font-bold font-mono-nums tracking-tight">
+            {preaCount}
+          </span>
+          <span
+            className={`text-[10px] font-medium ${
+              currentStore === 'LOJA PRÉA' ? 'text-red-400' : 'text-zinc-500'
+            }`}
+          >
+            {currentStore === 'LOJA PRÉA' ? 'Ativo' : 'Filtrar'}
+          </span>
+        </div>
       </button>
 
-      {/* 4. Celulares Pessoais (Novo Card solicitado pelo usuário) */}
+      {/* 4. Celulares Pessoais */}
       <button
         type="button"
         onClick={onTogglePersonalOnly}
-        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
           personalOnly
-            ? 'bg-purple-900 border-purple-900 text-white shadow-sm ring-2 ring-purple-500/30'
-            : personalCount > 0
-            ? 'bg-purple-50/70 border-purple-200 text-purple-950 hover:border-purple-300'
-            : 'bg-white border-zinc-200 text-zinc-900 hover:border-zinc-300'
+            ? 'bg-purple-900 border-purple-900 text-white shadow-xs'
+            : 'bg-white border-zinc-200/90 text-zinc-900 hover:border-purple-300'
         }`}
       >
-        <div className="flex items-center justify-between">
-          <span className={`text-[10px] font-bold uppercase tracking-wide ${personalOnly ? 'text-purple-200' : 'text-purple-900'}`}>
-            Celular Pessoal
+        <div className="flex items-center justify-between gap-1">
+          <span
+            className={`text-[10px] font-bold uppercase tracking-wider truncate ${
+              personalOnly ? 'text-purple-200' : 'text-zinc-500'
+            }`}
+          >
+            Pessoal
           </span>
-          <Smartphone className={`w-3.5 h-3.5 ${personalOnly ? 'text-purple-300' : 'text-purple-700'}`} />
+          <Smartphone
+            className={`w-3.5 h-3.5 shrink-0 ${
+              personalOnly ? 'text-purple-300' : 'text-purple-600'
+            }`}
+          />
         </div>
-        <p className={`text-xl sm:text-2xl font-bold font-mono-nums mt-1 tracking-tight ${personalOnly ? 'text-white' : 'text-purple-700'}`}>
-          {personalCount}
-        </p>
-        <p className={`text-[10px] mt-0.5 font-medium ${personalOnly ? 'text-purple-200' : 'text-purple-800'}`}>
-          {personalCount === 1 ? '1 usuário' : `${personalCount} usuários`}
-        </p>
+        <div className="mt-1.5 flex items-baseline justify-between">
+          <span
+            className={`text-xl font-bold font-mono-nums tracking-tight ${
+              personalOnly ? 'text-white' : 'text-purple-700'
+            }`}
+          >
+            {personalCount}
+          </span>
+          <span
+            className={`text-[10px] ${
+              personalOnly ? 'text-purple-200' : 'text-zinc-500'
+            }`}
+          >
+            {personalCount === 1 ? 'usuário' : 'usuários'}
+          </span>
+        </div>
       </button>
 
       {/* 5. Sem Tombamento (SEM PT) */}
       <button
         type="button"
         onClick={onToggleSemPtOnly}
-        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
           semPtOnly
-            ? 'bg-red-50 border-red-500 ring-2 ring-red-500/20 text-red-950'
-            : semPt > 0
-            ? 'bg-white border-red-200 hover:border-red-400'
-            : 'bg-white border-zinc-200 text-zinc-900 hover:border-zinc-300'
+            ? 'bg-red-600 border-red-600 text-white shadow-xs'
+            : 'bg-white border-zinc-200/90 text-zinc-900 hover:border-red-300'
         }`}
       >
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold uppercase text-red-700">Sem PT</span>
-          <HelpCircle className="w-3.5 h-3.5 text-red-600" />
+        <div className="flex items-center justify-between gap-1">
+          <span
+            className={`text-[10px] font-bold uppercase tracking-wider truncate ${
+              semPtOnly ? 'text-red-100' : 'text-zinc-500'
+            }`}
+          >
+            Sem PT
+          </span>
+          <HelpCircle
+            className={`w-3.5 h-3.5 shrink-0 ${
+              semPtOnly ? 'text-white' : 'text-red-600'
+            }`}
+          />
         </div>
-        <p className="text-xl sm:text-2xl font-bold font-mono-nums text-red-600 mt-1 tracking-tight">
-          {semPt}
-        </p>
-        <p className="text-[10px] text-zinc-600 font-medium mt-0.5">Sem tombamento</p>
+        <div className="mt-1.5 flex items-baseline justify-between">
+          <span
+            className={`text-xl font-bold font-mono-nums tracking-tight ${
+              semPtOnly ? 'text-white' : 'text-red-600'
+            }`}
+          >
+            {semPt}
+          </span>
+          <span
+            className={`text-[10px] ${
+              semPtOnly ? 'text-red-100' : 'text-zinc-500'
+            }`}
+          >
+            pendentes
+          </span>
+        </div>
       </button>
 
       {/* 6. Em Manutenção */}
       <button
         type="button"
         onClick={() => onFilterStatus('MANUTENÇÃO')}
-        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
           selectedStatus === 'MANUTENÇÃO'
-            ? 'bg-zinc-900 border-zinc-900 text-white'
-            : 'bg-white border-zinc-200 text-zinc-900 hover:border-zinc-300'
+            ? 'bg-amber-600 border-amber-600 text-white shadow-xs'
+            : 'bg-white border-zinc-200/90 text-zinc-900 hover:border-amber-300'
         }`}
       >
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold uppercase text-zinc-600">Manutenção</span>
-          <Wrench className="w-3.5 h-3.5 text-zinc-500" />
+        <div className="flex items-center justify-between gap-1">
+          <span
+            className={`text-[10px] font-bold uppercase tracking-wider truncate ${
+              selectedStatus === 'MANUTENÇÃO' ? 'text-amber-100' : 'text-zinc-500'
+            }`}
+          >
+            Manutenção
+          </span>
+          <Wrench
+            className={`w-3.5 h-3.5 shrink-0 ${
+              selectedStatus === 'MANUTENÇÃO' ? 'text-white' : 'text-amber-600'
+            }`}
+          />
         </div>
-        <p className="text-xl sm:text-2xl font-bold font-mono-nums text-zinc-900 mt-1 tracking-tight">
-          {maintenance}
-        </p>
-        <p className="text-[10px] text-zinc-500 mt-0.5">Em assistência</p>
+        <div className="mt-1.5 flex items-baseline justify-between">
+          <span className="text-xl font-bold font-mono-nums tracking-tight">
+            {maintenance}
+          </span>
+          <span
+            className={`text-[10px] ${
+              selectedStatus === 'MANUTENÇÃO' ? 'text-amber-100' : 'text-zinc-500'
+            }`}
+          >
+            assistência
+          </span>
+        </div>
       </button>
 
       {/* 7. Com VPN */}
       <button
         type="button"
         onClick={onToggleVpnOnly}
-        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
           vpnOnly
-            ? 'bg-red-50 border-red-600 ring-2 ring-red-500/20 text-red-950'
-            : 'bg-white border-zinc-200 text-zinc-900 hover:border-zinc-300'
+            ? 'bg-zinc-950 border-zinc-950 text-white shadow-xs'
+            : 'bg-white border-zinc-200/90 text-zinc-900 hover:border-zinc-300'
         }`}
       >
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold uppercase text-zinc-600">Com VPN</span>
-          <ShieldCheck className="w-3.5 h-3.5 text-red-600" />
+        <div className="flex items-center justify-between gap-1">
+          <span
+            className={`text-[10px] font-bold uppercase tracking-wider truncate ${
+              vpnOnly ? 'text-zinc-300' : 'text-zinc-500'
+            }`}
+          >
+            Com VPN
+          </span>
+          <ShieldCheck
+            className={`w-3.5 h-3.5 shrink-0 ${
+              vpnOnly ? 'text-red-500' : 'text-red-600'
+            }`}
+          />
         </div>
-        <p className="text-xl sm:text-2xl font-bold font-mono-nums text-zinc-900 mt-1 tracking-tight">
-          {vpnCount}
-        </p>
-        <p className="text-[10px] text-zinc-600 font-medium mt-0.5">Acesso ERP</p>
+        <div className="mt-1.5 flex items-baseline justify-between">
+          <span className="text-xl font-bold font-mono-nums tracking-tight">
+            {vpnCount}
+          </span>
+          <span
+            className={`text-[10px] ${
+              vpnOnly ? 'text-zinc-400' : 'text-zinc-500'
+            }`}
+          >
+            acesso ERP
+          </span>
+        </div>
       </button>
     </div>
   );

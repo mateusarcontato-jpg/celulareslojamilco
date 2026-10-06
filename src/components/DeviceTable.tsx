@@ -173,19 +173,19 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
           }`}
         >
           {/* Loja */}
-          <td className="py-2.5 px-3 whitespace-nowrap text-zinc-800 font-bold text-[11px]">
-            {device.store}
+          <td className="py-2.5 px-2.5 whitespace-nowrap text-zinc-700 font-bold text-[11px]">
+            {device.store.replace('LOJA ', '')}
           </td>
 
           {/* N° Patrimônio */}
-          <td className="py-2.5 px-3 whitespace-nowrap">
+          <td className="py-2.5 px-2 whitespace-nowrap">
             {device.isPersonalDevice ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-900 border border-purple-300 shadow-2xs">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-300 shadow-2xs">
                 <Smartphone className="w-3 h-3 text-purple-700" />
                 PESSOAL
               </span>
             ) : isSemPt ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-red-100 text-red-800 border border-red-300">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300">
                 <AlertCircle className="w-3 h-3 text-red-600" />
                 SEM PT
               </span>
@@ -197,7 +197,7 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
           </td>
 
           {/* Nome do Colaborador (e indicação se trocou de usuário recentemente) */}
-          <td className="py-2.5 px-3">
+          <td className="py-2.5 px-2.5">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="font-bold text-zinc-950 text-xs uppercase">
                 {device.employeeName}
@@ -221,12 +221,12 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
           </td>
 
           {/* Marca */}
-          <td className="py-2.5 px-2.5 whitespace-nowrap text-zinc-700 text-xs uppercase font-medium">
+          <td className="py-2.5 px-2 whitespace-nowrap text-zinc-700 text-xs uppercase font-medium">
             {device.brand}
           </td>
 
           {/* Modelo */}
-          <td className="py-2.5 px-3 whitespace-nowrap">
+          <td className="py-2.5 px-2.5 whitespace-nowrap">
             <span className="text-zinc-900 font-bold text-xs">
               {device.model}
             </span>
@@ -238,14 +238,14 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
           </td>
 
           {/* Setor */}
-          <td className="py-2.5 px-3 whitespace-nowrap">
+          <td className="py-2.5 px-2 whitespace-nowrap">
             <span className="text-xs text-zinc-800 font-semibold uppercase">
               {device.sector}
             </span>
           </td>
 
           {/* Data Aquisição */}
-          <td className="py-2.5 px-3 whitespace-nowrap font-mono-nums text-zinc-600 text-xs">
+          <td className="py-2.5 px-2 whitespace-nowrap font-mono-nums text-zinc-600 text-xs">
             {device.acquisitionDate === '?' ? (
               <span className="text-red-700 font-bold bg-red-50 px-1.5 py-0.5 rounded text-[11px] border border-red-200">
                 ? (Pendente)
@@ -256,12 +256,12 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
           </td>
 
           {/* Status */}
-          <td className="py-2.5 px-3 whitespace-nowrap">
+          <td className="py-2.5 px-2 whitespace-nowrap">
             {getStatusBadge(device.status, device.isPersonalDevice)}
           </td>
 
           {/* Auditoria / Checkup de Itens */}
-          <td className="py-2.5 px-3 whitespace-nowrap">
+          <td className="py-2.5 px-2 whitespace-nowrap">
             {device.auditInfo?.status === 'OK' ? (
               <div className="flex flex-col">
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-950 border border-emerald-300 w-fit">
@@ -283,7 +283,7 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                 );
 
                 return (
-                  <div className="flex flex-col gap-0.5 max-w-[150px]">
+                  <div className="flex flex-col gap-0.5 max-w-[135px]">
                     {isScreenBroken ? (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9.5px] font-black bg-red-600 text-white shadow-xs w-fit uppercase">
                         🔨 TELA QUEBRADA
@@ -340,12 +340,12 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
           </td>
 
           {/* Ações */}
-          <td className="py-2.5 px-3 whitespace-nowrap text-right">
-            <div className="flex items-center justify-end gap-1">
+          <td className="py-2.5 px-2.5 whitespace-nowrap text-right">
+            <div className="flex items-center justify-end gap-0.5">
               {/* Checkup da Auditoria */}
               <button
                 onClick={() => onOpenAudit(device)}
-                className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer mr-0.5 shadow-2xs"
+                className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-md transition-colors cursor-pointer mr-0.5 shadow-2xs"
                 title="Realizar Checkup de Auditoria e Conferir Itens Entregues"
               >
                 <ClipboardCheck className="w-3.5 h-3.5 text-red-600" />
@@ -355,55 +355,55 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
               {/* Fichário do Aparelho (Histórico completo) */}
               <button
                 onClick={() => onOpenHistory(device)}
-                className="p-1.5 text-zinc-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                className="p-1 text-zinc-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
                 title="Abrir Fichário e Histórico"
               >
-                <History className="w-4 h-4" />
+                <History className="w-3.5 h-3.5" />
               </button>
 
               {/* Anexar Ocorrência (Manutenção / Troca / Perda) */}
               <button
                 onClick={() => onOpenAddOccurrence(device)}
-                className="p-1.5 text-zinc-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                className="p-1 text-zinc-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
                 title="Anexar Manutenção, Troca ou Perda"
               >
-                <Wrench className="w-4 h-4" />
+                <Wrench className="w-3.5 h-3.5" />
               </button>
 
               {/* Troca Rápida de Usuário */}
               <button
                 onClick={() => onQuickTransfer(device)}
-                className="p-1.5 text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100 rounded transition-colors"
+                className="p-1 text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100 rounded transition-colors cursor-pointer"
                 title="Trocar Aparelho / Usuário"
               >
-                <ArrowRightLeft className="w-4 h-4" />
+                <ArrowRightLeft className="w-3.5 h-3.5" />
               </button>
 
               {/* Termo de Responsabilidade */}
               <button
                 onClick={() => onOpenTerm(device)}
-                className="p-1.5 text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100 rounded transition-colors"
+                className="p-1 text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100 rounded transition-colors cursor-pointer"
                 title="Imprimir Termo de Responsabilidade"
               >
-                <FileText className="w-4 h-4" />
+                <FileText className="w-3.5 h-3.5" />
               </button>
 
               {/* Editar Cadastro */}
               <button
                 onClick={() => onEditDevice(device)}
-                className="p-1.5 text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100 rounded transition-colors"
+                className="p-1 text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100 rounded transition-colors cursor-pointer"
                 title="Editar Cadastro"
               >
-                <Edit3 className="w-4 h-4" />
+                <Edit3 className="w-3.5 h-3.5" />
               </button>
 
               {/* Excluir */}
               <button
                 onClick={() => onDeleteDevice(device)}
-                className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                className="p-1 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
                 title="Excluir Registro"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>
           </td>
@@ -417,35 +417,6 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Barra de controle de visualização em Grupos */}
-      <div className="flex items-center justify-between bg-zinc-900 text-white px-4 py-2.5 rounded-xl border border-zinc-800">
-        <div className="flex items-center gap-2">
-          <span className="font-bold text-xs uppercase tracking-wide text-zinc-300">
-            Visualização dos Aparelhos:
-          </span>
-          <span className="text-xs text-zinc-400">
-            {isGroupedBySector ? 'Separado por Grupos (Modelo PDF)' : 'Lista Contínua Unificada'}
-          </span>
-        </div>
-
-        <button
-          onClick={onToggleGrouped}
-          className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors cursor-pointer shadow-xs"
-        >
-          {isGroupedBySector ? (
-            <>
-              <List className="w-3.5 h-3.5" />
-              <span>Ver Lista Contínua</span>
-            </>
-          ) : (
-            <>
-              <Layers className="w-3.5 h-3.5" />
-              <span>Separar por Grupos (PDF)</span>
-            </>
-          )}
-        </button>
-      </div>
-
       {devices.length === 0 ? (
         <div className="bg-white border border-zinc-200 rounded-xl p-12 text-center text-zinc-500">
           <p className="font-bold text-zinc-800 text-sm">Nenhum celular encontrado com os filtros atuais</p>
@@ -462,46 +433,60 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
           return (
             <div key={storeName} className="space-y-3">
               {/* Header da Loja */}
-              <div className="bg-zinc-950 text-white px-4 py-2.5 rounded-xl border-l-4 border-red-600 flex items-center justify-between shadow-xs">
-                <h3 className="font-bold text-xs uppercase tracking-wider">
-                  CONTROLE DE PATRIMÔNIO — {storeName}
-                </h3>
-                <span className="text-xs font-mono font-bold bg-red-600 text-white px-2.5 py-0.5 rounded">
-                  {storeDevs.length} APARELHOS
-                </span>
+              <div className="bg-zinc-950 text-white px-4 py-2.5 rounded-xl border-l-4 border-red-600 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-xs uppercase tracking-wider">
+                    {storeName}
+                  </h3>
+                  <span className="text-zinc-600">·</span>
+                  <span className="text-xs font-mono-nums text-zinc-300">
+                    {storeDevs.length} {storeDevs.length === 1 ? 'aparelho' : 'aparelhos'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={onToggleGrouped}
+                  className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-zinc-300 hover:text-white transition-colors cursor-pointer"
+                >
+                  <List className="w-3.5 h-3.5 text-red-500" />
+                  <span>Alternar para Lista Contínua</span>
+                </button>
               </div>
 
               {/* Tabelas de cada Grupo / Setor */}
               {sectorsInStore.map((secName) => {
                 const secDevs = storeDevs.filter((d) => d.sector === secName);
                 return (
-                  <div key={secName} className="bg-white border border-zinc-200 rounded-xl overflow-hidden shadow-2xs">
-                    <div className="bg-zinc-100/90 px-4 py-2 border-b border-zinc-200 flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase text-red-700 tracking-wide">
-                        SETOR: {secName}
-                      </span>
-                      <span className="text-[11px] font-mono font-bold text-zinc-600">
-                        {secDevs.length} Aparelho(s)
+                  <div key={secName} className="bg-white border border-zinc-200/90 rounded-xl overflow-hidden shadow-2xs">
+                    <div className="bg-zinc-50 px-4 py-2 border-b border-zinc-200/80 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
+                        <span className="text-xs font-bold uppercase text-zinc-900 tracking-wide">
+                          Setor: {secName}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-mono-nums font-semibold text-zinc-500">
+                        {secDevs.length} {secDevs.length === 1 ? 'aparelho' : 'aparelhos'}
                       </span>
                     </div>
 
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs text-zinc-600 border-collapse">
                         <thead>
-                          <tr className="bg-zinc-50 text-[10px] font-bold text-zinc-700 uppercase tracking-wider border-b border-zinc-200">
-                            <th className="py-2.5 px-3">Loja</th>
-                            <th className="py-2.5 px-3">N° Patrimônio</th>
-                            <th className="py-2.5 px-3">Colaborador</th>
-                            <th className="py-2.5 px-2.5">Marca</th>
-                            <th className="py-2.5 px-3">Modelo</th>
-                            <th className="py-2.5 px-3">Setor</th>
-                            <th className="py-2.5 px-3">Data Aquisição</th>
-                            <th className="py-2.5 px-3">Status</th>
-                            <th className="py-2.5 px-3">Auditoria</th>
-                            <th className="py-2.5 px-3 text-right">Fichário / Ações</th>
+                          <tr className="bg-zinc-50/50 text-[10px] font-bold text-zinc-500 uppercase tracking-wider border-b border-zinc-200/80">
+                            <th className="py-2 px-2.5 whitespace-nowrap">Loja</th>
+                            <th className="py-2 px-2 whitespace-nowrap">N° Patrimônio</th>
+                            <th className="py-2 px-2.5 whitespace-nowrap">Colaborador</th>
+                            <th className="py-2 px-2 whitespace-nowrap">Marca</th>
+                            <th className="py-2 px-2.5 whitespace-nowrap">Modelo</th>
+                            <th className="py-2 px-2 whitespace-nowrap">Setor</th>
+                            <th className="py-2 px-2 whitespace-nowrap">Data Aquisição</th>
+                            <th className="py-2 px-2 whitespace-nowrap">Status</th>
+                            <th className="py-2 px-2 whitespace-nowrap">Auditoria</th>
+                            <th className="py-2 px-2.5 text-right whitespace-nowrap">Fichário / Ações</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-zinc-200">
+                        <tbody className="divide-y divide-zinc-200/70">
                           {renderTableRows(secDevs)}
                         </tbody>
                       </table>
@@ -518,9 +503,9 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-zinc-600 border-collapse">
               <thead>
-                <tr className="bg-zinc-100 text-[11px] font-bold text-zinc-700 uppercase tracking-wider border-b border-zinc-200">
+                <tr className="bg-zinc-100 text-[10px] font-bold text-zinc-700 uppercase tracking-wider border-b border-zinc-200">
                   <th 
-                    className="py-3 px-3 cursor-pointer hover:bg-zinc-200 transition-colors select-none"
+                    className="py-2.5 px-2.5 cursor-pointer hover:bg-zinc-200 transition-colors select-none whitespace-nowrap"
                     onClick={() => handleSort('store')}
                   >
                     <div className="flex items-center gap-1">
@@ -530,7 +515,7 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                   </th>
 
                   <th 
-                    className="py-3 px-3 cursor-pointer hover:bg-zinc-200 transition-colors select-none"
+                    className="py-2.5 px-2 cursor-pointer hover:bg-zinc-200 transition-colors select-none whitespace-nowrap"
                     onClick={() => handleSort('assetNumber')}
                   >
                     <div className="flex items-center gap-1">
@@ -540,7 +525,7 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                   </th>
 
                   <th 
-                    className="py-3 px-3 cursor-pointer hover:bg-zinc-200 transition-colors select-none"
+                    className="py-2.5 px-2.5 cursor-pointer hover:bg-zinc-200 transition-colors select-none whitespace-nowrap"
                     onClick={() => handleSort('employeeName')}
                   >
                     <div className="flex items-center gap-1">
@@ -549,10 +534,10 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                     </div>
                   </th>
 
-                  <th className="py-3 px-2.5">Marca</th>
+                  <th className="py-2.5 px-2 whitespace-nowrap">Marca</th>
 
                   <th 
-                    className="py-3 px-3 cursor-pointer hover:bg-zinc-200 transition-colors select-none"
+                    className="py-2.5 px-2.5 cursor-pointer hover:bg-zinc-200 transition-colors select-none whitespace-nowrap"
                     onClick={() => handleSort('model')}
                   >
                     <div className="flex items-center gap-1">
@@ -562,7 +547,7 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                   </th>
 
                   <th 
-                    className="py-3 px-3 cursor-pointer hover:bg-zinc-200 transition-colors select-none"
+                    className="py-2.5 px-2 cursor-pointer hover:bg-zinc-200 transition-colors select-none whitespace-nowrap"
                     onClick={() => handleSort('sector')}
                   >
                     <div className="flex items-center gap-1">
@@ -572,7 +557,7 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                   </th>
 
                   <th 
-                    className="py-3 px-3 cursor-pointer hover:bg-zinc-200 transition-colors select-none"
+                    className="py-2.5 px-2 cursor-pointer hover:bg-zinc-200 transition-colors select-none whitespace-nowrap"
                     onClick={() => handleSort('acquisitionDate')}
                   >
                     <div className="flex items-center gap-1">
@@ -582,7 +567,7 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                   </th>
 
                   <th 
-                    className="py-3 px-3 cursor-pointer hover:bg-zinc-200 transition-colors select-none"
+                    className="py-2.5 px-2 cursor-pointer hover:bg-zinc-200 transition-colors select-none whitespace-nowrap"
                     onClick={() => handleSort('status')}
                   >
                     <div className="flex items-center gap-1">
@@ -591,9 +576,9 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                     </div>
                   </th>
 
-                  <th className="py-3 px-3">Auditoria</th>
+                  <th className="py-2.5 px-2 whitespace-nowrap">Auditoria</th>
 
-                  <th className="py-3 px-3 text-right">Fichário / Ações</th>
+                  <th className="py-2.5 px-2.5 text-right whitespace-nowrap">Fichário / Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200 font-medium">

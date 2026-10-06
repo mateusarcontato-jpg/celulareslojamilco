@@ -21,6 +21,7 @@ import {
   Wrench,
   History,
   Layers,
+  List,
   Building,
   CloudCheck,
   SlidersHorizontal,
@@ -47,6 +48,7 @@ import {
 import { auth, loginWithGoogle, logout, testConnection } from './lib/firebase';
 import { Navbar } from './components/Navbar';
 import { StatsCards } from './components/StatsCards';
+import { DashboardCharts } from './components/DashboardCharts';
 import { DeviceTable } from './components/DeviceTable';
 import { DeviceCardGrid } from './components/DeviceCardGrid';
 import { DeviceFormModal } from './components/DeviceFormModal';
@@ -464,79 +466,83 @@ export default function App() {
       />
 
       {/* Main Container */}
-      <main className={`flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 ${termDevice || isPdfModalOpen ? 'no-print' : ''}`}>
-        {/* Banner de Contexto da Loja e Unidade */}
-        <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-zinc-200 no-print">
+      <main className={`flex-1 max-w-[1440px] w-full mx-auto px-5 sm:px-8 lg:px-10 py-6 ${termDevice || isPdfModalOpen ? 'no-print' : ''}`}>
+        {/* Cabeçalho de Contexto e Exportação */}
+        <div className="mb-5 flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-zinc-200/90 no-print">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-white bg-zinc-950 px-2.5 py-0.5 rounded border border-zinc-800">
-                {currentStore === 'TODAS' ? 'Painel Consolidado (35 Aparelhos)' : currentStore}
+            <div className="flex items-center gap-2 text-xs text-zinc-500 font-medium">
+              <span className="font-bold uppercase tracking-wider text-red-600">
+                {currentStore === 'TODAS' ? 'Painel Consolidado' : currentStore}
               </span>
-              <span className="text-xs text-zinc-400">·</span>
-              <span className="text-xs font-bold text-red-600 uppercase tracking-wide">
-                Amilco Home Center
+              <span aria-hidden="true">·</span>
+              <span>
+                Acaraú ({devices.filter((d) => d.store === 'LOJA ACARAÚ').length})
+              </span>
+              <span aria-hidden="true">·</span>
+              <span>
+                Préa ({devices.filter((d) => d.store === 'LOJA PRÉA').length})
               </span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-950 mt-1">
-              Controle de Patrimônio de Celulares
+            <h2 className="text-lg sm:text-xl font-bold tracking-tight text-zinc-950 mt-0.5">
+              Controle de Patrimônio e Auditoria de Celulares
             </h2>
-            <p className="text-xs text-zinc-600 mt-0.5">
-              Acaraú (24 aparelhos) · Préa (11 aparelhos) · Nuvem Firebase Firestore Ativa em Tempo Real
-            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
-            {/* Botão de Exportação de Inventário Geral */}
             <button
+              type="button"
               onClick={() => {
                 setPdfReportInitialMode('INVENTARIO');
                 setIsPdfModalOpen(true);
               }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-zinc-950 hover:bg-zinc-800 border-b-2 border-zinc-700 rounded-lg shadow-sm transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-800 bg-white hover:bg-zinc-50 border border-zinc-300 rounded-lg shadow-2xs transition-colors cursor-pointer"
               title="Exportar inventário patrimonial completo"
             >
-              <FileText className="w-4 h-4 text-zinc-400" />
+              <FileText className="w-3.5 h-3.5 text-zinc-600" />
               <span>Exportar Inventário</span>
             </button>
 
-            {/* Botão Exclusivo de Exportação de Auditoria */}
             <button
+              type="button"
               onClick={() => {
                 setPdfReportInitialMode('AUDITORIA');
                 setIsPdfModalOpen(true);
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-red-700 hover:bg-red-800 border-b-2 border-red-500 rounded-lg shadow-sm transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-zinc-950 hover:bg-zinc-800 rounded-lg shadow-2xs transition-colors cursor-pointer"
               title="Exportar exclusivamente o relatório de auditoria e conformidade"
             >
-              <ClipboardCheck className="w-4 h-4 text-white" />
+              <ClipboardCheck className="w-3.5 h-3.5 text-red-500" />
               <span>Exportar Auditoria</span>
             </button>
 
             <button
+              type="button"
               onClick={() => exportToCsv(filteredDevices)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-zinc-800 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-50 shadow-2xs transition-colors cursor-pointer"
-              title="Exportar planilha Excel"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-700 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-50 shadow-2xs transition-colors cursor-pointer"
+              title="Exportar planilha Excel / CSV"
             >
-              <Download className="w-3.5 h-3.5 text-zinc-600" />
+              <Download className="w-3.5 h-3.5 text-zinc-500" />
               <span>Exportar Excel</span>
             </button>
 
             <button
+              type="button"
               onClick={() => {
                 setEditingDevice(null);
                 setIsFormOpen(true);
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-2xs transition-colors cursor-pointer"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
               <span>Novo Celular</span>
             </button>
           </div>
         </div>
 
-        {/* Dashboard de Estatísticas com Cores Preto, Vermelho e Branco */}
+        {/* Cards de Indicadores Rápidos */}
         <StatsCards
           devices={devices}
+          currentStore={currentStore}
           selectedStatus={statusFilter}
           onFilterStatus={(st) => {
             setStatusFilter(st === statusFilter ? 'ALL' : st);
@@ -558,40 +564,54 @@ export default function App() {
           }}
         />
 
-        {/* Barra de Filtros, Pesquisa e Controles de Visualização */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-3.5 mb-3 shadow-2xs no-print space-y-3">
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-            {/* Campo de Busca Rápida */}
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
+        {/* Visualização de Dados: Distribuição por Setor e Status */}
+        <DashboardCharts
+          devices={devices}
+          currentStore={currentStore}
+          selectedSector={sectorFilter}
+          onSelectSector={(sector) => setSectorFilter(sector)}
+          selectedStatus={statusFilter}
+          onSelectStatus={(status) => setStatusFilter(status)}
+        />
+
+        {/* Central Unificada de Pesquisa, Filtros e Auditoria */}
+        <div className="bg-white border border-zinc-200/90 rounded-xl mb-4 shadow-2xs no-print divide-y divide-zinc-100">
+          {/* Linha 1: Busca Rápida, Filtros Operacionais e Modos de Exibição */}
+          <div className="p-3 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5">
+            {/* Campo de Busca */}
+            <div className="relative flex-1 min-w-[220px]">
+              <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Buscar por colaborador, usuário anterior, patrimônio, modelo, IMEI..."
+                placeholder="Buscar colaborador, patrimônio, modelo, IMEI..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-9 py-2 text-xs rounded-lg border border-zinc-300 bg-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-red-600 font-medium"
+                className="w-full pl-8 pr-8 py-1.5 text-xs rounded-lg border border-zinc-300 bg-zinc-50/50 focus:bg-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-red-600 font-medium transition-colors"
               />
               {searchQuery && (
                 <button
+                  type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 p-0.5"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 p-0.5 cursor-pointer"
+                  title="Limpar busca"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
 
-            {/* Controles de Filtros */}
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Filtro de Setor */}
-              <div className="flex items-center gap-1.5 text-xs text-zinc-700 bg-zinc-100 px-2.5 py-1.5 rounded-lg border border-zinc-200 font-medium">
-                <span className="font-bold text-zinc-900">Setor:</span>
+            {/* Controles de Filtro e Layout */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {/* Seletor de Setor */}
+              <div className="flex items-center gap-1.5 text-xs text-zinc-700 bg-zinc-100/80 px-2.5 py-1.5 rounded-lg border border-zinc-200/80 font-medium">
+                <span className="text-zinc-500">Setor:</span>
                 <select
+                  aria-label="Filtrar por setor"
                   value={sectorFilter}
                   onChange={(e) => setSectorFilter(e.target.value)}
                   className="bg-transparent font-bold text-zinc-900 focus:outline-none cursor-pointer text-xs"
                 >
-                  <option value="TODOS">Todos os Setores</option>
+                  <option value="TODOS">Todos</option>
                   {sectors.map((sec) => (
                     <option key={sec} value={sec}>
                       {sec}
@@ -600,225 +620,226 @@ export default function App() {
                 </select>
               </div>
 
-              {/* Botão Rápido Celular Pessoal do Colaborador */}
+              {/* Filtro Pessoal */}
               <button
                 type="button"
                 onClick={() => setPersonalOnly(!personalOnly)}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
                   personalOnly
-                    ? 'bg-purple-700 text-white border-purple-700 shadow-2xs ring-2 ring-purple-400/30'
-                    : 'bg-purple-50 text-purple-900 border-purple-200 hover:bg-purple-100'
+                    ? 'bg-purple-700 text-white border-purple-700 shadow-2xs'
+                    : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50'
                 }`}
                 title="Filtrar colaboradores que utilizam aparelho pessoal"
               >
-                <Smartphone className="w-3.5 h-3.5 text-purple-600" />
+                <Smartphone className={`w-3.5 h-3.5 ${personalOnly ? 'text-purple-200' : 'text-purple-600'}`} />
                 <span>Pessoal ({filteredPersonalCount})</span>
               </button>
 
-              {/* Botão Rápido de VPN */}
+              {/* Filtro VPN */}
               <button
                 type="button"
                 onClick={() => setVpnOnly(!vpnOnly)}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
                   vpnOnly
-                    ? 'bg-red-600 text-white border-red-600 shadow-2xs'
-                    : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200'
+                    ? 'bg-zinc-950 text-white border-zinc-950 shadow-2xs'
+                    : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50'
                 }`}
               >
                 <Shield className="w-3.5 h-3.5 text-red-500" />
                 <span>VPN</span>
               </button>
 
-              {/* Botão Rápido Sem Tombamento */}
+              {/* Filtro Sem PT */}
               <button
                 type="button"
                 onClick={() => setSemPtOnly(!semPtOnly)}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
                   semPtOnly
-                    ? 'bg-red-100 text-red-900 border-red-400 shadow-2xs'
-                    : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200'
+                    ? 'bg-red-600 text-white border-red-600 shadow-2xs'
+                    : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50'
                 }`}
               >
-                <HelpCircle className="w-3.5 h-3.5 text-red-600" />
+                <HelpCircle className={`w-3.5 h-3.5 ${semPtOnly ? 'text-white' : 'text-red-600'}`} />
                 <span>Sem PT</span>
               </button>
 
-              {/* Botão Janelinha de Acessórios & Estado Físico */}
+              {/* Filtro Avançado de Acessórios & Estado */}
               <button
                 type="button"
                 onClick={() => setIsMainAdvancedModalOpen(true)}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
                   activeMainAdvCount > 0
                     ? 'bg-red-600 text-white border-red-600 shadow-2xs'
-                    : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200'
+                    : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50'
                 }`}
-                title="Filtrar colaboradores por quem tem carregador, capa, tela quebrada ou avarias"
+                title="Filtrar por acessórios, película trincada, tela quebrada ou avarias"
               >
-                <SlidersHorizontal className="w-3.5 h-3.5 text-red-500" />
+                <SlidersHorizontal className={`w-3.5 h-3.5 ${activeMainAdvCount > 0 ? 'text-white' : 'text-red-500'}`} />
                 <span>Acessórios & Estado</span>
                 {activeMainAdvCount > 0 && (
-                  <span className="bg-white text-black px-1.5 py-0.2 rounded-full text-[10px] font-black font-mono">
-                    {activeMainAdvCount}
+                  <span className="font-mono font-bold underline ml-0.5">
+                    ({activeMainAdvCount})
                   </span>
                 )}
               </button>
 
-              {/* Limpar Filtros se houver ativos */}
-              {activeFiltersCount > 0 && (
+              <div className="h-5 w-px bg-zinc-200 mx-0.5 hidden sm:block" />
+
+              {/* Alternador Agrupar por Setor vs Lista Contínua */}
+              {viewMode === 'table' && (
                 <button
                   type="button"
-                  onClick={clearAllFilters}
-                  className="px-2.5 py-1.5 text-xs font-bold text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                  onClick={() => setIsGroupedBySector(!isGroupedBySector)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors cursor-pointer ${
+                    isGroupedBySector
+                      ? 'bg-zinc-900 text-white border-zinc-900'
+                      : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50'
+                  }`}
+                  title={isGroupedBySector ? 'Exibindo separado por grupos/setores' : 'Exibindo em lista contínua'}
                 >
-                  Limpar ({activeFiltersCount})
+                  {isGroupedBySector ? (
+                    <>
+                      <Layers className="w-3.5 h-3.5 text-red-500" />
+                      <span className="hidden sm:inline">Por Setor</span>
+                    </>
+                  ) : (
+                    <>
+                      <List className="w-3.5 h-3.5 text-zinc-500" />
+                      <span className="hidden sm:inline">Lista Contínua</span>
+                    </>
+                  )}
                 </button>
               )}
 
-              {/* Alternador de Visualização (Tabela vs Cards) */}
-              <div className="flex items-center border border-zinc-300 rounded-lg p-0.5 bg-zinc-100">
+              {/* Alternador Tabela vs Cartões */}
+              <div className="flex items-center border border-zinc-200 rounded-lg p-0.5 bg-zinc-100">
                 <button
                   type="button"
                   onClick={() => setViewMode('table')}
-                  className={`p-1.5 rounded-md transition-colors ${
+                  className={`p-1.5 rounded-md transition-colors cursor-pointer ${
                     viewMode === 'table'
-                      ? 'bg-zinc-950 text-white shadow-2xs'
-                      : 'text-zinc-600 hover:text-zinc-900'
+                      ? 'bg-white text-zinc-950 shadow-2xs'
+                      : 'text-zinc-500 hover:text-zinc-900'
                   }`}
-                  title="Modo Tabela / Planilha"
+                  title="Modo Tabela"
                 >
-                  <TableIcon className="w-4 h-4" />
+                  <TableIcon className="w-3.5 h-3.5" />
                 </button>
                 <button
                   type="button"
                   onClick={() => setViewMode('grid')}
-                  className={`p-1.5 rounded-md transition-colors ${
+                  className={`p-1.5 rounded-md transition-colors cursor-pointer ${
                     viewMode === 'grid'
-                      ? 'bg-zinc-950 text-white shadow-2xs'
-                      : 'text-zinc-600 hover:text-zinc-900'
+                      ? 'bg-white text-zinc-950 shadow-2xs'
+                      : 'text-zinc-500 hover:text-zinc-900'
                   }`}
                   title="Modo Cartões"
                 >
-                  <LayoutGrid className="w-4 h-4" />
+                  <LayoutGrid className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Barra de Resumo Dinâmico dos Filtros com Exibição de Celulares Pessoais */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-3.5 py-2.5 bg-white border border-zinc-200 rounded-xl mb-4 text-xs font-medium shadow-2xs no-print">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-zinc-600">
-              Aparelhos na filtragem: <strong className="text-zinc-950 font-bold">{filteredDevices.length}</strong> de {devices.length}
-            </span>
-            <span className="text-zinc-300">·</span>
-            <div className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold transition-all ${
-              filteredPersonalCount > 0 
-                ? 'bg-purple-100 text-purple-900 border border-purple-300' 
-                : 'bg-zinc-100 text-zinc-600 border border-zinc-200'
-            }`}>
-              <Smartphone className="w-3.5 h-3.5 text-purple-600" />
-              <span>
-                Celulares Pessoais neste filtro: <strong className="text-purple-950 font-black">{filteredPersonalCount}</strong> {filteredPersonalCount === 1 ? 'usuário' : 'usuários'}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {filteredPersonalCount > 0 && !personalOnly && (
-              <button
-                type="button"
-                onClick={() => setPersonalOnly(true)}
-                className="text-[11px] font-bold text-purple-800 hover:text-purple-950 underline cursor-pointer"
-              >
-                Isolar os {filteredPersonalCount} pessoais
-              </button>
-            )}
-
-            {personalOnly && (
-              <button
-                type="button"
-                onClick={() => setPersonalOnly(false)}
-                className="text-[11px] font-bold text-red-600 hover:text-red-800 underline cursor-pointer"
-              >
-                Voltar a exibir todos
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Painel de Auditoria & Checkup em Tempo Real */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-3.5 mb-4 shadow-2xs no-print flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
-              <ClipboardCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-bold text-xs uppercase tracking-wider text-zinc-950">
-                  Auditoria & Checkup Presencial de Itens
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.2 bg-zinc-100 text-zinc-700 rounded-full border border-zinc-200 font-mono">
-                  {auditStats.ok + auditStats.missing} de {auditStats.total} conferidos ({auditStats.percent}%)
+          {/* Linha 2: Filtro de Auditoria & Resumo de Resultados */}
+          <div className="px-3.5 py-2.5 bg-zinc-50/70 flex flex-col md:flex-row md:items-center justify-between gap-2.5 text-xs">
+            {/* Segmento de Auditoria Presencial */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 text-zinc-700 mr-1">
+                <ClipboardCheck className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                <span className="font-bold uppercase tracking-wide text-[11px] text-zinc-800">
+                  Auditoria ({auditStats.percent}%):
                 </span>
               </div>
-              <p className="text-[11px] text-zinc-500 mt-0.5">
-                Conferência física: verifique se está tudo OK ou se faltam carregador, cabo, capa e película
-              </p>
+
+              <div className="flex flex-wrap items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setAuditFilter('ALL')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
+                    auditFilter === 'ALL'
+                      ? 'bg-zinc-900 text-white'
+                      : 'text-zinc-600 hover:bg-zinc-200/70'
+                  }`}
+                >
+                  Todos ({auditStats.total})
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAuditFilter(auditFilter === 'OK' ? 'ALL' : 'OK')}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
+                    auditFilter === 'OK'
+                      ? 'bg-emerald-600 text-white'
+                      : 'text-emerald-800 hover:bg-emerald-100/70'
+                  }`}
+                >
+                  <CheckCircle2 className={`w-3 h-3 ${auditFilter === 'OK' ? 'text-white' : 'text-emerald-600'}`} />
+                  <span>Conferidos OK ({auditStats.ok})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAuditFilter(auditFilter === 'MISSING' ? 'ALL' : 'MISSING')}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
+                    auditFilter === 'MISSING'
+                      ? 'bg-red-600 text-white'
+                      : 'text-red-800 hover:bg-red-100/70'
+                  }`}
+                >
+                  <AlertCircle className={`w-3 h-3 ${auditFilter === 'MISSING' ? 'text-white' : 'text-red-600'}`} />
+                  <span>Com Divergência ({auditStats.missing})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAuditFilter(auditFilter === 'PENDING' ? 'ALL' : 'PENDING')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
+                    auditFilter === 'PENDING'
+                      ? 'bg-zinc-700 text-white'
+                      : 'text-zinc-600 hover:bg-zinc-200/70'
+                  }`}
+                >
+                  Pendentes ({auditStats.pending})
+                </button>
+              </div>
             </div>
-          </div>
 
-          {/* Filtros Rápidos de Auditoria */}
-          <div className="flex flex-wrap items-center gap-1.5 text-xs">
-            <button
-              type="button"
-              onClick={() => setAuditFilter('ALL')}
-              className={`px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${
-                auditFilter === 'ALL'
-                  ? 'bg-zinc-950 text-white border-zinc-950 shadow-2xs'
-                  : 'bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100'
-              }`}
-            >
-              Todos ({auditStats.total})
-            </button>
+            {/* Resumo Dinâmico da Filtragem */}
+            <div className="flex items-center gap-2.5 text-[11px] text-zinc-600 self-end md:self-auto">
+              <span>
+                Exibindo <strong className="text-zinc-950 font-mono-nums">{filteredDevices.length}</strong> de{' '}
+                <strong className="text-zinc-900 font-mono-nums">{devices.length}</strong> aparelhos
+              </span>
 
-            <button
-              type="button"
-              onClick={() => setAuditFilter(auditFilter === 'OK' ? 'ALL' : 'OK')}
-              className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${
-                auditFilter === 'OK'
-                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
-                  : 'bg-emerald-50 text-emerald-900 border-emerald-200 hover:bg-emerald-100'
-              }`}
-            >
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Conferidos 100% OK ({auditStats.ok})</span>
-            </button>
+              {filteredPersonalCount > 0 && (
+                <>
+                  <span className="text-zinc-300">·</span>
+                  <button
+                    type="button"
+                    onClick={() => setPersonalOnly(!personalOnly)}
+                    className="text-purple-700 hover:text-purple-950 font-semibold underline cursor-pointer"
+                  >
+                    {personalOnly
+                      ? 'Mostrar todos'
+                      : `${filteredPersonalCount} ${filteredPersonalCount === 1 ? 'pessoal' : 'pessoais'}`}
+                  </button>
+                </>
+              )}
 
-            <button
-              type="button"
-              onClick={() => setAuditFilter(auditFilter === 'MISSING' ? 'ALL' : 'MISSING')}
-              className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${
-                auditFilter === 'MISSING'
-                  ? 'bg-red-600 text-white border-red-600 shadow-2xs'
-                  : 'bg-red-50 text-red-950 border-red-200 hover:bg-red-100'
-              }`}
-            >
-              <AlertCircle className="w-3.5 h-3.5 text-red-600" />
-              <span>Faltando Itens ({auditStats.missing})</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setAuditFilter(auditFilter === 'PENDING' ? 'ALL' : 'PENDING')}
-              className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${
-                auditFilter === 'PENDING'
-                  ? 'bg-zinc-700 text-white border-zinc-700 shadow-2xs'
-                  : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200'
-              }`}
-            >
-              <span>Pendentes ({auditStats.pending})</span>
-            </button>
+              {activeFiltersCount > 0 && (
+                <>
+                  <span className="text-zinc-300">·</span>
+                  <button
+                    type="button"
+                    onClick={clearAllFilters}
+                    className="font-bold text-red-600 hover:text-red-800 cursor-pointer"
+                  >
+                    Limpar filtros ({activeFiltersCount})
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
 

@@ -1,14 +1,12 @@
 import React from 'react';
-import { 
-  Smartphone, 
-  Plus, 
-  Download, 
-  FileText, 
-  Building2, 
-  LogIn, 
+import {
+  Smartphone,
+  Plus,
+  Download,
+  FileText,
+  Building2,
+  LogIn,
   LogOut,
-  User as UserIcon,
-  ShieldCheck
 } from 'lucide-react';
 import { TechnicianUser } from '../types/auth';
 
@@ -33,58 +31,65 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenNewDeviceModal,
   onOpenImportExportModal,
   onOpenPdfReportModal,
-  totalDevicesCount,
   isFirebaseConnected = true,
   currentTechnician,
   onOpenLoginModal,
   onLogout,
 }) => {
   return (
-    <header className="bg-zinc-950 text-white border-b-2 border-red-600 sticky top-0 z-30 no-print shadow-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Zone 1: Ícone do Celular & Título Amilco Home Center */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center text-white shadow-sm font-bold shrink-0">
-              <Smartphone className="w-5 h-5" />
+    <header className="bg-zinc-950 text-white border-b border-zinc-800 sticky top-0 z-30 no-print">
+      <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-10">
+        <div className="flex items-center justify-between h-14 gap-4">
+          {/* Identidade Visual Corporativa */}
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center text-white shrink-0">
+              <Smartphone className="w-4 h-4" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="text-base sm:text-lg font-bold tracking-tight text-white leading-tight">
+                <h1 className="text-sm sm:text-base font-bold tracking-tight text-white truncate">
                   AMILCO HOME CENTER
                 </h1>
-                <span className="text-[11px] bg-red-600 text-white font-bold px-2 py-0.5 rounded tracking-wide uppercase">
-                  PATRIMÔNIO
+                <span className="text-zinc-600 hidden sm:inline">·</span>
+                <span className="text-xs font-semibold text-red-500 uppercase tracking-wider hidden sm:inline">
+                  Gestão de Patrimônio
                 </span>
               </div>
-              <div className="flex items-center gap-2">
-                <p className="text-xs text-zinc-400 font-medium hidden sm:block">
+              <div className="flex items-center gap-2 text-[11px] text-zinc-400">
+                <span className="truncate hidden md:inline">
                   Controle de Celulares e Termos de Responsabilidade
-                </p>
-                {/* Status discreto e disfarçado da Nuvem */}
-                <span 
-                  className="inline-flex items-center gap-1.5 text-[10px] font-medium text-zinc-400 select-none pl-1"
-                  title={isFirebaseConnected ? 'Conexão em tempo real ativa' : 'Modo local'}
+                </span>
+                <span className="text-zinc-700 hidden md:inline">·</span>
+                <span
+                  className="inline-flex items-center gap-1.5 text-[10px] text-zinc-400 select-none"
+                  title={isFirebaseConnected ? 'Sincronização em nuvem ativa' : 'Modo local'}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${isFirebaseConnected ? 'bg-emerald-500/70' : 'bg-zinc-600'}`}></span>
-                  <span className="text-zinc-500 font-normal">Sincronizado</span>
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      isFirebaseConnected ? 'bg-emerald-500' : 'bg-zinc-600'
+                    }`}
+                  />
+                  <span>{isFirebaseConnected ? 'Nuvem Ativa' : 'Local'}</span>
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Zone 2 & 3: Store Selector and Action Buttons */}
-          <div className="flex items-center gap-2 sm:gap-2.5">
-            {/* Store dropdown */}
-            <div className="flex items-center gap-1.5 text-xs text-zinc-300 bg-zinc-900 px-3 py-1.5 rounded-lg border border-zinc-800">
-              <Building2 className="w-3.5 h-3.5 text-red-500" />
-              <span className="font-semibold text-zinc-400 hidden sm:inline">Loja:</span>
+          {/* Seletor de Unidade e Sessão do Técnico */}
+          <div className="flex items-center gap-2">
+            {/* Seletor de Loja */}
+            <div className="flex items-center gap-1.5 text-xs text-zinc-300 bg-zinc-900 px-2.5 py-1.5 rounded-lg border border-zinc-800 hover:border-zinc-700 transition-colors">
+              <Building2 className="w-3.5 h-3.5 text-red-500 shrink-0" />
+              <span className="text-zinc-400 hidden sm:inline">Unidade:</span>
               <select
+                aria-label="Selecionar unidade ou loja"
                 value={currentStore}
                 onChange={(e) => onSelectStore(e.target.value)}
                 className="bg-transparent font-bold text-white focus:outline-none cursor-pointer text-xs"
               >
-                <option value="TODAS" className="bg-zinc-900 text-white">Todas as Lojas</option>
+                <option value="TODAS" className="bg-zinc-900 text-white">
+                  Todas as Lojas
+                </option>
                 {stores.map((s) => (
                   <option key={s} value={s} className="bg-zinc-900 text-white">
                     {s}
@@ -93,76 +98,77 @@ export const Navbar: React.FC<NavbarProps> = ({
               </select>
             </div>
 
-            {/* Botão de Relatório PDF */}
+            {/* Planilha / Backup */}
             <button
-              onClick={onOpenPdfReportModal}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg transition-colors whitespace-nowrap cursor-pointer shadow-xs"
-              title="Filtrar e exportar relatório oficial em PDF"
-            >
-              <FileText className="w-3.5 h-3.5 text-red-500" />
-              <span>Relatório PDF</span>
-            </button>
-
-            {/* Excel / Backup */}
-            <button
+              type="button"
               onClick={onOpenImportExportModal}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-300 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg transition-colors whitespace-nowrap hidden md:inline-flex shadow-xs cursor-pointer"
-              title="Importar ou exportar planilha Excel"
+              className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-zinc-300 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg transition-colors cursor-pointer"
+              title="Importar ou exportar base Excel / CSV"
             >
               <Download className="w-3.5 h-3.5 text-zinc-400" />
-              <span>Planilha</span>
+              <span>Base / Backup</span>
             </button>
 
-            {/* Sessão do Técnico / Autenticação */}
+            {/* Relatório PDF */}
+            <button
+              type="button"
+              onClick={onOpenPdfReportModal}
+              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg transition-colors cursor-pointer"
+              title="Central de Relatórios PDF"
+            >
+              <FileText className="w-3.5 h-3.5 text-red-500" />
+              <span>Relatórios</span>
+            </button>
+
+            {/* Novo Celular */}
+            <button
+              type="button"
+              onClick={onOpenNewDeviceModal}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span className="hidden xs:inline">Novo Celular</span>
+            </button>
+
+            <div className="h-5 w-px bg-zinc-800 mx-0.5 hidden sm:block" />
+
+            {/* Sessão do Técnico */}
             {currentTechnician ? (
-              <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 py-1 px-2.5 rounded-lg">
+              <div className="flex items-center gap-2 bg-zinc-900/90 border border-zinc-800 py-1 px-2 rounded-lg">
                 {currentTechnician.avatarUrl ? (
-                  <img 
-                    src={currentTechnician.avatarUrl} 
-                    alt={currentTechnician.name} 
-                    className="w-6 h-6 rounded-full border border-red-500/50"
+                  <img
+                    src={currentTechnician.avatarUrl}
+                    alt={currentTechnician.name}
+                    className="w-5 h-5 rounded-full border border-red-500/50"
                   />
                 ) : (
-                  <div className="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-[11px] font-bold">
+                  <div className="w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center text-[10px] font-bold">
                     {currentTechnician.name.charAt(0).toUpperCase()}
                   </div>
                 )}
-                <div className="hidden lg:flex flex-col text-left leading-tight">
-                  <span className="text-xs font-bold text-white max-w-[120px] truncate">
-                    {currentTechnician.name}
-                  </span>
-                  <span className="text-[10px] text-zinc-400">
-                    {currentTechnician.role}
-                  </span>
-                </div>
+                <span className="text-xs font-semibold text-zinc-200 max-w-[100px] truncate hidden lg:inline">
+                  {currentTechnician.name}
+                </span>
                 <button
+                  type="button"
                   onClick={onLogout}
-                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-zinc-300 hover:text-white bg-zinc-800/80 hover:bg-red-600 rounded-md transition-colors ml-1 cursor-pointer border border-zinc-700/60 shadow-xs"
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-medium text-zinc-400 hover:text-white hover:bg-red-600 rounded transition-colors cursor-pointer"
                   title="Encerrar sessão"
                 >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>Sair</span>
+                  <LogOut className="w-3 h-3" />
+                  <span className="hidden sm:inline">Sair</span>
                 </button>
               </div>
             ) : (
               <button
+                type="button"
                 onClick={onOpenLoginModal}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-red-500 rounded-lg transition-colors cursor-pointer shadow-xs"
-                title="Acessar com login e senha"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg transition-colors cursor-pointer"
               >
                 <LogIn className="w-3.5 h-3.5 text-red-500" />
                 <span>Entrar</span>
               </button>
             )}
-
-            {/* Novo Celular Button in Amilco Red */}
-            <button
-              onClick={onOpenNewDeviceModal}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors whitespace-nowrap shadow-sm cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Novo Celular</span>
-            </button>
           </div>
         </div>
       </div>
