@@ -10,7 +10,7 @@ import {
   AlertTriangle 
 } from 'lucide-react';
 import { Device } from '../types/device';
-import { exportToCsv, parseCsvText, resetToInitialData } from '../services/storage';
+import { exportToCsv, exportAuditToCsv, parseCsvText } from '../services/storage';
 
 interface ImportExportModalProps {
   isOpen: boolean;
@@ -34,7 +34,13 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
 
   const handleExportCsv = () => {
     exportToCsv(devices);
-    setSuccessMsg('Planilha Excel (.CSV) baixada com sucesso!');
+    setSuccessMsg('Planilha Padrão de Celulares (.CSV) baixada com sucesso!');
+    setTimeout(() => setSuccessMsg(''), 4000);
+  };
+
+  const handleExportAuditCsv = () => {
+    exportAuditToCsv(devices);
+    setSuccessMsg('Planilha Exclusiva de Auditoria (.CSV) baixada com sucesso!');
     setTimeout(() => setSuccessMsg(''), 4000);
   };
 
@@ -152,15 +158,25 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
               1. Exportar Planilha Excel (.CSV)
             </h3>
             <p className="text-zinc-600">
-              Gere um arquivo CSV compatível diretamente com o Microsoft Excel do Brasil:
+              Escolha entre exportar apenas os dados padrão dos celulares ou a planilha exclusiva de auditoria:
             </p>
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={handleExportCsv}
-                className="inline-flex items-center gap-1.5 px-4 py-2 font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm transition-colors cursor-pointer"
+                title="Apenas dados cadastrais padrão dos celulares, sem auditoria"
               >
                 <Download className="w-4 h-4" />
-                <span>Exportar Planilha Excel</span>
+                <span>Planilha Padrão (Só Celulares)</span>
+              </button>
+
+              <button
+                onClick={handleExportAuditCsv}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 font-bold text-white bg-zinc-950 hover:bg-zinc-800 rounded-lg shadow-sm transition-colors cursor-pointer"
+                title="Planilha exclusiva com diagnósticos de auditoria, tela, película, bateria e itens"
+              >
+                <Download className="w-4 h-4 text-red-500" />
+                <span>Planilha Só de Auditoria</span>
               </button>
 
               <button

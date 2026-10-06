@@ -87,6 +87,7 @@ export default function App() {
   const [personalOnly, setPersonalOnly] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [isGroupedBySector, setIsGroupedBySector] = useState<boolean>(true); // Separado por grupos igual no PDF
+  const [mainSectionMode, setMainSectionMode] = useState<'PADRAO' | 'AUDITORIA'>('PADRAO');
 
   // Modals
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -496,10 +497,10 @@ export default function App() {
                 setIsPdfModalOpen(true);
               }}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-800 bg-white hover:bg-zinc-50 border border-zinc-300 rounded-lg shadow-2xs transition-colors cursor-pointer"
-              title="Exportar inventário patrimonial completo"
+              title="Gerar PDF apenas com a planilha padrão dos celulares (sem dados de auditoria)"
             >
               <FileText className="w-3.5 h-3.5 text-zinc-600" />
-              <span>Exportar Inventário</span>
+              <span>PDF: Planilha de Celulares</span>
             </button>
 
             <button
@@ -509,20 +510,20 @@ export default function App() {
                 setIsPdfModalOpen(true);
               }}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-zinc-950 hover:bg-zinc-800 rounded-lg shadow-2xs transition-colors cursor-pointer"
-              title="Exportar exclusivamente o relatório de auditoria e conformidade"
+              title="Gerar PDF exclusivo de auditoria, conferência e pendências"
             >
               <ClipboardCheck className="w-3.5 h-3.5 text-red-500" />
-              <span>Exportar Auditoria</span>
+              <span>PDF: Só Auditoria</span>
             </button>
 
             <button
               type="button"
               onClick={() => exportToCsv(filteredDevices)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-700 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-50 shadow-2xs transition-colors cursor-pointer"
-              title="Exportar planilha Excel / CSV"
+              title="Baixar planilha Excel padrão dos celulares"
             >
               <Download className="w-3.5 h-3.5 text-zinc-500" />
-              <span>Exportar Excel</span>
+              <span>Excel Padrão</span>
             </button>
 
             <button
@@ -574,8 +575,61 @@ export default function App() {
           onSelectStatus={(status) => setStatusFilter(status)}
         />
 
-        {/* Central Unificada de Pesquisa, Filtros e Auditoria */}
+        {/* Central Unificada de Pesquisa, Filtros e Seletor de Lacuna (Planilha Padrão vs Auditoria) */}
         <div className="bg-white border border-zinc-200/90 rounded-xl mb-4 shadow-2xs no-print divide-y divide-zinc-100">
+          {/* Topo: Lacunas Separadas (Planilha Padrão dos Celulares vs Lacuna Só de Auditoria) */}
+          <div className="px-3.5 py-2.5 bg-zinc-950 text-white rounded-t-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setMainSectionMode('PADRAO');
+                  setAuditFilter('ALL');
+                }}
+                className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  mainSectionMode === 'PADRAO'
+                    ? 'bg-white text-zinc-950 shadow-xs'
+                    : 'text-zinc-300 hover:text-white hover:bg-zinc-900'
+                }`}
+              >
+                <Smartphone className={`w-3.5 h-3.5 ${mainSectionMode === 'PADRAO' ? 'text-red-600' : 'text-zinc-400'}`} />
+                <span>Planilha Padrão dos Celulares (Sem Auditoria)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMainSectionMode('AUDITORIA')}
+                className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  mainSectionMode === 'AUDITORIA'
+                    ? 'bg-red-600 text-white shadow-xs'
+                    : 'text-zinc-300 hover:text-white hover:bg-zinc-900'
+                }`}
+              >
+                <ClipboardCheck className="w-3.5 h-3.5" />
+                <span>Auditoria & Checkup ({auditStats.percent}%)</span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 text-[11px] text-zinc-300">
+              <span>
+                Exibindo <strong className="text-white font-mono-nums">{filteredDevices.length}</strong> de{' '}
+                <strong className="text-zinc-200 font-mono-nums">{devices.length}</strong> aparelhos
+              </span>
+              {activeFiltersCount > 0 && (
+                <>
+                  <span className="text-zinc-600">·</span>
+                  <button
+                    type="button"
+                    onClick={clearAllFilters}
+                    className="font-bold text-red-400 hover:text-red-300 underline cursor-pointer"
+                  >
+                    Limpar filtros ({activeFiltersCount})
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
           {/* Linha 1: Busca Rápida, Filtros Operacionais e Modos de Exibição */}
           <div className="p-3 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5">
             {/* Campo de Busca */}
@@ -663,25 +717,27 @@ export default function App() {
                 <span>Sem PT</span>
               </button>
 
-              {/* Filtro Avançado de Acessórios & Estado */}
-              <button
-                type="button"
-                onClick={() => setIsMainAdvancedModalOpen(true)}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
-                  activeMainAdvCount > 0
-                    ? 'bg-red-600 text-white border-red-600 shadow-2xs'
-                    : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50'
-                }`}
-                title="Filtrar por acessórios, película trincada, tela quebrada ou avarias"
-              >
-                <SlidersHorizontal className={`w-3.5 h-3.5 ${activeMainAdvCount > 0 ? 'text-white' : 'text-red-500'}`} />
-                <span>Acessórios & Estado</span>
-                {activeMainAdvCount > 0 && (
-                  <span className="font-mono font-bold underline ml-0.5">
-                    ({activeMainAdvCount})
-                  </span>
-                )}
-              </button>
+              {/* Filtro Avançado de Acessórios & Estado (Apenas na aba de Auditoria ou se já ativo) */}
+              {(mainSectionMode === 'AUDITORIA' || activeMainAdvCount > 0) && (
+                <button
+                  type="button"
+                  onClick={() => setIsMainAdvancedModalOpen(true)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
+                    activeMainAdvCount > 0
+                      ? 'bg-red-600 text-white border-red-600 shadow-2xs'
+                      : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50'
+                  }`}
+                  title="Filtrar por acessórios, película trincada, tela quebrada ou avarias"
+                >
+                  <SlidersHorizontal className={`w-3.5 h-3.5 ${activeMainAdvCount > 0 ? 'text-white' : 'text-red-500'}`} />
+                  <span>Acessórios & Estado</span>
+                  {activeMainAdvCount > 0 && (
+                    <span className="font-mono font-bold underline ml-0.5">
+                      ({activeMainAdvCount})
+                    </span>
+                  )}
+                </button>
+              )}
 
               <div className="h-5 w-px bg-zinc-200 mx-0.5 hidden sm:block" />
 
@@ -741,106 +797,83 @@ export default function App() {
             </div>
           </div>
 
-          {/* Linha 2: Filtro de Auditoria & Resumo de Resultados */}
-          <div className="px-3.5 py-2.5 bg-zinc-50/70 flex flex-col md:flex-row md:items-center justify-between gap-2.5 text-xs">
-            {/* Segmento de Auditoria Presencial */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1.5 text-zinc-700 mr-1">
-                <ClipboardCheck className="w-3.5 h-3.5 text-red-600 shrink-0" />
-                <span className="font-bold uppercase tracking-wide text-[11px] text-zinc-800">
-                  Auditoria ({auditStats.percent}%):
-                </span>
-              </div>
+          {/* Linha 2: Exclusiva da Lacuna de Auditoria Presencial */}
+          {mainSectionMode === 'AUDITORIA' && (
+            <div className="px-3.5 py-2.5 bg-red-50/40 flex flex-col md:flex-row md:items-center justify-between gap-2.5 text-xs">
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 text-zinc-800 mr-1">
+                  <ClipboardCheck className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                  <span className="font-bold uppercase tracking-wide text-[11px]">
+                    Filtro da Auditoria ({auditStats.percent}% concluído):
+                  </span>
+                </div>
 
-              <div className="flex flex-wrap items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setAuditFilter('ALL')}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
-                    auditFilter === 'ALL'
-                      ? 'bg-zinc-900 text-white'
-                      : 'text-zinc-600 hover:bg-zinc-200/70'
-                  }`}
-                >
-                  Todos ({auditStats.total})
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setAuditFilter(auditFilter === 'OK' ? 'ALL' : 'OK')}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
-                    auditFilter === 'OK'
-                      ? 'bg-emerald-600 text-white'
-                      : 'text-emerald-800 hover:bg-emerald-100/70'
-                  }`}
-                >
-                  <CheckCircle2 className={`w-3 h-3 ${auditFilter === 'OK' ? 'text-white' : 'text-emerald-600'}`} />
-                  <span>Conferidos OK ({auditStats.ok})</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setAuditFilter(auditFilter === 'MISSING' ? 'ALL' : 'MISSING')}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
-                    auditFilter === 'MISSING'
-                      ? 'bg-red-600 text-white'
-                      : 'text-red-800 hover:bg-red-100/70'
-                  }`}
-                >
-                  <AlertCircle className={`w-3 h-3 ${auditFilter === 'MISSING' ? 'text-white' : 'text-red-600'}`} />
-                  <span>Com Divergência ({auditStats.missing})</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setAuditFilter(auditFilter === 'PENDING' ? 'ALL' : 'PENDING')}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
-                    auditFilter === 'PENDING'
-                      ? 'bg-zinc-700 text-white'
-                      : 'text-zinc-600 hover:bg-zinc-200/70'
-                  }`}
-                >
-                  Pendentes ({auditStats.pending})
-                </button>
-              </div>
-            </div>
-
-            {/* Resumo Dinâmico da Filtragem */}
-            <div className="flex items-center gap-2.5 text-[11px] text-zinc-600 self-end md:self-auto">
-              <span>
-                Exibindo <strong className="text-zinc-950 font-mono-nums">{filteredDevices.length}</strong> de{' '}
-                <strong className="text-zinc-900 font-mono-nums">{devices.length}</strong> aparelhos
-              </span>
-
-              {filteredPersonalCount > 0 && (
-                <>
-                  <span className="text-zinc-300">·</span>
+                <div className="flex flex-wrap items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => setPersonalOnly(!personalOnly)}
-                    className="text-purple-700 hover:text-purple-950 font-semibold underline cursor-pointer"
+                    onClick={() => setAuditFilter('ALL')}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
+                      auditFilter === 'ALL'
+                        ? 'bg-zinc-900 text-white'
+                        : 'text-zinc-600 hover:bg-zinc-200/70'
+                    }`}
                   >
-                    {personalOnly
-                      ? 'Mostrar todos'
-                      : `${filteredPersonalCount} ${filteredPersonalCount === 1 ? 'pessoal' : 'pessoais'}`}
+                    Todos ({auditStats.total})
                   </button>
-                </>
-              )}
 
-              {activeFiltersCount > 0 && (
-                <>
-                  <span className="text-zinc-300">·</span>
                   <button
                     type="button"
-                    onClick={clearAllFilters}
-                    className="font-bold text-red-600 hover:text-red-800 cursor-pointer"
+                    onClick={() => setAuditFilter(auditFilter === 'OK' ? 'ALL' : 'OK')}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
+                      auditFilter === 'OK'
+                        ? 'bg-emerald-600 text-white'
+                        : 'text-emerald-800 hover:bg-emerald-100/70'
+                    }`}
                   >
-                    Limpar filtros ({activeFiltersCount})
+                    <CheckCircle2 className={`w-3 h-3 ${auditFilter === 'OK' ? 'text-white' : 'text-emerald-600'}`} />
+                    <span>Conferidos OK ({auditStats.ok})</span>
                   </button>
-                </>
-              )}
+
+                  <button
+                    type="button"
+                    onClick={() => setAuditFilter(auditFilter === 'MISSING' ? 'ALL' : 'MISSING')}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
+                      auditFilter === 'MISSING'
+                        ? 'bg-red-600 text-white'
+                        : 'text-red-800 hover:bg-red-100/70'
+                    }`}
+                  >
+                    <AlertCircle className={`w-3 h-3 ${auditFilter === 'MISSING' ? 'text-white' : 'text-red-600'}`} />
+                    <span>Com Divergência ({auditStats.missing})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAuditFilter(auditFilter === 'PENDING' ? 'ALL' : 'PENDING')}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
+                      auditFilter === 'PENDING'
+                        ? 'bg-zinc-700 text-white'
+                        : 'text-zinc-600 hover:bg-zinc-200/70'
+                    }`}
+                  >
+                    Pendentes ({auditStats.pending})
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPdfReportInitialMode('AUDITORIA');
+                  setIsPdfModalOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold text-red-700 bg-white border border-red-200 hover:bg-red-50 rounded-lg shadow-2xs cursor-pointer self-start md:self-auto"
+              >
+                <FileText className="w-3.5 h-3.5 text-red-600" />
+                <span>Imprimir Relatório de Auditoria</span>
+              </button>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Visão de Conteúdo Principal (Tabela ou Cards) */}
@@ -860,6 +893,7 @@ export default function App() {
             onOpenAudit={(d) => setAuditDevice(d)}
             isGroupedBySector={isGroupedBySector}
             onToggleGrouped={() => setIsGroupedBySector(!isGroupedBySector)}
+            showAuditColumn={mainSectionMode === 'AUDITORIA'}
           />
         ) : (
           <DeviceCardGrid
@@ -873,6 +907,7 @@ export default function App() {
             onQuickTransfer={(d) => setTransferDevice(d)}
             onDeleteDevice={handleDeleteDevice}
             onOpenAudit={(d) => setAuditDevice(d)}
+            showAuditColumn={mainSectionMode === 'AUDITORIA'}
           />
         )}
       </main>

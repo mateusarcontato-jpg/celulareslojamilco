@@ -26,6 +26,7 @@ interface DeviceCardGridProps {
   onQuickTransfer: (device: Device) => void;
   onDeleteDevice: (device: Device) => void;
   onOpenAudit?: (device: Device) => void;
+  showAuditColumn?: boolean;
 }
 
 export const DeviceCardGrid: React.FC<DeviceCardGridProps> = ({
@@ -36,6 +37,7 @@ export const DeviceCardGrid: React.FC<DeviceCardGridProps> = ({
   onQuickTransfer,
   onDeleteDevice,
   onOpenAudit,
+  showAuditColumn = false,
 }) => {
   if (devices.length === 0) {
     return (
@@ -165,8 +167,9 @@ export const DeviceCardGrid: React.FC<DeviceCardGridProps> = ({
                   <span>Aquisição: <strong className="text-zinc-800 font-mono-nums">{device.acquisitionDate}</strong></span>
                 </div>
 
-                {/* Status do Checkup de Auditoria */}
-                {device.auditInfo?.status === 'OK' ? (
+                {/* Status do Checkup de Auditoria (Exibido apenas na lacuna de Auditoria) */}
+                {showAuditColumn && (
+                  device.auditInfo?.status === 'OK' ? (
                   <div className="flex items-center gap-1.5 text-xs text-emerald-800 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                     <span>Checkup: <strong>100% OK</strong> ({device.auditInfo.lastAuditedAt?.split(' às')[0]})</span>
@@ -237,7 +240,8 @@ export const DeviceCardGrid: React.FC<DeviceCardGridProps> = ({
                       </div>
                     );
                   })()
-                ) : null}
+                ) : null
+                )}
               </div>
             </div>
 
@@ -252,7 +256,7 @@ export const DeviceCardGrid: React.FC<DeviceCardGridProps> = ({
                   <span>Ver Ficha</span>
                 </button>
 
-                {onOpenAudit && (
+                {showAuditColumn && onOpenAudit && (
                   <button
                     onClick={() => onOpenAudit(device)}
                     className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg cursor-pointer"

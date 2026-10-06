@@ -32,6 +32,7 @@ interface DeviceTableProps {
   onOpenAudit: (device: Device) => void;
   isGroupedBySector: boolean;
   onToggleGrouped: () => void;
+  showAuditColumn?: boolean;
 }
 
 type SortField = 'assetNumber' | 'employeeName' | 'model' | 'sector' | 'acquisitionDate' | 'status' | 'store';
@@ -48,6 +49,7 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
   onOpenAudit,
   isGroupedBySector,
   onToggleGrouped,
+  showAuditColumn = false,
 }) => {
   const [sortField, setSortField] = useState<SortField>('assetNumber');
   const [sortAsc, setSortAsc] = useState<boolean>(true);
@@ -260,7 +262,8 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
             {getStatusBadge(device.status, device.isPersonalDevice)}
           </td>
 
-          {/* Auditoria / Checkup de Itens */}
+          {/* Auditoria / Checkup de Itens (Exibido apenas na lacuna de Auditoria) */}
+          {showAuditColumn && (
           <td className="py-2.5 px-2 whitespace-nowrap">
             {device.auditInfo?.status === 'OK' ? (
               <div className="flex flex-col">
@@ -348,19 +351,22 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
               </button>
             )}
           </td>
+          )}
 
           {/* Ações */}
           <td className="py-2.5 px-2.5 whitespace-nowrap text-right">
             <div className="flex items-center justify-end gap-0.5">
-              {/* Checkup da Auditoria */}
-              <button
-                onClick={() => onOpenAudit(device)}
-                className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-md transition-colors cursor-pointer mr-0.5 shadow-2xs"
-                title="Realizar Checkup de Auditoria e Conferir Itens Entregues"
-              >
-                <ClipboardCheck className="w-3.5 h-3.5 text-red-600" />
-                <span>Checkup</span>
-              </button>
+              {/* Checkup da Auditoria (Exibido apenas na lacuna de Auditoria) */}
+              {showAuditColumn && (
+                <button
+                  onClick={() => onOpenAudit(device)}
+                  className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-md transition-colors cursor-pointer mr-0.5 shadow-2xs"
+                  title="Realizar Checkup de Auditoria e Conferir Itens Entregues"
+                >
+                  <ClipboardCheck className="w-3.5 h-3.5 text-red-600" />
+                  <span>Checkup</span>
+                </button>
+              )}
 
               {/* Fichário do Aparelho (Histórico completo) */}
               <button
@@ -492,7 +498,9 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                             <th className="py-2 px-2 whitespace-nowrap">Setor</th>
                             <th className="py-2 px-2 whitespace-nowrap">Data Aquisição</th>
                             <th className="py-2 px-2 whitespace-nowrap">Status</th>
-                            <th className="py-2 px-2 whitespace-nowrap">Auditoria</th>
+                            {showAuditColumn && (
+                              <th className="py-2 px-2 whitespace-nowrap">Auditoria</th>
+                            )}
                             <th className="py-2 px-2.5 text-right whitespace-nowrap">Fichário / Ações</th>
                           </tr>
                         </thead>
@@ -586,7 +594,9 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                     </div>
                   </th>
 
-                  <th className="py-2.5 px-2 whitespace-nowrap">Auditoria</th>
+                  {showAuditColumn && (
+                    <th className="py-2.5 px-2 whitespace-nowrap">Auditoria</th>
+                  )}
 
                   <th className="py-2.5 px-2.5 text-right whitespace-nowrap">Fichário / Ações</th>
                 </tr>

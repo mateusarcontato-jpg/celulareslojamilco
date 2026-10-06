@@ -40,7 +40,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
   const [selectedSector, setSelectedSector] = useState<string>('TODOS');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [groupBySector, setGroupBySector] = useState<boolean>(true);
-  const [showAccessoriesColumn, setShowAccessoriesColumn] = useState<boolean>(true);
+  const [showAccessoriesColumn, setShowAccessoriesColumn] = useState<boolean>(false);
 
   // Filtros Específicos para o Relatório de Auditoria
   const [auditStatusFilter, setAuditStatusFilter] = useState<'TODOS' | 'OK' | 'COM_PENDENCIA' | 'NAO_AUDITADO'>('TODOS');
@@ -168,9 +168,9 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
 
     if (reportMode === 'INVENTARIO') {
       if (selectedStatus !== 'ALL' && d.status !== selectedStatus) return false;
-      if (!matchAdvancedCriteria(d, advancedCriteria)) return false;
     } else {
       // Modo AUDITORIA EXCLUSIVA
+      if (!matchAdvancedCriteria(d, advancedCriteria)) return false;
       const divergent = isDeviceDivergent(d);
       if (auditOnlyDivergent && !divergent) return false;
 
@@ -217,153 +217,45 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
       if (auditOnlyDivergent) {
         parts.push('Apenas Divergências');
       }
+      if (advancedCriteria.accessories.length > 0) {
+        const modeText = advancedCriteria.accessoryMode === 'has' ? 'Com' : 'Sem';
+        parts.push(`${modeText} ${advancedCriteria.accessories.join(', ')}`);
+      }
+      if (advancedCriteria.conditionCategories.length > 0) {
+        const condLabels = advancedCriteria.conditionCategories.map((c) => {
+          if (c === 'TELA_QUEBRADA') return 'Tela Quebrada';
+          if (c === 'PELICULA_TRINCADA') return 'Película Trincada';
+          if (c === 'COM_AVARIAS') return 'Com Avarias';
+          if (c === 'BATERIA_DEFEITO') return 'Bateria Inchada/Danificada';
+          if (c === 'EM_REPARO') return 'Em Manutenção';
+          if (c === 'NOVO') return 'Novo';
+          return c;
+        });
+        parts.push(`Condição: ${condLabels.join(', ')}`);
+      }
       return parts.join(' | ');
     }
 
-    const parts: string[] = [];
-    if (advancedCriteria.accessories.length > 0) {
-      const modeText = advancedCriteria.accessoryMode === 'has' ? 'Com' : 'Sem';
-      parts.push(`${modeText} ${advancedCriteria.accessories.join(', ')}`);
-    }
-    if (advancedCriteria.conditionCategories.length > 0) {
-      const condLabels = advancedCriteria.conditionCategories.map((c) => {
-        if (c === 'TELA_QUEBRADA') return 'Tela Quebrada';
-        if (c === 'COM_AVARIAS') return 'Com Avarias';
-        if (c === 'BATERIA_DEFEITO') return 'Bateria/Conector';
-        if (c === 'EM_REPARO') return 'Em Manutenção';
-        if (c === 'NOVO') return 'Novo';
-        return c;
-      });
-      parts.push(`Condição: ${condLabels.join(', ')}`);
-    }
+    const parts: string[] = ['Planilha Padrão de Celulares (Sem Auditoria)'];
+    if (selectedStore !== 'TODAS') parts.push(`Loja: ${selectedStore}`);
+    if (selectedSector !== 'TODOS') parts.push(`Setor: ${selectedSector}`);
+    if (selectedStatus !== 'ALL') parts.push(`Status: ${selectedStatus}`);
     return parts.join(' | ');
   };
 
   const filterSummary = getFilterSummaryText();
 
-  // Renderizador de célula de Acessórios & Estado para o Inventário Geral
-  const renderAccessoriesAndConditionCell = (d: Device) => {
-    const hasDivergence = isDeviceDivergent(d);
-    const isAllOk = !hasDivergence && (d.auditInfo ? d.auditInfo.status === 'OK' : true);
-
-    const isScreenBroken = isScreenActuallyBroken(d);
-    const isPeliculaBroken = isPeliculaActuallyBroken(d);
-    const isPeliculaMissing = isPeliculaActuallyMissing(d);
-    const isBatteryDefect = isBatteryActuallyBroken(d);
-
-    const missingList = d.auditInfo?.missingAccessories || [];
-    // Acessórios danificados excluindo a película (já que a película tem box exclusivo)
-    const otherDamagedList = (d.auditInfo?.damagedAccessories || []).filter(
-      a => !a.toLowerCase().includes('película') && !a.toLowerCase().includes('pelicula')
-    );
+  // Renderizador de célula de Acessórios Padrão da Ficha para a Planilha Padrão dos Celulares (SEM AUDITORIA)
+  const renderStandardAccessoriesCell = (d: Device) => {
+    const accList = d.accessories && d.accessories.length > 0
+      ? d.accessories.join(', ')
+      : 'Carregador Original, Cabo USB-C, Capa Protetora, Película de Vidro';
 
     return (
-      <td className={`border border-zinc-300 py-1.5 px-2 text-[9.5px] ${
-        hasDivergence ? 'bg-red-50/50' : 'bg-emerald-50/30'
-      }`}>
-        <div className="text-zinc-800 text-[9px] leading-tight mb-1">
-          <span className="font-bold text-zinc-600">Acessórios: </span>
-          <span className="font-semibold text-zinc-950">
-            {d.accessories && d.accessories.length > 0 ? d.accessories.join(', ') : 'Carregador Original, Cabo USB-C, Capa, Película'}
-          </span>
-        </div>
-
-        {isAllOk ? (
-          <div className="p-1.5 rounded-lg bg-emerald-100/90 border border-emerald-500 text-emerald-950 shadow-2xs">
-            <div className="flex items-center gap-1 font-black text-[10px] text-emerald-950 uppercase tracking-wide">
-              <span className="text-emerald-700 font-black text-xs leading-none">✓</span>
-              <span>APARELHO 100% OK — SEM AVARIA OU PERDA</span>
-            </div>
-            <p className="text-[8.5px] text-emerald-800 leading-tight mt-0.5">
-              ✓ Tela íntegra · Película OK · Bateria normal · Estado: <strong>{d.condition || 'BOM'}</strong>
-            </p>
-            {d.auditInfo?.lastAuditedAt && (
-              <div className="mt-0.5 text-[8px] text-emerald-700 font-mono">
-                Conferido por {d.auditInfo.auditedBy || 'T.I.'} ({d.auditInfo.lastAuditedAt})
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="p-1.5 rounded-lg bg-red-100 border-2 border-red-600 text-red-950 shadow-2xs space-y-1">
-            <div className="flex items-center gap-1 font-black text-[10px] text-red-950 uppercase tracking-wide">
-              <span className="text-red-700 font-black text-xs leading-none">⚠️</span>
-              <span>DIVERGÊNCIA CONSTATADA</span>
-            </div>
-
-            {/* 1. SE A PELÍCULA ESTIVER TRINCADA */}
-            {isPeliculaBroken && (
-              <div className="p-1.5 bg-amber-50 border-2 border-amber-500 rounded text-[9px] text-amber-950">
-                <span className="font-black text-amber-900 block uppercase text-[8.5px] tracking-wider">
-                  ⚠️ PELÍCULA DE PROTEÇÃO TRINCADA:
-                </span>
-                <span className="font-bold block text-amber-950">
-                  Película protetora trincada (necessita troca).
-                </span>
-                {!isScreenBroken && (
-                  <span className="block text-[8px] text-emerald-800 font-bold mt-0.5">
-                    ✓ Tela original do aparelho está íntegra.
-                  </span>
-                )}
-              </div>
-            )}
-
-            {/* 2. SE A BATERIA ESTIVER INCHADA OU DANIFICADA (Mesmo destaque em retângulo) */}
-            {isBatteryDefect && (
-              <div className="p-1.5 bg-orange-50 border-2 border-orange-500 rounded text-[9px] text-orange-950">
-                <span className="font-black text-orange-900 block uppercase text-[8.5px] tracking-wider">
-                  🔋 BATERIA INCHADA / DANIFICADA:
-                </span>
-                <span className="font-bold block text-orange-950">
-                  Problema na bateria (inchada, viciada ou danificada — requer substituição).
-                </span>
-              </div>
-            )}
-
-            {/* 3. SE A TELA DO CELULAR ESTIVER QUEBRADA */}
-            {isScreenBroken && (
-              <div className="p-1.5 bg-red-600 text-white rounded text-[9px] font-black uppercase shadow-xs">
-                🔨 TELA DO APARELHO QUEBRADA / TRINCADA (Dano no display/vidro)
-              </div>
-            )}
-
-            {/* 4. SE ESTIVER SEM PELÍCULA */}
-            {isPeliculaMissing && !isPeliculaBroken && (
-              <div className="p-1 bg-red-50 border border-red-400 rounded text-[8.5px] text-red-950 font-bold">
-                ❌ SEM PELÍCULA DE PROTEÇÃO APLICADA
-              </div>
-            )}
-
-            {/* 5. ITENS FALTANDO */}
-            {missingList.length > 0 && (
-              <div className="p-1 bg-white border border-red-500 rounded text-[9px] text-red-950">
-                <span className="font-black text-red-700 block uppercase text-[8px] tracking-wider">
-                  ❌ ITEM(NS) FALTANDO:
-                </span>
-                <span className="font-black text-red-900 underline text-[9.5px]">
-                  {missingList.join(', ')}
-                </span>
-              </div>
-            )}
-
-            {/* 6. OUTROS ACESSÓRIOS DANIFICADOS */}
-            {otherDamagedList.length > 0 && (
-              <div className="p-1 bg-white border border-amber-500 rounded text-[9px] text-amber-950">
-                <span className="font-black text-amber-800 block uppercase text-[8px] tracking-wider">
-                  ⚠️ OUTRO(S) ACESSÓRIO(S) DANIFICADO(S):
-                </span>
-                <span className="font-bold text-amber-950">
-                  {otherDamagedList.join(', ')}
-                </span>
-              </div>
-            )}
-
-            {d.auditInfo?.auditNotes && (
-              <div className="text-[8.5px] text-red-900 font-medium italic pt-0.5">
-                Obs: "{d.auditInfo.auditNotes}"
-              </div>
-            )}
-          </div>
-        )}
+      <td className="border border-zinc-300 py-1.5 px-2 text-[9.5px] text-zinc-800">
+        <span className="font-medium text-zinc-900 block leading-snug">
+          {accList}
+        </span>
       </td>
     );
   };
@@ -385,7 +277,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                     Exportação de Relatórios Oficiais em PDF
                   </h2>
                   <p className="text-xs text-zinc-300">
-                    Amilco Home Center · Separe entre Inventário Geral e Auditoria Presencial
+                    Amilco Home Center · Escolha entre a Planilha Padrão dos Celulares (sem auditoria) ou o Relatório Exclusivo de Auditoria
                   </p>
                 </div>
               </div>
@@ -408,23 +300,23 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
               </div>
             </div>
 
-            {/* SELETOR DE SEÇÃO / TIPO DE RELATÓRIO (SEPARAÇÃO EXIGIDA PELO USUÁRIO) */}
+            {/* SELETOR DE SEÇÃO / TIPO DE RELATÓRIO (SEPARAÇÃO TOTAL ENTRE CELULARES PADRÃO E AUDITORIA) */}
             <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-zinc-800">
               <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
                 Tipo de Relatório:
               </span>
-              <div className="flex items-center p-1 bg-zinc-900 rounded-xl border border-zinc-800">
+              <div className="flex flex-wrap items-center p-1 bg-zinc-900 rounded-xl border border-zinc-800 gap-1">
                 <button
                   type="button"
                   onClick={() => setReportMode('INVENTARIO')}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     reportMode === 'INVENTARIO'
                       ? 'bg-zinc-100 text-zinc-950 shadow-xs'
                       : 'text-zinc-400 hover:text-white'
                   }`}
                 >
                   <Layers className="w-3.5 h-3.5 text-red-600" />
-                  <span>📋 Relatório Geral de Inventário</span>
+                  <span>📱 Planilha Padrão dos Celulares (Sem Auditoria)</span>
                 </button>
 
                 <button
@@ -444,8 +336,8 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
 
             {/* BARRA DE FILTROS ESPECÍFICOS DEPENDENDO DA SEÇÃO */}
             {reportMode === 'INVENTARIO' ? (
-              /* Filtros do Inventário Geral */
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-zinc-800 text-xs">
+              /* Filtros da Planilha Padrão de Celulares (Sem Auditoria) */
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-zinc-800 text-xs">
                 <div>
                   <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
                     Filtrar Loja:
@@ -480,7 +372,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
 
                 <div>
                   <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
-                    Filtrar Status:
+                    Filtrar Status Operacional:
                   </label>
                   <select
                     value={selectedStatus}
@@ -494,33 +386,10 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                     <option value="DISPONÍVEL">Disponível / Estoque</option>
                   </select>
                 </div>
-
-                <div>
-                  <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
-                    Acessórios & Estado:
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setIsAdvancedModalOpen(true)}
-                    className={`w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
-                      activeAdvCount > 0
-                        ? 'bg-red-600 text-white border-red-500 shadow-sm'
-                        : 'bg-zinc-800 text-zinc-100 hover:bg-zinc-700 border-zinc-700'
-                    }`}
-                  >
-                    <SlidersHorizontal className="w-3.5 h-3.5 text-white shrink-0" />
-                    <span className="truncate">Filtro Avançado</span>
-                    {activeAdvCount > 0 && (
-                      <span className="bg-white text-black text-[10px] font-black px-1.5 py-0.2 rounded-full font-mono">
-                        {activeAdvCount}
-                      </span>
-                    )}
-                  </button>
-                </div>
               </div>
             ) : (
               /* Filtros Exclusivos de Auditoria */
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-zinc-800 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-zinc-800 text-xs">
                 <div>
                   <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
                     Unidade / Loja da Auditoria:
@@ -568,13 +437,36 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                     <option value="NAO_AUDITADO">⏳ Apenas Não Auditados (Pendente Checkup)</option>
                   </select>
                 </div>
+
+                <div>
+                  <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
+                    Acessórios & Estado:
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsAdvancedModalOpen(true)}
+                    className={`w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                      activeAdvCount > 0
+                        ? 'bg-red-600 text-white border-red-500 shadow-sm'
+                        : 'bg-zinc-800 text-zinc-100 hover:bg-zinc-700 border-zinc-700'
+                    }`}
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-white shrink-0" />
+                    <span className="truncate">Filtro Avançado</span>
+                    {activeAdvCount > 0 && (
+                      <span className="bg-white text-black text-[10px] font-black px-1.5 py-0.2 rounded-full font-mono">
+                        {activeAdvCount}
+                      </span>
+                    )}
+                  </button>
+                </div>
               </div>
             )}
 
             {/* Opções de visualização */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-zinc-900 text-xs">
               {reportMode === 'INVENTARIO' ? (
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-4">
                   <label className="flex items-center gap-1.5 cursor-pointer text-zinc-200 font-medium select-none">
                     <input
                       type="checkbox"
@@ -592,8 +484,12 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                       onChange={(e) => setShowAccessoriesColumn(e.target.checked)}
                       className="rounded text-red-600 focus:ring-red-500 w-3.5 h-3.5"
                     />
-                    <span className="text-[11px]">Coluna de Acessórios & Estado</span>
+                    <span className="text-[11px]">Exibir Coluna de Acessórios Padrão da Ficha</span>
                   </label>
+
+                  <span className="text-[11px] text-zinc-400 italic">
+                    * Esta planilha exibe apenas os dados padrão dos celulares, sem diagnósticos de auditoria.
+                  </span>
                 </div>
               ) : (
                 <div className="flex flex-wrap items-center gap-3">
@@ -1008,15 +904,16 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                               <table className="w-full border-collapse border border-zinc-400 text-left text-[10px] print-report-table">
                                 <thead>
                                   <tr className="bg-zinc-200 text-black font-bold uppercase text-[9px]">
-                                    <th className="border border-zinc-400 py-1.5 px-1.5 w-[9%]">N° PATRIMÔNIO</th>
-                                    <th className="border border-zinc-400 py-1.5 px-1.5 w-[18%]">COLABORADOR / USUÁRIO</th>
-                                    <th className="border border-zinc-400 py-1.5 px-1.5 w-[15%]">MODELO</th>
+                                    <th className="border border-zinc-400 py-1.5 px-1.5 w-[10%]">N° PATRIMÔNIO</th>
+                                    <th className="border border-zinc-400 py-1.5 px-1.5 w-[24%]">COLABORADOR / USUÁRIO</th>
+                                    <th className="border border-zinc-400 py-1.5 px-1.5 w-[11%]">MARCA</th>
+                                    <th className="border border-zinc-400 py-1.5 px-1.5 w-[17%]">MODELO</th>
                                     {showAccessoriesColumn && (
-                                      <th className="border border-zinc-400 py-1.5 px-1.5 w-[35%]">ACESSÓRIOS & ESTADO</th>
+                                      <th className="border border-zinc-400 py-1.5 px-1.5 w-[18%]">ACESSÓRIOS PADRÃO</th>
                                     )}
-                                    <th className="border border-zinc-400 py-1.5 px-1.5 w-[6%]">VPN</th>
-                                    <th className="border border-zinc-400 py-1.5 px-1.5 w-[8%]">AQUISIÇÃO</th>
-                                    <th className="border border-zinc-400 py-1.5 px-1.5 w-[9%]">STATUS</th>
+                                    <th className="border border-zinc-400 py-1.5 px-1.5 w-[7%]">VPN</th>
+                                    <th className="border border-zinc-400 py-1.5 px-1.5 w-[10%]">AQUISIÇÃO</th>
+                                    <th className="border border-zinc-400 py-1.5 px-1.5 w-[11%]">STATUS</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -1046,15 +943,18 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                                           </span>
                                         )}
                                       </td>
+                                      <td className="border border-zinc-300 py-1.5 px-2 font-medium uppercase">
+                                        {d.brand}
+                                      </td>
                                       <td className="border border-zinc-300 py-1.5 px-2 font-medium">
-                                        <span>{d.brand} {d.model}</span>
+                                        <span>{d.model}</span>
                                         {d.imei1 && (
                                           <span className="text-[9px] text-zinc-500 block font-mono">
                                             IMEI: {d.imei1}
                                           </span>
                                         )}
                                       </td>
-                                      {showAccessoriesColumn && renderAccessoriesAndConditionCell(d)}
+                                      {showAccessoriesColumn && renderStandardAccessoriesCell(d)}
                                       <td className="border border-zinc-300 py-1.5 px-2 font-semibold">
                                         {d.hasVpn ? (
                                           <span className="text-emerald-700 font-bold">SIM</span>
@@ -1091,15 +991,17 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                         <table className="w-full border-collapse border border-zinc-400 text-left text-[10px] print-report-table">
                           <thead>
                             <tr className="bg-zinc-200 text-black font-bold uppercase text-[9px]">
-                              <th className="border border-zinc-400 py-1.5 px-1.5 w-[9%]">N° PATRIMÔNIO</th>
-                              <th className="border border-zinc-400 py-1.5 px-1.5 w-[18%]">COLABORADOR / USUÁRIO</th>
-                              <th className="border border-zinc-400 py-1.5 px-1.5 w-[11%]">SETOR</th>
-                              <th className="border border-zinc-400 py-1.5 px-1.5 w-[14%]">MODELO</th>
+                              <th className="border border-zinc-400 py-1.5 px-1.5 w-[10%]">N° PATRIMÔNIO</th>
+                              <th className="border border-zinc-400 py-1.5 px-1.5 w-[20%]">COLABORADOR / USUÁRIO</th>
+                              <th className="border border-zinc-400 py-1.5 px-1.5 w-[10%]">MARCA</th>
+                              <th className="border border-zinc-400 py-1.5 px-1.5 w-[15%]">MODELO</th>
+                              <th className="border border-zinc-400 py-1.5 px-1.5 w-[12%]">SETOR</th>
                               {showAccessoriesColumn && (
-                                <th className="border border-zinc-400 py-1.5 px-1.5 w-[33%]">ACESSÓRIOS & ESTADO</th>
+                                <th className="border border-zinc-400 py-1.5 px-1.5 w-[16%]">ACESSÓRIOS PADRÃO</th>
                               )}
                               <th className="border border-zinc-400 py-1.5 px-1.5 w-[6%]">VPN</th>
-                              <th className="border border-zinc-400 py-1.5 px-1.5 w-[9%]">STATUS</th>
+                              <th className="border border-zinc-400 py-1.5 px-1.5 w-[9%]">AQUISIÇÃO</th>
+                              <th className="border border-zinc-400 py-1.5 px-1.5 w-[10%]">STATUS</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1124,15 +1026,19 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                                     </span>
                                   )}
                                 </td>
+                                <td className="border border-zinc-300 py-1.5 px-2 uppercase">{d.brand}</td>
+                                <td className="border border-zinc-300 py-1.5 px-2 font-medium">{d.model}</td>
                                 <td className="border border-zinc-300 py-1.5 px-2">{d.sector}</td>
-                                <td className="border border-zinc-300 py-1.5 px-2 font-medium">{d.brand} {d.model}</td>
-                                {showAccessoriesColumn && renderAccessoriesAndConditionCell(d)}
+                                {showAccessoriesColumn && renderStandardAccessoriesCell(d)}
                                 <td className="border border-zinc-300 py-1.5 px-2 font-semibold">
                                   {d.hasVpn ? (
                                     <span className="text-emerald-700 font-bold">SIM</span>
                                   ) : (
                                     <span className="text-zinc-400">NÃO</span>
                                   )}
+                                </td>
+                                <td className="border border-zinc-300 py-1.5 px-2 font-mono text-[10px]">
+                                  {d.acquisitionDate || '—'}
                                 </td>
                                 <td className="border border-zinc-300 py-1.5 px-2 font-semibold">
                                   {d.isPersonalDevice && (d.status === 'SEM PATRIMÔNIO' || d.status === 'PESSOAL') ? (
@@ -1158,15 +1064,15 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
           {/* Modal Bottom Toolbar */}
           <div className="no-print px-6 py-3 border-t border-zinc-200 flex items-center justify-between bg-zinc-50 text-xs text-zinc-600 shrink-0">
             <span>
-              Modo: <strong>{reportMode === 'AUDITORIA' ? 'Auditoria Exclusiva' : 'Inventário Geral'}</strong> · Total listado: <strong>{filtered.length} aparelho(s)</strong>
+              Modo: <strong>{reportMode === 'AUDITORIA' ? 'Relatório Exclusivo de Auditoria' : 'Planilha Padrão dos Celulares (Sem Auditoria)'}</strong> · Total listado: <strong>{filtered.length} aparelho(s)</strong>
             </span>
             <div className="flex items-center gap-2">
-              {reportMode === 'INVENTARIO' && (
+              {reportMode === 'AUDITORIA' && (
                 <button
                   onClick={() => setIsAdvancedModalOpen(true)}
                   className="px-3 py-1.5 text-xs font-semibold text-zinc-800 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-100 transition-colors cursor-pointer"
                 >
-                  Configurar Acessórios / Tela
+                  Filtro Avançado de Auditoria
                 </button>
               )}
               <button

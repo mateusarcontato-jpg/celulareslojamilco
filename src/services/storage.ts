@@ -92,7 +92,7 @@ export function resetToInitialData(): Device[] {
 }
 
 /**
- * Exporta dispositivos no formato CSV formatado para Microsoft Excel (separador ;)
+ * Exporta planilha PADRÃO de Inventário dos Celulares (apenas dados cadastrais, sem auditoria)
  */
 export function exportToCsv(devices: Device[]): void {
   const headers = [
@@ -108,14 +108,13 @@ export function exportToCsv(devices: Device[]): void {
     'NÚMERO TELEFONE',
     'OPERADORA',
     'IMEI',
-    'ESTADO FÍSICO',
-    'OBSERVAÇÕES',
-    'HISTÓRICO DE OCORRÊNCIAS'
+    'ACESSÓRIOS PADRÃO',
+    'OBSERVAÇÕES CADASTRAIS'
   ];
 
   const rows = devices.map(d => [
     `"${d.store.replace(/"/g, '""')}"`,
-    `"${(d.hasAssetTag ? d.assetNumber : 'SEM PT').replace(/"/g, '""')}"`,
+    `"${(d.isPersonalDevice ? 'PESSOAL' : d.hasAssetTag ? d.assetNumber : 'SEM PT').replace(/"/g, '""')}"`,
     `"${d.employeeName.replace(/"/g, '""')}"`,
     `"${d.hasVpn ? 'SIM' : 'NÃO'}"`,
     `"${d.brand.replace(/"/g, '""')}"`,
@@ -126,9 +125,8 @@ export function exportToCsv(devices: Device[]): void {
     `"${(d.phoneNumber || '').replace(/"/g, '""')}"`,
     `"${(d.carrier || '').replace(/"/g, '""')}"`,
     `"${(d.imei1 || '').replace(/"/g, '""')}"`,
-    `"${d.condition.replace(/"/g, '""')}"`,
-    `"${(d.notes || '').replace(/"/g, '""')}"`,
-    `"${d.occurrences.map(o => `[${o.date} - ${o.type}]: ${o.title}`).join(' | ').replace(/"/g, '""')}"`
+    `"${(d.accessories && d.accessories.length > 0 ? d.accessories.join(', ') : 'Carregador Original, Cabo USB-C, Capa Protetora, Película de Vidro').replace(/"/g, '""')}"`,
+    `"${(d.notes || '').replace(/"/g, '""')}"`
   ]);
 
   const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\r\n');
@@ -136,7 +134,82 @@ export function exportToCsv(devices: Device[]): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
-  link.setAttribute('download', `Controle_Patrimonio_Celulares_Amilco_${new Date().toISOString().slice(0, 10)}.csv`);
+  link.setAttribute('download', `Planilha_Padrao_Celulares_Amilco_${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Exporta planilha EXCLUSIVA DE AUDITORIA no formato CSV para Microsoft Excel
+ */
+export function exportAuditToCsv(devices: Device[]): void {
+  const headers = [
+    'LOJA',
+    'N° PATRIMÔNIO',
+    'COLABORADOR',
+    'SETOR',
+    'APARELHO',
+    'DIAGNÓSTICO AUDITORIA',
+    'TELA DO APARELHO',
+    'PELÍCULA DE PROTEÇÃO',
+    'BATERIA',
+    'ITENS PRESENTES',
+    'ITENS FALTANDO',
+    'ITENS DANIFICADOS',
+    'AUDITOR RESPONSÁVEL',
+    'DATA CONFERÊNCIA',
+    'PARECER / OBSERVAÇÕES AUDITORIA'
+  ];
+
+  const rows = devices.map(d => {
+    const audit = d.auditInfo;
+    const isScreenBroken = audit ? audit.screenOk === false : false;
+    const isBatteryBroken = audit ? audit.batteryOk === false : false;
+    const isPeliculaBroken = audit
+      ? audit.peliculaStatus === 'PELICULA_TRINCADA' ||
+        Boolean(audit.damagedAccessories?.some(a => a.toLowerCase().includes('película') || a.toLowerCase().includes('pelicula')))
+      : false;
+    const isPeliculaMissing = audit ? audit.peliculaStatus === 'SEM_PELICULA' : false;
+
+    const diag = !audit
+      ? 'NÃO AUDITADO'
+      : audit.status === 'OK'
+        ? '100% CONFORME'
+        : isScreenBroken
+          ? 'TELA QUEBRADA'
+          : isBatteryBroken
+            ? 'BATERIA INCHADA / DANIFICADA'
+            : isPeliculaBroken
+              ? 'PELÍCULA TRINCADA'
+              : 'COM DIVERGÊNCIA';
+
+    return [
+      `"${d.store.replace(/"/g, '""')}"`,
+      `"${(d.isPersonalDevice ? 'PESSOAL' : d.hasAssetTag ? d.assetNumber : 'SEM PT').replace(/"/g, '""')}"`,
+      `"${d.employeeName.replace(/"/g, '""')}"`,
+      `"${d.sector.replace(/"/g, '""')}"`,
+      `"${`${d.brand} ${d.model}`.replace(/"/g, '""')}"`,
+      `"${diag}"`,
+      `"${!audit ? '—' : isScreenBroken ? 'QUEBRADA' : 'ÍNTEGRA'}"`,
+      `"${!audit ? '—' : isPeliculaBroken ? 'TRINCADA' : isPeliculaMissing ? 'SEM PELÍCULA' : 'ÍNTEGRA'}"`,
+      `"${!audit ? '—' : isBatteryBroken ? 'INCHADA / DANIFICADA' : 'NORMAL'}"`,
+      `"${(audit?.verifiedAccessories?.join(', ') || '').replace(/"/g, '""')}"`,
+      `"${(audit?.missingAccessories?.join(', ') || '').replace(/"/g, '""')}"`,
+      `"${(audit?.damagedAccessories?.join(', ') || '').replace(/"/g, '""')}"`,
+      `"${(audit?.auditedBy || 'Pendente').replace(/"/g, '""')}"`,
+      `"${(audit?.lastAuditedAt || 'Pendente').replace(/"/g, '""')}"`,
+      `"${(audit?.auditNotes || d.notes || '').replace(/"/g, '""')}"`
+    ];
+  });
+
+  const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `Planilha_Auditoria_Celulares_Amilco_${new Date().toISOString().slice(0, 10)}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
