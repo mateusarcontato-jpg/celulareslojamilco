@@ -174,6 +174,7 @@ export const DeviceCardGrid: React.FC<DeviceCardGridProps> = ({
                 ) : device.auditInfo?.status === 'COM_PENDENCIA' ? (
                   (() => {
                     const isScreenBroken = device.auditInfo.screenOk === false;
+                    const isBatteryBroken = device.auditInfo.batteryOk === false;
                     const isPeliculaBroken = device.auditInfo.peliculaStatus === 'PELICULA_TRINCADA' ||
                       Boolean(device.auditInfo.damagedAccessories?.some(a => a.toLowerCase().includes('película') || a.toLowerCase().includes('pelicula')));
                     const missingCount = device.auditInfo.missingAccessories?.length || 0;
@@ -182,12 +183,16 @@ export const DeviceCardGrid: React.FC<DeviceCardGridProps> = ({
                       <div className={`flex items-start gap-1.5 text-xs px-2 py-1.5 rounded-lg border ${
                         isScreenBroken
                           ? 'bg-red-50 text-red-950 border-red-300'
-                          : isPeliculaBroken
-                            ? 'bg-amber-50 text-amber-950 border-amber-300'
-                            : 'bg-red-50 text-red-900 border-red-200'
+                          : isBatteryBroken
+                            ? 'bg-orange-50 text-orange-950 border-2 border-orange-500'
+                            : isPeliculaBroken
+                              ? 'bg-amber-50 text-amber-950 border-amber-300'
+                              : 'bg-red-50 text-red-900 border-red-200'
                       }`}>
                         {isScreenBroken ? (
                           <span className="text-red-600 font-black text-sm shrink-0">🔨</span>
+                        ) : isBatteryBroken ? (
+                          <span className="text-orange-600 font-black text-sm shrink-0">🔋</span>
                         ) : isPeliculaBroken ? (
                           <span className="text-amber-600 font-black text-sm shrink-0">⚠️</span>
                         ) : (
@@ -197,9 +202,17 @@ export const DeviceCardGrid: React.FC<DeviceCardGridProps> = ({
                           {isScreenBroken ? (
                             <>
                               <span className="font-black text-red-950 block">TELA QUEBRADA (Display danificado)</span>
+                              {isBatteryBroken && (
+                                <span className="block text-[10px] text-orange-900 font-bold">🔋 Bateria também inchada/danificada</span>
+                              )}
                               {isPeliculaBroken && (
                                 <span className="block text-[10px] text-amber-900 font-semibold">Película também trincada</span>
                               )}
+                            </>
+                          ) : isBatteryBroken ? (
+                            <>
+                              <span className="font-black text-orange-950 block uppercase">BATERIA INCHADA / DANIFICADA</span>
+                              <span className="block text-[10px] text-orange-900 font-semibold">Necessita substituição / avaliação técnica</span>
                             </>
                           ) : isPeliculaBroken ? (
                             <>
@@ -215,7 +228,7 @@ export const DeviceCardGrid: React.FC<DeviceCardGridProps> = ({
                             <span className="font-bold">Divergência Constatada</span>
                           )}
 
-                          {missingCount > 0 && (isScreenBroken || isPeliculaBroken) && (
+                          {missingCount > 0 && (isScreenBroken || isBatteryBroken || isPeliculaBroken) && (
                             <span className="block text-[10px] text-red-700 font-semibold mt-0.5">
                               + Faltando: {device.auditInfo.missingAccessories?.join(', ')}
                             </span>

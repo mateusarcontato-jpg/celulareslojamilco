@@ -31,7 +31,7 @@
 
   @page {
     size: A4 portrait;
-    margin: 12mm 15mm;
+    margin: 7mm 8mm;
   }
 
   /* Reset modal containers so they fill normal printed paper */
@@ -61,6 +61,21 @@
     overflow: visible !important;
     margin: 0 !important;
     padding: 0 !important;
+  }
+
+  .print-report-table {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+
+  .print-report-table th,
+  .print-report-table td {
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    white-space: normal !important;
   }
 
   .print-sheet-a4 {

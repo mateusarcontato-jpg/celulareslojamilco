@@ -189,6 +189,11 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
     setMissingItems([]);
     setDamagedAccessories([]);
     setPeliculaStatus('COM_PELICULA_OK');
+    setScreenOk(true);
+    setBatteryOk(true);
+    if (condition === 'TELA TRINCADA' || condition === 'COM AVARIAS') {
+      setCondition('BOM');
+    }
   };
 
   const handleAddNewItem = () => {
@@ -252,6 +257,10 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
         occurrenceTitle = 'CHECKUP: 🔨 TELA DO APARELHO QUEBRADA & ⚠️ PELÍCULA TRINCADA';
       } else if (!screenOk) {
         occurrenceTitle = 'CHECKUP: 🔨 TELA DO APARELHO QUEBRADA / TRINCADA';
+      } else if (!batteryOk && peliculaStatus === 'PELICULA_TRINCADA') {
+        occurrenceTitle = 'CHECKUP: 🔋 BATERIA INCHADA / DANIFICADA & ⚠️ PELÍCULA TRINCADA';
+      } else if (!batteryOk) {
+        occurrenceTitle = 'CHECKUP: 🔋 BATERIA INCHADA / DANIFICADA (Problema de Bateria)';
       } else if (peliculaStatus === 'PELICULA_TRINCADA') {
         occurrenceTitle = 'CHECKUP: ⚠️ PELÍCULA DE PROTEÇÃO TRINCADA (Tela Original Íntegra)';
       } else if (missingItems.length > 0) {
@@ -382,8 +391,13 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
                         🔨 TELA DO APARELHO QUEBRADA (Dano no Display)
                       </span>
                     )}
+                    {!batteryOk && (
+                      <span className="inline-block px-2 py-0.5 rounded bg-orange-100 border-2 border-orange-500 text-orange-950 font-black text-[9.5px] uppercase shadow-2xs">
+                        🔋 BATERIA INCHADA / DANIFICADA (Problema na Bateria)
+                      </span>
+                    )}
                     {peliculaStatus === 'PELICULA_TRINCADA' && (
-                      <span className="inline-block px-2 py-0.5 rounded bg-amber-100 border border-amber-500 text-amber-950 font-black text-[9.5px] uppercase">
+                      <span className="inline-block px-2 py-0.5 rounded bg-amber-100 border-2 border-amber-500 text-amber-950 font-black text-[9.5px] uppercase">
                         ⚠️ PELÍCULA TRINCADA (Necessita troca · Tela do aparelho está {screenOk ? 'ÍNTEGRA' : 'QUEBRADA'})
                       </span>
                     )}
@@ -708,26 +722,50 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
               </div>
 
               {/* 3. Bateria & Conector */}
-              <div className={`p-3 rounded-xl border ${batteryOk ? 'bg-white border-zinc-200' : 'bg-orange-50 border-orange-300'}`}>
-                <span className="font-bold text-zinc-900 block mb-1.5 text-xs">Bateria & Conector:</span>
+              <div className={`p-3 rounded-xl border flex flex-col justify-between ${batteryOk ? 'bg-white border-zinc-200' : 'bg-orange-50 border-2 border-orange-400'}`}>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-bold text-zinc-900 text-xs">Bateria do Aparelho:</span>
+                    <span className={`text-[10px] font-black px-1.5 py-0.2 rounded uppercase ${
+                      batteryOk ? 'bg-emerald-100 text-emerald-950' : 'bg-orange-200 text-orange-950 border border-orange-500'
+                    }`}>
+                      {batteryOk ? 'Normal' : '🔋 Inchada / Danif.'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-zinc-500 block mb-2 leading-tight">
+                    Integridade da bateria (inchada, estufada, viciada ou conector com defeito).
+                  </span>
+                </div>
+
                 <div className="flex flex-col gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setBatteryOk(true)}
+                    onClick={() => {
+                      setBatteryOk(true);
+                      setAuditNotes((prev) => prev.replace(/\.?\s*Bateria inchada\/danificada[^\.]*/i, ''));
+                    }}
                     className={`py-1.5 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
-                      batteryOk ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs' : 'bg-zinc-100 text-zinc-700 border-zinc-200'
+                      batteryOk ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs' : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200'
                     }`}
                   >
-                    🔋 Normal / Segura Carga
+                    ✓ Bateria Normal (OK)
                   </button>
                   <button
                     type="button"
-                    onClick={() => setBatteryOk(false)}
+                    onClick={() => {
+                      setBatteryOk(false);
+                      setAuditNotes((prev) => {
+                        if (prev.toLowerCase().includes('bateria inchada') || prev.toLowerCase().includes('bateria danificada')) return prev;
+                        return prev
+                          ? `${prev}. Bateria inchada/danificada (necessita avaliação/substituição).`
+                          : 'Bateria inchada/danificada (necessita avaliação/substituição).';
+                      });
+                    }}
                     className={`py-1.5 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
-                      !batteryOk ? 'bg-orange-600 text-white border-orange-600 shadow-2xs' : 'bg-zinc-100 text-zinc-700 border-zinc-200'
+                      !batteryOk ? 'bg-orange-600 text-white border-orange-600 shadow-2xs' : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200'
                     }`}
                   >
-                    ⚠️ Descarregando / Folga
+                    🔋 Bateria Inchada / Danificada
                   </button>
                 </div>
               </div>
@@ -821,6 +859,19 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
                   className="px-2 py-0.5 bg-red-100 text-red-950 rounded hover:bg-red-200 font-bold border border-red-300 cursor-pointer"
                 >
                   + Tela Quebrada (Display)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBatteryOk(false);
+                    setAuditNotes((prev) => {
+                      if (prev.toLowerCase().includes('bateria inchada') || prev.toLowerCase().includes('bateria danificada')) return prev;
+                      return prev ? `${prev}. Bateria inchada/danificada (necessita avaliação/substituição).` : 'Bateria inchada/danificada (necessita avaliação/substituição).';
+                    });
+                  }}
+                  className="px-2 py-0.5 bg-orange-100 text-orange-950 rounded hover:bg-orange-200 font-bold border border-orange-400 cursor-pointer"
+                >
+                  + Bateria Inchada / Danificada
                 </button>
                 <button
                   type="button"

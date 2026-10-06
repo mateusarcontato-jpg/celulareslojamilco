@@ -275,6 +275,7 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
             ) : device.auditInfo?.status === 'COM_PENDENCIA' ? (
               (() => {
                 const isScreenBroken = device.auditInfo.screenOk === false;
+                const isBatteryBroken = device.auditInfo.batteryOk === false;
                 const isPeliculaBroken = device.auditInfo.peliculaStatus === 'PELICULA_TRINCADA' ||
                   Boolean(device.auditInfo.damagedAccessories?.some(a => a.toLowerCase().includes('película') || a.toLowerCase().includes('pelicula')));
                 const missingList = device.auditInfo.missingAccessories || [];
@@ -287,6 +288,10 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                     {isScreenBroken ? (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9.5px] font-black bg-red-600 text-white shadow-xs w-fit uppercase">
                         🔨 TELA QUEBRADA
+                      </span>
+                    ) : isBatteryBroken ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9.5px] font-black bg-orange-100 text-orange-950 border-2 border-orange-500 w-fit uppercase">
+                        🔋 BATERIA INCHADA
                       </span>
                     ) : isPeliculaBroken ? (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9.5px] font-black bg-amber-100 text-amber-950 border border-amber-400 w-fit uppercase">
@@ -304,6 +309,11 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                     )}
 
                     {/* Subtítulo informativo */}
+                    {isBatteryBroken && !isScreenBroken && (
+                      <span className="text-[8.5px] text-orange-900 font-bold leading-tight block">
+                        Bateria danificada/inchada
+                      </span>
+                    )}
                     {isPeliculaBroken && !isScreenBroken && (
                       <span className="text-[8.5px] text-amber-900 font-semibold leading-tight block">
                         Película trincada (tela boa)

@@ -107,10 +107,27 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
       occText.includes('sem pelicula') || occText.includes('sem película');
   };
 
+  // Determina se a BATERIA está inchada, viciada ou danificada
+  const isBatteryActuallyBroken = (d: Device): boolean => {
+    if (d.auditInfo) {
+      return d.auditInfo.batteryOk === false;
+    }
+    const notesLower = (d.notes || '').toLowerCase();
+    const occText = (d.occurrences || []).map(o => `${o.title} ${o.description}`).join(' ').toLowerCase();
+    return (
+      notesLower.includes('bateria inchad') ||
+      notesLower.includes('bateria estufad') ||
+      notesLower.includes('bateria danificad') ||
+      notesLower.includes('bateria viciad') ||
+      notesLower.includes('conector quebrad') ||
+      occText.includes('bateria inchad') ||
+      occText.includes('bateria estufad') ||
+      occText.includes('bateria danificad')
+    );
+  };
+
   // Função auxiliar para determinar se o aparelho possui qualquer divergência/avaria
   const isDeviceDivergent = (d: Device): boolean => {
-    const notesLower = (d.notes || '').toLowerCase();
-
     // 1. Falta de acessórios
     const hasMissing = Boolean(
       (d.auditInfo?.missingAccessories && d.auditInfo.missingAccessories.length > 0) ||
@@ -126,10 +143,8 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
     // 3. Tela do aparelho quebrada
     const isScreenDefect = isScreenActuallyBroken(d);
 
-    // 4. Bateria com defeito
-    const isBatteryDefect = d.auditInfo
-      ? d.auditInfo.batteryOk === false
-      : (notesLower.includes('bateria viciad') || notesLower.includes('bateria estufad') || notesLower.includes('conector quebrad'));
+    // 4. Bateria com defeito / inchada / danificada
+    const isBatteryDefect = isBatteryActuallyBroken(d);
 
     // 5. Perda ou manutenção
     const isPerdaDefect = d.status === 'PERDA / EXTRAVIO' || (d.condition || '').toUpperCase().includes('EXTRAV') || (d.condition || '').toUpperCase().includes('PERDA');
@@ -234,6 +249,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
     const isScreenBroken = isScreenActuallyBroken(d);
     const isPeliculaBroken = isPeliculaActuallyBroken(d);
     const isPeliculaMissing = isPeliculaActuallyMissing(d);
+    const isBatteryDefect = isBatteryActuallyBroken(d);
 
     const missingList = d.auditInfo?.missingAccessories || [];
     // Acessórios danificados excluindo a película (já que a película tem box exclusivo)
@@ -241,84 +257,98 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
       a => !a.toLowerCase().includes('película') && !a.toLowerCase().includes('pelicula')
     );
 
-    const isBatteryDefect = d.auditInfo ? d.auditInfo.batteryOk === false : false;
-
     return (
-      <td className={`border border-zinc-300 py-2 px-2.5 text-[10px] min-w-[210px] max-w-[340px] ${
+      <td className={`border border-zinc-300 py-1.5 px-2 text-[9.5px] ${
         hasDivergence ? 'bg-red-50/50' : 'bg-emerald-50/30'
       }`}>
-        <div className="text-zinc-800 text-[9.5px] leading-tight mb-1.5">
-          <span className="font-bold text-zinc-600">Acessórios da Ficha: </span>
+        <div className="text-zinc-800 text-[9px] leading-tight mb-1">
+          <span className="font-bold text-zinc-600">Acessórios: </span>
           <span className="font-semibold text-zinc-950">
             {d.accessories && d.accessories.length > 0 ? d.accessories.join(', ') : 'Carregador Original, Cabo USB-C, Capa, Película'}
           </span>
         </div>
 
         {isAllOk ? (
-          <div className="p-2 rounded-lg bg-emerald-100/90 border border-emerald-500 text-emerald-950 shadow-2xs">
-            <div className="flex items-center gap-1.5 font-black text-[10.5px] text-emerald-950 uppercase tracking-wide">
+          <div className="p-1.5 rounded-lg bg-emerald-100/90 border border-emerald-500 text-emerald-950 shadow-2xs">
+            <div className="flex items-center gap-1 font-black text-[10px] text-emerald-950 uppercase tracking-wide">
               <span className="text-emerald-700 font-black text-xs leading-none">✓</span>
               <span>APARELHO 100% OK — SEM AVARIA OU PERDA</span>
             </div>
-            <p className="text-[9px] text-emerald-900 mt-1 font-semibold leading-snug">
-              ✓ Todos os itens entregues estão presentes e conferidos
-            </p>
-            <p className="text-[8.5px] text-emerald-800 leading-tight">
-              ✓ Tela íntegra sem trincas · Película aplicada (OK) · Bateria normal · Estado: <strong>{d.condition || 'BOM'}</strong>
+            <p className="text-[8.5px] text-emerald-800 leading-tight mt-0.5">
+              ✓ Tela íntegra · Película OK · Bateria normal · Estado: <strong>{d.condition || 'BOM'}</strong>
             </p>
             {d.auditInfo?.lastAuditedAt && (
-              <div className="mt-1 text-[8.5px] text-emerald-700 font-mono">
-                Checkup presencial realizado por {d.auditInfo.auditedBy || 'T.I.'} ({d.auditInfo.lastAuditedAt})
+              <div className="mt-0.5 text-[8px] text-emerald-700 font-mono">
+                Conferido por {d.auditInfo.auditedBy || 'T.I.'} ({d.auditInfo.lastAuditedAt})
               </div>
             )}
           </div>
         ) : (
-          <div className="p-2 rounded-lg bg-red-100 border-2 border-red-600 text-red-950 shadow-2xs space-y-1">
-            <div className="flex items-center gap-1.5 font-black text-[11px] text-red-950 uppercase tracking-wide">
+          <div className="p-1.5 rounded-lg bg-red-100 border-2 border-red-600 text-red-950 shadow-2xs space-y-1">
+            <div className="flex items-center gap-1 font-black text-[10px] text-red-950 uppercase tracking-wide">
               <span className="text-red-700 font-black text-xs leading-none">⚠️</span>
               <span>DIVERGÊNCIA CONSTATADA</span>
             </div>
 
-            {/* 1. SE A PELÍCULA ESTIVER TRINCADA (Informa com clareza total que é a película e não a tela) */}
+            {/* 1. SE A PELÍCULA ESTIVER TRINCADA */}
             {isPeliculaBroken && (
-              <div className="p-1.5 bg-amber-50 border-2 border-amber-500 rounded text-[9.5px] text-amber-950">
-                <span className="font-black text-amber-900 block uppercase text-[9px] tracking-wider">
+              <div className="p-1.5 bg-amber-50 border-2 border-amber-500 rounded text-[9px] text-amber-950">
+                <span className="font-black text-amber-900 block uppercase text-[8.5px] tracking-wider">
                   ⚠️ PELÍCULA DE PROTEÇÃO TRINCADA:
                 </span>
                 <span className="font-bold block text-amber-950">
-                  Película protetora danificada/trincada (necessita troca).
+                  Película protetora trincada (necessita troca).
                 </span>
                 {!isScreenBroken && (
-                  <span className="block text-[8.5px] text-emerald-800 font-bold mt-0.5">
-                    ✓ Tela original do aparelho está íntegra e sem trincas.
+                  <span className="block text-[8px] text-emerald-800 font-bold mt-0.5">
+                    ✓ Tela original do aparelho está íntegra.
                   </span>
                 )}
               </div>
             )}
 
-            {/* 2. SE A TELA DO CELULAR ESTIVER QUEBRADA (Dano real no display do aparelho) */}
+            {/* 2. SE A BATERIA ESTIVER INCHADA OU DANIFICADA (Mesmo destaque em retângulo) */}
+            {isBatteryDefect && (
+              <div className="p-1.5 bg-orange-50 border-2 border-orange-500 rounded text-[9px] text-orange-950">
+                <span className="font-black text-orange-900 block uppercase text-[8.5px] tracking-wider">
+                  🔋 BATERIA INCHADA / DANIFICADA:
+                </span>
+                <span className="font-bold block text-orange-950">
+                  Problema na bateria (inchada, viciada ou danificada — requer substituição).
+                </span>
+              </div>
+            )}
+
+            {/* 3. SE A TELA DO CELULAR ESTIVER QUEBRADA */}
             {isScreenBroken && (
-              <div className="p-1.5 bg-red-600 text-white rounded text-[9.5px] font-black uppercase shadow-xs">
+              <div className="p-1.5 bg-red-600 text-white rounded text-[9px] font-black uppercase shadow-xs">
                 🔨 TELA DO APARELHO QUEBRADA / TRINCADA (Dano no display/vidro)
               </div>
             )}
 
-            {/* 3. ITENS FALTANDO */}
+            {/* 4. SE ESTIVER SEM PELÍCULA */}
+            {isPeliculaMissing && !isPeliculaBroken && (
+              <div className="p-1 bg-red-50 border border-red-400 rounded text-[8.5px] text-red-950 font-bold">
+                ❌ SEM PELÍCULA DE PROTEÇÃO APLICADA
+              </div>
+            )}
+
+            {/* 5. ITENS FALTANDO */}
             {missingList.length > 0 && (
-              <div className="p-1 bg-white border border-red-500 rounded text-[9.5px] text-red-950">
-                <span className="font-black text-red-700 block uppercase text-[8.5px] tracking-wider">
-                  ❌ ITEM(NS) FALTANDO / NÃO APRESENTADO:
+              <div className="p-1 bg-white border border-red-500 rounded text-[9px] text-red-950">
+                <span className="font-black text-red-700 block uppercase text-[8px] tracking-wider">
+                  ❌ ITEM(NS) FALTANDO:
                 </span>
-                <span className="font-black text-red-900 underline text-[10px]">
+                <span className="font-black text-red-900 underline text-[9.5px]">
                   {missingList.join(', ')}
                 </span>
               </div>
             )}
 
-            {/* 4. OUTROS ACESSÓRIOS DANIFICADOS (Cabo, Capa, etc) */}
+            {/* 6. OUTROS ACESSÓRIOS DANIFICADOS */}
             {otherDamagedList.length > 0 && (
-              <div className="p-1 bg-white border border-amber-500 rounded text-[9.5px] text-amber-950">
-                <span className="font-black text-amber-800 block uppercase text-[8.5px] tracking-wider">
+              <div className="p-1 bg-white border border-amber-500 rounded text-[9px] text-amber-950">
+                <span className="font-black text-amber-800 block uppercase text-[8px] tracking-wider">
                   ⚠️ OUTRO(S) ACESSÓRIO(S) DANIFICADO(S):
                 </span>
                 <span className="font-bold text-amber-950">
@@ -327,16 +357,9 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
               </div>
             )}
 
-            {/* 5. DEFEITO DE BATERIA */}
-            {isBatteryDefect && (
-              <div className="p-1 bg-orange-200/80 border border-orange-400 rounded text-[9px] text-orange-950 font-black">
-                🔋 DEFEITO: BATERIA OU CONECTOR DE CARGA
-              </div>
-            )}
-
             {d.auditInfo?.auditNotes && (
-              <div className="text-[9px] text-red-900 font-medium italic pt-0.5">
-                Obs da Auditoria: "{d.auditInfo.auditNotes}"
+              <div className="text-[8.5px] text-red-900 font-medium italic pt-0.5">
+                Obs: "{d.auditInfo.auditNotes}"
               </div>
             )}
           </div>
@@ -348,7 +371,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
   return (
     <>
       <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 print-modal-container">
-        <div className="bg-white rounded-2xl border border-zinc-200 shadow-2xl max-w-5xl w-full max-h-[96vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 print-modal-card">
+        <div className="bg-white rounded-2xl border border-zinc-200 shadow-2xl max-w-7xl w-full max-h-[96vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 print-modal-card">
           
           {/* Controls Toolbar (Oculto na Impressão) */}
           <div className="no-print px-6 py-4 border-b border-zinc-200 bg-zinc-950 text-white flex flex-col gap-3 shrink-0">
@@ -693,17 +716,17 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                       </div>
 
                       {/* Tabela Exclusiva de Auditoria */}
-                      <table className="w-full border-collapse border border-zinc-400 text-left text-[10px]">
+                      <table className="w-full border-collapse border border-zinc-400 text-left text-[9.5px] print-report-table">
                         <thead>
-                          <tr className="bg-zinc-200 text-black font-bold uppercase text-[9px]">
-                            <th className="border border-zinc-400 py-1.5 px-2 w-[70px]">Nº / PT</th>
-                            <th className="border border-zinc-400 py-1.5 px-2 min-w-[120px]">COLABORADOR & SETOR</th>
-                            <th className="border border-zinc-400 py-1.5 px-2 min-w-[100px]">APARELHO</th>
-                            <th className="border border-zinc-400 py-1.5 px-2 w-[130px] text-center">DIAGNÓSTICO</th>
-                            <th className="border border-zinc-400 py-1.5 px-2 min-w-[145px]">ACESSÓRIOS & ITENS</th>
-                            <th className="border border-zinc-400 py-1.5 px-2 w-[115px]">TELA & PELÍCULA</th>
-                            <th className="border border-zinc-400 py-1.5 px-2 w-[110px]">CONFERÊNCIA</th>
-                            <th className="border border-zinc-400 py-1.5 px-2 min-w-[120px]">PARECER / PENDÊNCIAS</th>
+                          <tr className="bg-zinc-200 text-black font-bold uppercase text-[8.5px]">
+                            <th className="border border-zinc-400 py-1.5 px-1.5 w-[7%]">Nº / PT</th>
+                            <th className="border border-zinc-400 py-1.5 px-1.5 w-[15%]">COLABORADOR & SETOR</th>
+                            <th className="border border-zinc-400 py-1.5 px-1.5 w-[13%]">APARELHO</th>
+                            <th className="border border-zinc-400 py-1.5 px-1.5 w-[14%] text-center">DIAGNÓSTICO</th>
+                            <th className="border border-zinc-400 py-1.5 px-1.5 w-[18%]">ACESSÓRIOS & ITENS</th>
+                            <th className="border border-zinc-400 py-1.5 px-1.5 w-[14%]">TELA, PELÍCULA & BATERIA</th>
+                            <th className="border border-zinc-400 py-1.5 px-1.5 w-[9%]">CONFERÊNCIA</th>
+                            <th className="border border-zinc-400 py-1.5 px-1.5 w-[10%]">PARECER / OBS</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -715,6 +738,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                             const isScreenBroken = isScreenActuallyBroken(d);
                             const isPeliculaBroken = isPeliculaActuallyBroken(d);
                             const isPeliculaMissing = isPeliculaActuallyMissing(d);
+                            const isBatteryBroken = isBatteryActuallyBroken(d);
 
                             const missingList = d.auditInfo?.missingAccessories || [];
                             const otherDamagedList = (d.auditInfo?.damagedAccessories || []).filter(
@@ -729,9 +753,9 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                                 }`}
                               >
                                 {/* PT */}
-                                <td className="border border-zinc-300 py-1.5 px-2 font-mono font-bold">
+                                <td className="border border-zinc-300 py-1.5 px-1.5 font-mono font-bold text-[9px]">
                                   {d.isPersonalDevice ? (
-                                    <span className="text-purple-900 bg-purple-50 px-1 py-0.2 rounded border border-purple-200 text-[9px]">
+                                    <span className="text-purple-900 bg-purple-50 px-1 py-0.2 rounded border border-purple-200 text-[8px]">
                                       PESSOAL
                                     </span>
                                   ) : d.hasAssetTag ? (
@@ -742,59 +766,62 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                                 </td>
 
                                 {/* Colaborador & Setor */}
-                                <td className="border border-zinc-300 py-1.5 px-2">
-                                  <span className="font-bold uppercase text-black block">{d.employeeName}</span>
-                                  <span className="text-[9px] text-zinc-600 block">{d.sector}</span>
+                                <td className="border border-zinc-300 py-1.5 px-1.5">
+                                  <span className="font-bold uppercase text-black block leading-tight">{d.employeeName}</span>
+                                  <span className="text-[8.5px] text-zinc-600 block mt-0.5">{d.sector}</span>
                                 </td>
 
                                 {/* Modelo */}
-                                <td className="border border-zinc-300 py-1.5 px-2 font-medium">
-                                  <span className="font-semibold block">{d.brand} {d.model}</span>
-                                  <span className="text-[8.5px] text-zinc-500 font-mono">Linha: {d.phoneNumber || 'Sem chip'}</span>
+                                <td className="border border-zinc-300 py-1.5 px-1.5 font-medium">
+                                  <span className="font-semibold block leading-tight">{d.brand} {d.model}</span>
+                                  <span className="text-[8px] text-zinc-500 font-mono block mt-0.5">Linha: {d.phoneNumber || 'Sem chip'}</span>
                                 </td>
 
                                 {/* Diagnóstico da Auditoria: Totalmente Diferenciado */}
-                                <td className="border border-zinc-300 py-1.5 px-2 text-center">
+                                <td className="border border-zinc-300 py-1.5 px-1.5 text-center">
                                   {isOk ? (
-                                    <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-950 font-black text-[9px] border border-emerald-500 uppercase tracking-wide">
+                                    <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-950 font-black text-[8.5px] border border-emerald-500 uppercase tracking-wide">
                                       ✓ 100% CONFORME
                                     </span>
-                                  ) : isScreenBroken && isPeliculaBroken ? (
-                                    <div className="flex flex-col gap-0.5 items-center">
-                                      <span className="inline-block px-1.5 py-0.5 rounded bg-red-600 text-white font-black text-[9px] shadow-xs uppercase tracking-wide">
-                                        🔨 TELA QUEBRADA
-                                      </span>
-                                      <span className="inline-block px-1 py-0.2 rounded bg-amber-100 text-amber-950 font-bold text-[8px] border border-amber-400 uppercase">
-                                        ⚠️ PELÍCULA TRINCADA
-                                      </span>
-                                    </div>
-                                  ) : isScreenBroken ? (
-                                    <span className="inline-block px-1.5 py-0.5 rounded bg-red-600 text-white font-black text-[9px] shadow-xs uppercase tracking-wide">
-                                      🔨 TELA QUEBRADA
-                                    </span>
-                                  ) : isPeliculaBroken ? (
-                                    <span className="inline-block px-1.5 py-0.5 rounded bg-amber-100 text-amber-950 font-black text-[9px] border-2 border-amber-500 uppercase tracking-wide">
-                                      ⚠️ PELÍCULA TRINCADA
-                                    </span>
-                                  ) : divergent ? (
-                                    <span className="inline-block px-1.5 py-0.5 rounded bg-red-100 text-red-950 font-black text-[9px] border-2 border-red-600 uppercase tracking-wide">
-                                      ⚠️ DIVERGÊNCIA
-                                    </span>
                                   ) : (
-                                    <span className="inline-block px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 font-bold text-[8.5px] border border-zinc-300 uppercase">
-                                      ⏳ NÃO AUDITADO
-                                    </span>
+                                    <div className="flex flex-col gap-1 items-center">
+                                      {isScreenBroken && (
+                                        <span className="inline-block w-full px-1 py-0.5 rounded bg-red-600 text-white font-black text-[8.5px] shadow-xs uppercase tracking-wide">
+                                          🔨 TELA QUEBRADA
+                                        </span>
+                                      )}
+                                      {isBatteryBroken && (
+                                        <span className="inline-block w-full px-1 py-0.5 rounded bg-orange-100 text-orange-950 font-black text-[8.5px] border-2 border-orange-500 uppercase tracking-wide">
+                                          🔋 BATERIA INCHADA
+                                        </span>
+                                      )}
+                                      {isPeliculaBroken && (
+                                        <span className="inline-block w-full px-1 py-0.5 rounded bg-amber-100 text-amber-950 font-black text-[8.5px] border-2 border-amber-500 uppercase tracking-wide">
+                                          ⚠️ PELÍCULA TRINCADA
+                                        </span>
+                                      )}
+                                      {!isScreenBroken && !isBatteryBroken && !isPeliculaBroken && divergent && (
+                                        <span className="inline-block w-full px-1 py-0.5 rounded bg-red-100 text-red-950 font-black text-[8.5px] border-2 border-red-600 uppercase tracking-wide">
+                                          ⚠️ DIVERGÊNCIA
+                                        </span>
+                                      )}
+                                      {!isScreenBroken && !isBatteryBroken && !isPeliculaBroken && !divergent && (
+                                        <span className="inline-block px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 font-bold text-[8px] border border-zinc-300 uppercase">
+                                          ⏳ NÃO AUDITADO
+                                        </span>
+                                      )}
+                                    </div>
                                   )}
                                 </td>
 
                                 {/* Acessórios & Itens Entregues */}
-                                <td className="border border-zinc-300 py-1.5 px-2 text-[9px]">
+                                <td className="border border-zinc-300 py-1.5 px-1.5 text-[8.5px] leading-snug">
                                   {notAudited ? (
                                     <span className="text-zinc-400 italic">Cadastrado: {d.accessories?.join(', ') || 'Padrão'}</span>
                                   ) : isOk ? (
                                     <div className="text-emerald-900 font-medium">
-                                      <span className="font-bold text-emerald-800">✓ Todos presentes:</span>
-                                      <div className="text-[8.5px] text-emerald-950">
+                                      <span className="font-bold text-emerald-800 block">✓ Todos presentes:</span>
+                                      <div className="text-[8px] text-emerald-950">
                                         {d.auditInfo?.verifiedAccessories?.join(', ') || d.accessories?.join(', ') || 'Completo'}
                                       </div>
                                     </div>
@@ -812,38 +839,38 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                                           <span>{otherDamagedList.join(', ')}</span>
                                         </div>
                                       )}
-                                      <div className="text-[8.5px] text-zinc-500">
+                                      <div className="text-[8px] text-zinc-500">
                                         Presentes: {d.auditInfo?.verifiedAccessories?.join(', ') || 'Nenhum'}
                                       </div>
                                     </div>
                                   )}
                                 </td>
 
-                                {/* Tela & Película: Separados com Clareza Absoluta */}
-                                <td className="border border-zinc-300 py-1.5 px-2 text-[9px]">
+                                {/* Tela, Película & Bateria: Separados com Clareza Absoluta */}
+                                <td className="border border-zinc-300 py-1.5 px-1.5 text-[8.5px]">
                                   {notAudited ? (
                                     <span className="text-zinc-400 italic">Estado: {d.condition || 'BOM'}</span>
                                   ) : (
                                     <div className="space-y-1">
                                       {/* TELA ORIGINAL DO APARELHO */}
-                                      <div className="flex items-center gap-1">
+                                      <div className="flex flex-wrap items-center gap-1">
                                         <span className="text-zinc-700 font-bold shrink-0">Tela:</span>
                                         {!isScreenBroken ? (
                                           <span className="text-emerald-800 font-bold bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
                                             ✓ Íntegra
                                           </span>
                                         ) : (
-                                          <span className="text-white font-black bg-red-600 px-1.5 py-0.2 rounded uppercase">
+                                          <span className="text-white font-black bg-red-600 px-1 py-0.2 rounded uppercase">
                                             🔨 QUEBRADA
                                           </span>
                                         )}
                                       </div>
 
                                       {/* PELÍCULA DE PROTEÇÃO */}
-                                      <div className="flex items-center gap-1">
+                                      <div className="flex flex-wrap items-center gap-1">
                                         <span className="text-zinc-700 font-bold shrink-0">Película:</span>
                                         {isPeliculaBroken ? (
-                                          <span className="text-amber-950 font-black bg-amber-100 px-1.5 py-0.2 rounded border border-amber-400 uppercase">
+                                          <span className="text-amber-950 font-black bg-amber-100 px-1 py-0.2 rounded border-2 border-amber-500 uppercase">
                                             ⚠️ TRINCADA
                                           </span>
                                         ) : isPeliculaMissing ? (
@@ -856,16 +883,30 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                                           </span>
                                         )}
                                       </div>
+
+                                      {/* BATERIA (Destaque retangular caso inchada/danificada) */}
+                                      <div className="flex flex-wrap items-center gap-1">
+                                        <span className="text-zinc-700 font-bold shrink-0">Bateria:</span>
+                                        {isBatteryBroken ? (
+                                          <span className="text-orange-950 font-black bg-orange-100 px-1 py-0.2 rounded border-2 border-orange-500 uppercase">
+                                            🔋 INCHADA / DANIF.
+                                          </span>
+                                        ) : (
+                                          <span className="text-emerald-800 font-bold bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
+                                            ✓ Normal
+                                          </span>
+                                        )}
+                                      </div>
                                     </div>
                                   )}
                                 </td>
 
                                 {/* Conferência / Auditor */}
-                                <td className="border border-zinc-300 py-1.5 px-2 text-[9px]">
+                                <td className="border border-zinc-300 py-1.5 px-1.5 text-[8.5px]">
                                   {d.auditInfo ? (
                                     <div>
-                                      <strong className="text-zinc-900 block font-bold">{d.auditInfo.auditedBy}</strong>
-                                      <span className="text-[8px] text-zinc-500 font-mono block">{d.auditInfo.lastAuditedAt}</span>
+                                      <strong className="text-zinc-900 block font-bold leading-tight">{d.auditInfo.auditedBy}</strong>
+                                      <span className="text-[7.5px] text-zinc-500 font-mono block mt-0.5 leading-tight">{d.auditInfo.lastAuditedAt}</span>
                                     </div>
                                   ) : (
                                     <span className="text-zinc-400 italic">Pendente</span>
@@ -873,21 +914,26 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                                 </td>
 
                                 {/* Parecer / Observações / Pendências */}
-                                <td className="border border-zinc-300 py-1.5 px-2 text-[9px]">
+                                <td className="border border-zinc-300 py-1.5 px-1.5 text-[8.5px] leading-snug">
                                   {isScreenBroken && (
                                     <div className="text-red-700 font-black mb-0.5">
-                                      • Tela do aparelho quebrada/trincada (necessita troca de display).
+                                      • Tela quebrada (trocar display).
+                                    </div>
+                                  )}
+                                  {isBatteryBroken && (
+                                    <div className="text-orange-900 font-black mb-0.5">
+                                      • Bateria inchada/danificada (substituir).
                                     </div>
                                   )}
                                   {isPeliculaBroken && (
                                     <div className="text-amber-900 font-bold mb-0.5">
-                                      • Substituir película de proteção (tela do celular está intacta).
+                                      • Trocar película (tela intacta).
                                     </div>
                                   )}
                                   {d.auditInfo?.auditNotes ? (
                                     <span className="text-zinc-900 italic font-medium">"{d.auditInfo.auditNotes}"</span>
                                   ) : d.notes ? (
-                                    <span className="text-zinc-600 text-[8.5px]">{d.notes}</span>
+                                    <span className="text-zinc-600 text-[8px]">{d.notes}</span>
                                   ) : (
                                     <span className="text-zinc-400">—</span>
                                   )}
@@ -959,18 +1005,18 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                                 <span className="font-mono text-zinc-600">{secDevices.length} aparelho(s)</span>
                               </div>
 
-                              <table className="w-full border-collapse border border-zinc-400 text-left text-[11px]">
+                              <table className="w-full border-collapse border border-zinc-400 text-left text-[10px] print-report-table">
                                 <thead>
-                                  <tr className="bg-zinc-200 text-black font-bold uppercase text-[10px]">
-                                    <th className="border border-zinc-400 py-1.5 px-2 w-[85px]">N° PATRIMÔNIO</th>
-                                    <th className="border border-zinc-400 py-1.5 px-2">COLABORADOR / USUÁRIO</th>
-                                    <th className="border border-zinc-400 py-1.5 px-2">MODELO</th>
+                                  <tr className="bg-zinc-200 text-black font-bold uppercase text-[9px]">
+                                    <th className="border border-zinc-400 py-1.5 px-1.5 w-[9%]">N° PATRIMÔNIO</th>
+                                    <th className="border border-zinc-400 py-1.5 px-1.5 w-[18%]">COLABORADOR / USUÁRIO</th>
+                                    <th className="border border-zinc-400 py-1.5 px-1.5 w-[15%]">MODELO</th>
                                     {showAccessoriesColumn && (
-                                      <th className="border border-zinc-400 py-1.5 px-2">ACESSÓRIOS & ESTADO</th>
+                                      <th className="border border-zinc-400 py-1.5 px-1.5 w-[35%]">ACESSÓRIOS & ESTADO</th>
                                     )}
-                                    <th className="border border-zinc-400 py-1.5 px-2 w-[70px]">VPN</th>
-                                    <th className="border border-zinc-400 py-1.5 px-2 w-[85px]">AQUISIÇÃO</th>
-                                    <th className="border border-zinc-400 py-1.5 px-2 w-[90px]">STATUS</th>
+                                    <th className="border border-zinc-400 py-1.5 px-1.5 w-[6%]">VPN</th>
+                                    <th className="border border-zinc-400 py-1.5 px-1.5 w-[8%]">AQUISIÇÃO</th>
+                                    <th className="border border-zinc-400 py-1.5 px-1.5 w-[9%]">STATUS</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -1042,18 +1088,18 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                           );
                         })
                       ) : (
-                        <table className="w-full border-collapse border border-zinc-400 text-left text-[11px]">
+                        <table className="w-full border-collapse border border-zinc-400 text-left text-[10px] print-report-table">
                           <thead>
-                            <tr className="bg-zinc-200 text-black font-bold uppercase text-[10px]">
-                              <th className="border border-zinc-400 py-1.5 px-2 w-[85px]">N° PATRIMÔNIO</th>
-                              <th className="border border-zinc-400 py-1.5 px-2">COLABORADOR / USUÁRIO</th>
-                              <th className="border border-zinc-400 py-1.5 px-2">SETOR</th>
-                              <th className="border border-zinc-400 py-1.5 px-2">MODELO</th>
+                            <tr className="bg-zinc-200 text-black font-bold uppercase text-[9px]">
+                              <th className="border border-zinc-400 py-1.5 px-1.5 w-[9%]">N° PATRIMÔNIO</th>
+                              <th className="border border-zinc-400 py-1.5 px-1.5 w-[18%]">COLABORADOR / USUÁRIO</th>
+                              <th className="border border-zinc-400 py-1.5 px-1.5 w-[11%]">SETOR</th>
+                              <th className="border border-zinc-400 py-1.5 px-1.5 w-[14%]">MODELO</th>
                               {showAccessoriesColumn && (
-                                <th className="border border-zinc-400 py-1.5 px-2">ACESSÓRIOS & ESTADO</th>
+                                <th className="border border-zinc-400 py-1.5 px-1.5 w-[33%]">ACESSÓRIOS & ESTADO</th>
                               )}
-                              <th className="border border-zinc-400 py-1.5 px-2 w-[70px]">VPN</th>
-                              <th className="border border-zinc-400 py-1.5 px-2 w-[90px]">STATUS</th>
+                              <th className="border border-zinc-400 py-1.5 px-1.5 w-[6%]">VPN</th>
+                              <th className="border border-zinc-400 py-1.5 px-1.5 w-[9%]">STATUS</th>
                             </tr>
                           </thead>
                           <tbody>

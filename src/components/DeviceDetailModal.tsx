@@ -147,6 +147,12 @@ export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                         <span className="font-normal text-red-900">Dano físico no display/vidro do aparelho.</span>
                       </p>
                     )}
+                    {device.auditInfo.batteryOk === false && (
+                      <p className="text-orange-950 bg-orange-100 border-2 border-orange-500 px-2 py-1 rounded text-xs font-black flex items-center gap-1">
+                        <span>🔋 BATERIA INCHADA / DANIFICADA:</span>
+                        <span className="font-semibold text-orange-900">Necessita substituição ou reparo imediato.</span>
+                      </p>
+                    )}
                     {device.auditInfo.peliculaStatus === 'PELICULA_TRINCADA' && (
                       <p className="text-amber-900 text-xs font-bold flex items-center gap-1">
                         <span>⚠️ PELÍCULA DE PROTEÇÃO TRINCADA:</span>
