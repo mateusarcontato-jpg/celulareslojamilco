@@ -64,63 +64,79 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
   };
 
   const getStatusBadge = (status: DeviceStatus, isPersonal?: boolean) => {
+    const baseBadgeClass = "inline-flex items-center justify-center gap-1.5 w-[134px] py-1 rounded text-[10px] font-bold tracking-wide uppercase";
     if (isPersonal && (status === 'SEM PATRIMÔNIO' || status === 'PESSOAL')) {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-900 border border-purple-300">
-          <Smartphone className="w-3 h-3 text-purple-700" />
-          CELULAR PESSOAL
+        <span className={`${baseBadgeClass} bg-purple-100 text-purple-900 border border-purple-300`}>
+          <Smartphone className="w-3 h-3 text-purple-700 shrink-0" />
+          <span>CELULAR PESSOAL</span>
         </span>
       );
     }
     switch (status) {
       case 'PESSOAL':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-900 border border-purple-300">
-            <Smartphone className="w-3 h-3 text-purple-700" />
-            CELULAR PESSOAL
+          <span className={`${baseBadgeClass} bg-purple-100 text-purple-900 border border-purple-300`}>
+            <Smartphone className="w-3 h-3 text-purple-700 shrink-0" />
+            <span>CELULAR PESSOAL</span>
           </span>
         );
       case 'EM USO':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-zinc-900 text-white border border-zinc-800">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            EM USO
+          <span className={`${baseBadgeClass} bg-zinc-900 text-white border border-zinc-800`}>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
+            <span>EM USO</span>
           </span>
         );
       case 'DISPONÍVEL':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-zinc-100 text-zinc-900 border border-zinc-300">
-            DISPONÍVEL
+          <span className={`${baseBadgeClass} bg-zinc-100 text-zinc-900 border border-zinc-300`}>
+            <span>DISPONÍVEL</span>
           </span>
         );
       case 'SEM PATRIMÔNIO':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-red-100 text-red-900 border border-red-300">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-600"></span>
-            SEM PATRIMÔNIO
+          <span className={`${baseBadgeClass} bg-red-100 text-red-900 border border-red-300`}>
+            <span className="w-1.5 h-1.5 rounded-full bg-red-600 shrink-0"></span>
+            <span>SEM PATRIMÔNIO</span>
           </span>
         );
       case 'MANUTENÇÃO':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
-            <Wrench className="w-3 h-3 text-amber-700" />
-            MANUTENÇÃO
+          <span className={`${baseBadgeClass} bg-amber-100 text-amber-900 border border-amber-300`}>
+            <Wrench className="w-3 h-3 text-amber-700 shrink-0" />
+            <span>MANUTENÇÃO</span>
           </span>
         );
       case 'PERDA / EXTRAVIO':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-red-600 text-white border border-red-700">
-            PERDA / EXTRAVIO
+          <span className={`${baseBadgeClass} bg-red-600 text-white border border-red-700`}>
+            <span>PERDA / EXTRAVIO</span>
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-zinc-100 text-zinc-700">
-            {status}
+          <span className={`${baseBadgeClass} bg-zinc-100 text-zinc-700 border border-zinc-200`}>
+            <span>{status}</span>
           </span>
         );
     }
   };
+
+  const renderColGroup = () => (
+    <colgroup>
+      <col className="w-[82px]" />
+      <col className="w-[108px]" />
+      <col />
+      <col className="w-[88px]" />
+      <col className="w-[138px]" />
+      <col className="w-[115px]" />
+      <col className="w-[118px]" />
+      <col className="w-[148px]" />
+      {showAuditColumn && <col className="w-[168px]" />}
+      <col className="w-[244px]" />
+    </colgroup>
+  );
 
   const renderTableRows = (deviceList: Device[]) => {
     const sorted = [...deviceList].sort((a, b) => {
@@ -175,43 +191,43 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
           }`}
         >
           {/* Loja */}
-          <td className="py-2.5 px-2.5 whitespace-nowrap text-zinc-700 font-bold text-[11px]">
+          <td className="py-2.5 px-2.5 whitespace-nowrap text-zinc-700 font-bold text-[11px] align-middle">
             {device.store.replace('LOJA ', '')}
           </td>
 
           {/* N° Patrimônio */}
-          <td className="py-2.5 px-2 whitespace-nowrap">
+          <td className="py-2.5 px-2 whitespace-nowrap align-middle text-center">
             {device.isPersonalDevice ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-300 shadow-2xs">
-                <Smartphone className="w-3 h-3 text-purple-700" />
-                PESSOAL
+              <span className="inline-flex items-center justify-center gap-1 w-[86px] py-1 rounded text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-300 shadow-2xs">
+                <Smartphone className="w-3 h-3 text-purple-700 shrink-0" />
+                <span>PESSOAL</span>
               </span>
             ) : isSemPt ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300">
-                <AlertCircle className="w-3 h-3 text-red-600" />
-                SEM PT
+              <span className="inline-flex items-center justify-center gap-1 w-[86px] py-1 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300">
+                <AlertCircle className="w-3 h-3 text-red-600 shrink-0" />
+                <span>SEM PT</span>
               </span>
             ) : (
-              <span className="font-mono-nums font-bold text-zinc-950 bg-zinc-100 px-2 py-0.5 rounded border border-zinc-200 text-xs">
+              <span className="inline-flex items-center justify-center w-[86px] py-1 font-mono-nums font-bold text-zinc-950 bg-zinc-100 rounded border border-zinc-200 text-xs">
                 {device.assetNumber}
               </span>
             )}
           </td>
 
           {/* Nome do Colaborador (e indicação se trocou de usuário recentemente) */}
-          <td className="py-2.5 px-2.5">
+          <td className="py-2.5 px-2.5 align-middle truncate">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-bold text-zinc-950 text-xs uppercase">
+              <span className="font-bold text-zinc-950 text-xs uppercase truncate">
                 {device.employeeName}
               </span>
               {device.hasVpn && (
-                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-bold bg-red-600 text-white">
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-bold bg-red-600 text-white shrink-0">
                   vpn
                 </span>
               )}
             </div>
             {device.previousEmployeeName && (
-              <span className="text-[10px] text-zinc-500 block mt-0.5">
+              <span className="text-[10px] text-zinc-500 block mt-0.5 truncate">
                 Trocou com: <strong>{device.previousEmployeeName}</strong>
               </span>
             )}
@@ -223,55 +239,57 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
           </td>
 
           {/* Marca */}
-          <td className="py-2.5 px-2 whitespace-nowrap text-zinc-700 text-xs uppercase font-medium">
+          <td className="py-2.5 px-2 whitespace-nowrap text-zinc-700 text-xs uppercase font-medium align-middle truncate">
             {device.brand}
           </td>
 
           {/* Modelo */}
-          <td className="py-2.5 px-2.5 whitespace-nowrap">
-            <span className="text-zinc-900 font-bold text-xs">
+          <td className="py-2.5 px-2.5 whitespace-nowrap align-middle truncate">
+            <span className="text-zinc-900 font-bold text-xs block truncate">
               {device.model}
             </span>
             {device.imei1 && (
-              <span className="text-[10px] text-zinc-400 block font-mono-nums">
+              <span className="text-[10px] text-zinc-400 block font-mono-nums truncate">
                 IMEI: {device.imei1}
               </span>
             )}
           </td>
 
           {/* Setor */}
-          <td className="py-2.5 px-2 whitespace-nowrap">
+          <td className="py-2.5 px-2 whitespace-nowrap align-middle truncate">
             <span className="text-xs text-zinc-800 font-semibold uppercase">
               {device.sector}
             </span>
           </td>
 
           {/* Data Aquisição */}
-          <td className="py-2.5 px-2 whitespace-nowrap font-mono-nums text-zinc-600 text-xs">
+          <td className="py-2.5 px-2 whitespace-nowrap font-mono-nums text-zinc-600 text-xs align-middle text-center">
             {device.acquisitionDate === '?' ? (
-              <span className="text-red-700 font-bold bg-red-50 px-1.5 py-0.5 rounded text-[11px] border border-red-200">
+              <span className="inline-flex items-center justify-center w-[96px] py-1 text-red-700 font-bold bg-red-50 rounded text-[10px] border border-red-200">
                 ? (Pendente)
               </span>
             ) : (
-              device.acquisitionDate
+              <span className="inline-flex items-center justify-center w-[96px] py-1 text-zinc-700 font-mono-nums font-semibold bg-zinc-50 rounded text-[11px] border border-zinc-200/80">
+                {device.acquisitionDate}
+              </span>
             )}
           </td>
 
           {/* Status */}
-          <td className="py-2.5 px-2 whitespace-nowrap">
+          <td className="py-2.5 px-2 whitespace-nowrap align-middle text-center">
             {getStatusBadge(device.status, device.isPersonalDevice)}
           </td>
 
           {/* Auditoria / Checkup de Itens */}
           {showAuditColumn && (
-          <td className="py-2.5 px-2 whitespace-nowrap">
+          <td className="py-2.5 px-2 whitespace-nowrap align-middle text-center">
             {device.auditInfo?.status === 'OK' ? (
-              <div className="flex flex-col">
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-950 border border-emerald-300 w-fit">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-700" />
-                  CHECKUP OK
+              <div className="inline-flex flex-col items-center w-[148px]">
+                <span className="inline-flex items-center justify-center gap-1 w-full py-1 rounded text-[9.5px] font-bold bg-emerald-100 text-emerald-950 border border-emerald-400 uppercase tracking-wide">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-700 shrink-0" />
+                  <span>CHECKUP OK</span>
                 </span>
-                <span className="text-[9px] text-zinc-500 mt-0.5 font-mono-nums font-medium">
+                <span className="text-[8.5px] text-zinc-500 mt-0.5 font-mono-nums font-medium w-full text-center">
                   {device.auditInfo.lastAuditedAt || 'Conferido'}
                 </span>
               </div>
@@ -293,93 +311,97 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                 );
 
                 return (
-                  <div className="flex flex-col gap-0.5 max-w-[145px]">
+                  <div className="inline-flex flex-col items-center gap-1 w-[148px]">
                     {isScreenBroken && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9.5px] font-black bg-red-600 text-white shadow-xs w-fit uppercase">
-                        🔨 TELA QUEBRADA
+                      <span className="inline-flex items-center justify-center gap-1 w-full py-1 rounded text-[9.5px] font-black bg-red-600 text-white shadow-xs uppercase tracking-wide">
+                        <span>🔨 TELA QUEBRADA</span>
                       </span>
                     )}
                     {isBatteryBroken && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9.5px] font-black bg-orange-100 text-orange-950 border-2 border-orange-500 w-fit uppercase">
-                        🔋 BATERIA INCHADA
+                      <span className="inline-flex items-center justify-center gap-1 w-full py-1 rounded text-[9.5px] font-black bg-orange-100 text-orange-950 border-2 border-orange-500 uppercase tracking-wide">
+                        <span>🔋 BATERIA INCHADA</span>
                       </span>
                     )}
                     {isPeliculaBroken && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9.5px] font-black bg-amber-100 text-amber-950 border border-amber-400 w-fit uppercase">
-                        ⚠️ PELÍCULA TRINCADA
+                      <span className="inline-flex items-center justify-center gap-1 w-full py-1 rounded text-[9.5px] font-black bg-amber-100 text-amber-950 border-2 border-amber-500 uppercase tracking-wide">
+                        <span>⚠️ PELÍCULA TRINCADA</span>
                       </span>
                     )}
                     {isCapaBroken && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9.5px] font-black bg-amber-100 text-amber-950 border-2 border-amber-600 w-fit uppercase">
-                        🛡️ CAPA DESGASTADA
+                      <span className="inline-flex items-center justify-center gap-1 w-full py-1 rounded text-[9.5px] font-black bg-amber-100 text-amber-950 border-2 border-amber-600 uppercase tracking-wide">
+                        <span>🛡️ CAPA DESGASTADA</span>
                       </span>
                     )}
                     {!isScreenBroken && !isBatteryBroken && !isPeliculaBroken && !isCapaBroken && missingList.length > 0 && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9.5px] font-bold bg-red-100 text-red-950 border border-red-300 w-fit">
-                        ❌ FALTANDO ITENS
+                      <span className="inline-flex items-center justify-center gap-1 w-full py-1 rounded text-[9.5px] font-bold bg-red-100 text-red-950 border border-red-300 uppercase tracking-wide">
+                        <span>❌ FALTANDO ITENS</span>
                       </span>
                     )}
                     {!isScreenBroken && !isBatteryBroken && !isPeliculaBroken && !isCapaBroken && missingList.length === 0 && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9.5px] font-bold bg-red-100 text-red-950 border border-red-300 w-fit">
-                        <AlertTriangle className="w-3 h-3 text-red-600" />
-                        DIVERGÊNCIA
+                      <span className="inline-flex items-center justify-center gap-1 w-full py-1 rounded text-[9.5px] font-bold bg-red-100 text-red-950 border border-red-300 uppercase tracking-wide">
+                        <AlertTriangle className="w-3 h-3 text-red-600 shrink-0" />
+                        <span>DIVERGÊNCIA</span>
                       </span>
                     )}
 
                     {/* Subtítulo informativo */}
-                    {isCapaBroken && (
-                      <span className="text-[8.5px] text-amber-900 font-bold leading-tight block">
-                        Capa desgastada/rasgada
-                      </span>
-                    )}
-                    {isBatteryBroken && !isScreenBroken && (
-                      <span className="text-[8.5px] text-orange-900 font-bold leading-tight block">
-                        Bateria danificada/inchada
-                      </span>
-                    )}
-                    {isPeliculaBroken && !isScreenBroken && (
-                      <span className="text-[8.5px] text-amber-900 font-semibold leading-tight block">
-                        Película trincada (tela boa)
-                      </span>
-                    )}
-                    {isScreenBroken && (
-                      <span className="text-[8.5px] text-red-700 font-bold leading-tight block">
-                        Display/Vidro danificado
-                      </span>
-                    )}
-                    {missingList.length > 0 && (
-                      <span className="text-[8.5px] text-red-700 font-bold truncate block" title={missingList.join(', ')}>
-                        Falta: {missingList.join(', ')}
-                      </span>
-                    )}
-                    {otherDamaged.length > 0 && (
-                      <span className="text-[8.5px] text-amber-850 font-medium truncate block" title={otherDamaged.join(', ')}>
-                        Avaria: {otherDamaged.join(', ')}
-                      </span>
-                    )}
-                    {device.auditInfo.lastAuditedAt && (
-                      <span className="text-[8.5px] text-zinc-500 font-mono-nums mt-0.5 block">
-                        {device.auditInfo.lastAuditedAt}
-                      </span>
-                    )}
+                    <div className="w-full text-center space-y-0.5">
+                      {isCapaBroken && (
+                        <span className="text-[8.5px] text-amber-900 font-bold leading-tight block">
+                          Capa desgastada/rasgada
+                        </span>
+                      )}
+                      {isBatteryBroken && !isScreenBroken && (
+                        <span className="text-[8.5px] text-orange-900 font-bold leading-tight block">
+                          Bateria danificada/inchada
+                        </span>
+                      )}
+                      {isPeliculaBroken && !isScreenBroken && (
+                        <span className="text-[8.5px] text-amber-900 font-semibold leading-tight block">
+                          Película trincada (tela boa)
+                        </span>
+                      )}
+                      {isScreenBroken && (
+                        <span className="text-[8.5px] text-red-700 font-bold leading-tight block">
+                          Display/Vidro danificado
+                        </span>
+                      )}
+                      {missingList.length > 0 && (
+                        <span className="text-[8.5px] text-red-700 font-bold truncate block" title={missingList.join(', ')}>
+                          Falta: {missingList.join(', ')}
+                        </span>
+                      )}
+                      {otherDamaged.length > 0 && (
+                        <span className="text-[8.5px] text-amber-850 font-medium truncate block" title={otherDamaged.join(', ')}>
+                          Avaria: {otherDamaged.join(', ')}
+                        </span>
+                      )}
+                      {device.auditInfo.lastAuditedAt && (
+                        <span className="text-[8.5px] text-zinc-500 font-mono-nums block">
+                          {device.auditInfo.lastAuditedAt}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 );
               })()
             ) : (
-              <button
-                type="button"
-                onClick={() => onOpenAudit(device)}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-300 transition-colors cursor-pointer"
-                title="Aparelho ainda não auditado. Clique para conferir itens"
-              >
-                <span>PENDENTE</span>
-              </button>
+              <div className="inline-flex flex-col items-center w-[148px]">
+                <button
+                  type="button"
+                  onClick={() => onOpenAudit(device)}
+                  className="inline-flex items-center justify-center gap-1 w-full py-1 rounded text-[9.5px] font-bold bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-300 transition-colors cursor-pointer uppercase tracking-wide"
+                  title="Aparelho ainda não auditado. Clique para conferir itens"
+                >
+                  <span>PENDENTE</span>
+                </button>
+              </div>
             )}
           </td>
           )}
 
           {/* Ações */}
-          <td className="py-2.5 px-2.5 whitespace-nowrap text-right">
+          <td className="py-2.5 px-2.5 whitespace-nowrap text-right align-middle">
             <div className="flex items-center justify-end gap-0.5">
               {/* Checkup da Auditoria (Sempre visível para acesso rápido) */}
               <button
@@ -510,19 +532,20 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                     </div>
 
                     <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs text-zinc-600 border-collapse">
+                      <table className="w-full table-fixed min-w-[1220px] text-left text-xs text-zinc-600 border-collapse">
+                        {renderColGroup()}
                         <thead>
                           <tr className="bg-zinc-50/50 text-[10px] font-bold text-zinc-500 uppercase tracking-wider border-b border-zinc-200/80">
                             <th className="py-2 px-2.5 whitespace-nowrap">Loja</th>
-                            <th className="py-2 px-2 whitespace-nowrap">N° Patrimônio</th>
+                            <th className="py-2 px-2 whitespace-nowrap text-center">N° Patrimônio</th>
                             <th className="py-2 px-2.5 whitespace-nowrap">Colaborador</th>
                             <th className="py-2 px-2 whitespace-nowrap">Marca</th>
                             <th className="py-2 px-2.5 whitespace-nowrap">Modelo</th>
                             <th className="py-2 px-2 whitespace-nowrap">Setor</th>
-                            <th className="py-2 px-2 whitespace-nowrap">Data Aquisição</th>
-                            <th className="py-2 px-2 whitespace-nowrap">Status</th>
+                            <th className="py-2 px-2 whitespace-nowrap text-center">Data Aquisição</th>
+                            <th className="py-2 px-2 whitespace-nowrap text-center">Status</th>
                             {showAuditColumn && (
-                              <th className="py-2 px-2 whitespace-nowrap">Auditoria</th>
+                              <th className="py-2 px-2 whitespace-nowrap text-center">Auditoria</th>
                             )}
                             <th className="py-2 px-2.5 text-right whitespace-nowrap">Fichário / Ações</th>
                           </tr>
@@ -542,7 +565,8 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
         // RENDER CONTINUOUS TABLE
         <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-zinc-600 border-collapse">
+            <table className="w-full table-fixed min-w-[1220px] text-left text-xs text-zinc-600 border-collapse">
+              {renderColGroup()}
               <thead>
                 <tr className="bg-zinc-100 text-[10px] font-bold text-zinc-700 uppercase tracking-wider border-b border-zinc-200">
                   <th 
@@ -556,10 +580,10 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                   </th>
 
                   <th 
-                    className="py-2.5 px-2 cursor-pointer hover:bg-zinc-200 transition-colors select-none whitespace-nowrap"
+                    className="py-2.5 px-2 cursor-pointer hover:bg-zinc-200 transition-colors select-none whitespace-nowrap text-center"
                     onClick={() => handleSort('assetNumber')}
                   >
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center justify-center gap-1">
                       <span>N° Patrimônio</span>
                       <ArrowUpDown className="w-3 h-3 text-zinc-400" />
                     </div>
@@ -598,27 +622,27 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                   </th>
 
                   <th 
-                    className="py-2.5 px-2 cursor-pointer hover:bg-zinc-200 transition-colors select-none whitespace-nowrap"
+                    className="py-2.5 px-2 cursor-pointer hover:bg-zinc-200 transition-colors select-none whitespace-nowrap text-center"
                     onClick={() => handleSort('acquisitionDate')}
                   >
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center justify-center gap-1">
                       <span>Data Aquisição</span>
                       <ArrowUpDown className="w-3 h-3 text-zinc-400" />
                     </div>
                   </th>
 
                   <th 
-                    className="py-2.5 px-2 cursor-pointer hover:bg-zinc-200 transition-colors select-none whitespace-nowrap"
+                    className="py-2.5 px-2 cursor-pointer hover:bg-zinc-200 transition-colors select-none whitespace-nowrap text-center"
                     onClick={() => handleSort('status')}
                   >
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center justify-center gap-1">
                       <span>Status</span>
                       <ArrowUpDown className="w-3 h-3 text-zinc-400" />
                     </div>
                   </th>
 
                   {showAuditColumn && (
-                    <th className="py-2.5 px-2 whitespace-nowrap">Auditoria</th>
+                    <th className="py-2.5 px-2 whitespace-nowrap text-center">Auditoria</th>
                   )}
 
                   <th className="py-2.5 px-2.5 text-right whitespace-nowrap">Fichário / Ações</th>
