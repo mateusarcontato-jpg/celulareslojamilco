@@ -14,6 +14,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { Device } from '../types/device';
+import { cleanExecutiveAuditNotes, getCleanOccurrencesForDisplay } from '../utils/auditFormatUtils';
 
 interface DeviceDetailModalProps {
   device: Device | null;
@@ -185,9 +186,9 @@ export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                   </div>
                 )}
 
-                {device.auditInfo?.auditNotes && (
+                {cleanExecutiveAuditNotes(device.auditInfo?.auditNotes) && (
                   <p className="text-zinc-600 text-[11px] mt-1 italic">
-                    Obs: "{device.auditInfo.auditNotes}"
+                    Obs: "{cleanExecutiveAuditNotes(device.auditInfo?.auditNotes)}"
                   </p>
                 )}
 
@@ -324,52 +325,57 @@ export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
           </div>
 
           {/* Histórico do Fichário */}
-          <div className="border border-zinc-200 rounded-xl p-4 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-zinc-900 uppercase text-[11px] flex items-center gap-1.5">
-                <History className="w-4 h-4 text-red-600" />
-                Histórico de Ocorrências ({device.occurrences.length})
-              </span>
-            </div>
+          {(() => {
+            const cleanOccurrences = getCleanOccurrencesForDisplay(device);
+            return (
+              <div className="border border-zinc-200 rounded-xl p-4 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-zinc-900 uppercase text-[11px] flex items-center gap-1.5">
+                    <History className="w-4 h-4 text-red-600" />
+                    Histórico de Ocorrências ({cleanOccurrences.length})
+                  </span>
+                </div>
 
-            <div className="space-y-2 pt-1">
-              {device.occurrences.length === 0 ? (
-                <p className="text-zinc-500 text-xs italic">Nenhuma ocorrência registrada ainda.</p>
-              ) : (
-                device.occurrences.map((item, idx) => (
-                  <div 
-                    key={item.id || idx}
-                    className="p-2.5 rounded-lg bg-zinc-50 border border-zinc-200 flex items-start gap-2.5"
-                  >
-                    <div className="w-2 h-2 rounded-full bg-red-600 mt-1.5 shrink-0"></div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <strong className="text-zinc-950 uppercase text-[11px]">{item.title}</strong>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] text-zinc-500 font-mono">{item.date}</span>
-                          {onDeleteOccurrence && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (window.confirm(`Deseja excluir este registro de histórico/manutenção?\n"${item.title}"`)) {
-                                  onDeleteOccurrence(device.id, item.id || `occ-${idx}`);
-                                }
-                              }}
-                              className="p-1 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
-                              title="Excluir ocorrência (X)"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          )}
+                <div className="space-y-2 pt-1">
+                  {cleanOccurrences.length === 0 ? (
+                    <p className="text-zinc-500 text-xs italic">Nenhuma ocorrência registrada ainda.</p>
+                  ) : (
+                    cleanOccurrences.map((item, idx) => (
+                      <div 
+                        key={item.id || idx}
+                        className="p-2.5 rounded-lg bg-zinc-50 border border-zinc-200 flex items-start gap-2.5"
+                      >
+                        <div className="w-2 h-2 rounded-full bg-red-600 mt-1.5 shrink-0"></div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <strong className="text-zinc-950 uppercase text-[11px]">{item.title}</strong>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] text-zinc-500 font-mono">{item.date}</span>
+                              {onDeleteOccurrence && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (window.confirm(`Deseja excluir este registro de histórico/manutenção?\n"${item.title}"`)) {
+                                      onDeleteOccurrence(device.id, item.id || `occ-${idx}`);
+                                    }
+                                  }}
+                                  className="p-1 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                                  title="Excluir ocorrência (X)"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <p className="text-zinc-600 text-xs mt-0.5">{item.description}</p>
                         </div>
                       </div>
-                      <p className="text-zinc-600 text-xs mt-0.5">{item.description}</p>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Footer */}

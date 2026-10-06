@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Device, AdvancedFilterCriteria, INITIAL_ADVANCED_FILTERS } from '../types/device';
 import { matchAdvancedCriteria, countActiveAdvancedFilters } from '../utils/filterUtils';
+import { cleanExecutiveAuditNotes, dedupeDamagedAccessories } from '../utils/auditFormatUtils';
 import { AdvancedFilterModal } from './AdvancedFilterModal';
 
 export type ReportMode = 'INVENTARIO' | 'AUDITORIA';
@@ -672,9 +673,10 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                             const isCapaMissing = isCapaActuallyMissing(d);
 
                             const missingList = d.auditInfo?.missingAccessories || [];
-                            const otherDamagedList = (d.auditInfo?.damagedAccessories || []).filter(
+                            const otherDamagedList = dedupeDamagedAccessories(d.auditInfo?.damagedAccessories || []).filter(
                               a => !a.toLowerCase().includes('película') && !a.toLowerCase().includes('pelicula') && !a.toLowerCase().includes('capa')
                             );
+                            const cleanedAuditNote = cleanExecutiveAuditNotes(d.auditInfo?.auditNotes);
 
                             return (
                               <tr 
@@ -895,13 +897,13 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                                       • Capa desgastada/rasgada (trocar capa).
                                     </div>
                                   )}
-                                  {d.auditInfo?.auditNotes ? (
-                                    <span className="text-zinc-900 italic font-medium">"{d.auditInfo.auditNotes}"</span>
-                                  ) : d.notes ? (
+                                  {cleanedAuditNote ? (
+                                    <span className="text-zinc-900 font-medium">{cleanedAuditNote}</span>
+                                  ) : !isScreenBroken && !isBatteryBroken && !isPeliculaBroken && !isCapaBroken && d.notes ? (
                                     <span className="text-zinc-600 text-[8px]">{d.notes}</span>
-                                  ) : (
+                                  ) : !isScreenBroken && !isBatteryBroken && !isPeliculaBroken && !isCapaBroken ? (
                                     <span className="text-zinc-400">—</span>
-                                  )}
+                                  ) : null}
                                 </td>
                               </tr>
                             );

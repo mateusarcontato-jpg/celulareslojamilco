@@ -15,9 +15,11 @@ import {
   Building,
   Shield,
   Clock,
-  Eye
+  Eye,
+  ClipboardCheck
 } from 'lucide-react';
 import { Device, DeviceOccurrence, OccurrenceType } from '../types/device';
+import { getCleanOccurrencesForDisplay } from '../utils/auditFormatUtils';
 
 interface DeviceHistoryModalProps {
   device: Device | null;
@@ -39,17 +41,27 @@ export const DeviceHistoryModal: React.FC<DeviceHistoryModalProps> = ({
 
   if (!isOpen || !device) return null;
 
-  const filteredOccurrences = device.occurrences.filter((occ) => {
+  const cleanOccurrences = getCleanOccurrencesForDisplay(device);
+
+  const filteredOccurrences = cleanOccurrences.filter((occ) => {
     if (filterType === 'TODOS') return true;
     return occ.type === filterType;
   });
 
-  const maintenanceCount = device.occurrences.filter((o) => o.type === 'MANUTENÇÃO').length;
-  const transferCount = device.occurrences.filter((o) => o.type === 'TROCA').length;
-  const lossCount = device.occurrences.filter((o) => o.type === 'PERDA').length;
+  const auditCount = cleanOccurrences.filter((o) => o.type === 'AUDITORIA').length;
+  const maintenanceCount = cleanOccurrences.filter((o) => o.type === 'MANUTENÇÃO').length;
+  const transferCount = cleanOccurrences.filter((o) => o.type === 'TROCA').length;
+  const lossCount = cleanOccurrences.filter((o) => o.type === 'PERDA').length;
 
   const getOccurrenceBadge = (type: OccurrenceType) => {
     switch (type) {
+      case 'AUDITORIA':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-zinc-900 text-white border border-zinc-800">
+            <ClipboardCheck className="w-3 h-3 text-red-500" />
+            AUDITORIA
+          </span>
+        );
       case 'MANUTENÇÃO':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
@@ -165,12 +177,12 @@ export const DeviceHistoryModal: React.FC<DeviceHistoryModalProps> = ({
         <div className="px-6 py-3 bg-white border-b border-zinc-200 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2">
             <span className="font-bold text-zinc-700">Filtro do Fichário:</span>
-            <div className="flex items-center gap-1">
-              {['TODOS', 'MANUTENÇÃO', 'TROCA', 'PERDA', 'ENTREGA'].map((f) => (
+            <div className="flex flex-wrap items-center gap-1">
+              {['TODOS', 'AUDITORIA', 'MANUTENÇÃO', 'TROCA', 'PERDA', 'ENTREGA'].map((f) => (
                 <button
                   key={f}
                   onClick={() => setFilterType(f)}
-                  className={`px-2.5 py-1 rounded text-xs font-semibold transition-colors ${
+                  className={`px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer ${
                     filterType === f
                       ? 'bg-zinc-900 text-white'
                       : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
@@ -183,6 +195,8 @@ export const DeviceHistoryModal: React.FC<DeviceHistoryModalProps> = ({
           </div>
 
           <div className="flex items-center gap-3 text-[11px] text-zinc-600 font-medium">
+            <span>Auditorias: <strong className="text-zinc-900">{auditCount}</strong></span>
+            <span>·</span>
             <span>Manutenções: <strong className="text-zinc-900">{maintenanceCount}</strong></span>
             <span>·</span>
             <span>Trocas: <strong className="text-zinc-900">{transferCount}</strong></span>

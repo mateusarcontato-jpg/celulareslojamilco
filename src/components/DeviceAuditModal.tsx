@@ -18,6 +18,11 @@ import {
   Plug
 } from 'lucide-react';
 import { Device, DeviceAuditInfo, DeviceCondition, DeviceOccurrence } from '../types/device';
+import {
+  buildExecutiveAuditText,
+  cleanExecutiveAuditNotes,
+  dedupeDamagedAccessories,
+} from '../utils/auditFormatUtils';
 
 interface DeviceAuditModalProps {
   isOpen: boolean;
@@ -76,7 +81,7 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
     if (device.auditInfo) {
       setVerifiedItems(device.auditInfo.verifiedAccessories || []);
       setMissingItems(device.auditInfo.missingAccessories || []);
-      setDamagedAccessories(device.auditInfo.damagedAccessories || []);
+      setDamagedAccessories(dedupeDamagedAccessories(device.auditInfo.damagedAccessories || []));
       const initialScreenOk = device.auditInfo.screenOk !== false;
       setScreenOk(initialScreenOk);
       setBatteryOk(device.auditInfo.batteryOk !== false);
@@ -99,7 +104,7 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
       // Se a tela original estiver íntegra (initialScreenOk === true), a condição física NUNCA deve ser TELA TRINCADA
       const baseCond = device.auditInfo.conditionVerified || device.condition || 'BOM';
       setCondition(initialScreenOk && baseCond === 'TELA TRINCADA' ? 'BOM' : baseCond);
-      setAuditNotes(device.auditInfo.auditNotes || '');
+      setAuditNotes(cleanExecutiveAuditNotes(device.auditInfo.auditNotes || ''));
       setAuditorName(device.auditInfo.auditedBy || currentAuditorName);
     } else {
       // Default: If no audit yet, start with verified items equal to expected
@@ -178,12 +183,6 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
       }
       if (isCapa) {
         setCapaStatus('CAPA_DANIFICADA');
-        setAuditNotes((prev) => {
-          if (prev.toLowerCase().includes('capa desgastada') || prev.toLowerCase().includes('capa rasgada') || prev.toLowerCase().includes('capa protetora desgastada')) return prev;
-          return prev
-            ? `${prev}. Capa protetora desgastada/rasgada (necessita substituição).`
-            : 'Capa protetora desgastada/rasgada (necessita substituição).';
-        });
       }
     }
   };
@@ -200,17 +199,10 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
       setDamagedAccessories((prev) => (prev.includes(capaItemName) ? prev : [...prev, capaItemName]));
       setVerifiedItems((prev) => (prev.includes(capaItemName) ? prev : [...prev, capaItemName]));
       setMissingItems((prev) => prev.filter((i) => i !== capaItemName));
-      setAuditNotes((prev) => {
-        if (prev.toLowerCase().includes('capa desgastada') || prev.toLowerCase().includes('capa rasgada') || prev.toLowerCase().includes('capa protetora desgastada')) return prev;
-        return prev
-          ? `${prev}. Capa protetora desgastada/rasgada (necessita substituição).`
-          : 'Capa protetora desgastada/rasgada (necessita substituição).';
-      });
     } else {
       setVerifiedItems((prev) => (prev.includes(capaItemName) ? prev : [...prev, capaItemName]));
       setMissingItems((prev) => prev.filter((i) => i !== capaItemName));
       setDamagedAccessories((prev) => prev.filter((i) => i !== capaItemName && !i.toLowerCase().includes('capa')));
-      setAuditNotes((prev) => prev.replace(/\.?\s*Capa protetora desgastada\/rasgada[^\.]*/i, ''));
     }
   };
 
@@ -221,7 +213,7 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
     if (newStatus === 'SEM_PELICULA') {
       setMissingItems((prev) => (prev.includes(peliculaItemName) ? prev : [...prev, peliculaItemName]));
       setVerifiedItems((prev) => prev.filter((i) => i !== peliculaItemName));
-      setDamagedAccessories((prev) => prev.filter((i) => i !== peliculaItemName));
+      setDamagedAccessories((prev) => prev.filter((i) => i !== peliculaItemName && !i.toLowerCase().includes('película') && !i.toLowerCase().includes('pelicula')));
     } else if (newStatus === 'PELICULA_TRINCADA') {
       setDamagedAccessories((prev) => (prev.includes(peliculaItemName) ? prev : [...prev, peliculaItemName]));
       setVerifiedItems((prev) => (prev.includes(peliculaItemName) ? prev : [...prev, peliculaItemName]));
@@ -230,16 +222,10 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
       if (condition === 'TELA TRINCADA') {
         setCondition('BOM');
       }
-      setAuditNotes((prev) => {
-        if (prev.includes('Película trincada') || prev.includes('Película de proteção trincada')) return prev;
-        return prev 
-          ? `${prev}. Película de proteção trincada (a tela do celular está íntegra/intacta).` 
-          : 'Película de proteção trincada (a tela original do celular está íntegra/intacta).';
-      });
     } else {
       setVerifiedItems((prev) => (prev.includes(peliculaItemName) ? prev : [...prev, peliculaItemName]));
       setMissingItems((prev) => prev.filter((i) => i !== peliculaItemName));
-      setDamagedAccessories((prev) => prev.filter((i) => i !== peliculaItemName));
+      setDamagedAccessories((prev) => prev.filter((i) => i !== peliculaItemName && !i.toLowerCase().includes('película') && !i.toLowerCase().includes('pelicula')));
     }
   };
 
@@ -293,13 +279,16 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
       : (condition === 'TELA TRINCADA' ? 'BOM' : condition);
 
     const capaItemName = expectedItems.find(i => i.toLowerCase().includes('capa')) || 'Capa Protetora';
-    const allDamaged = Array.from(new Set([
+    const peliculaItemName = expectedItems.find(i => i.toLowerCase().includes('película') || i.toLowerCase().includes('pelicula')) || 'Película de Vidro';
+    const allDamaged = dedupeDamagedAccessories([
       ...damagedAccessories,
-      ...(peliculaStatus === 'PELICULA_TRINCADA' && !damagedAccessories.some(i => i.toLowerCase().includes('película') || i.toLowerCase().includes('pelicula')) ? ['Película de Proteção (Trincada)'] : []),
-      ...(capaStatus === 'CAPA_DANIFICADA' && !damagedAccessories.some(i => i.toLowerCase().includes('capa')) ? [capaItemName] : [])
-    ]));
+      ...(peliculaStatus === 'PELICULA_TRINCADA' ? [peliculaItemName] : []),
+      ...(capaStatus === 'CAPA_DANIFICADA' ? [capaItemName] : [])
+    ]);
 
-    const nowStr = new Date().toLocaleDateString('pt-BR') + ' às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const todayDate = new Date().toLocaleDateString('pt-BR');
+    const nowStr = todayDate + ' às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const cleanedNotes = cleanExecutiveAuditNotes(auditNotes);
 
     const auditInfo: DeviceAuditInfo = {
       status: isOk ? 'OK' : 'COM_PENDENCIA',
@@ -313,64 +302,47 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
       peliculaStatus,
       chargerOk: verifiedItems.some((i) => i.toLowerCase().includes('carregador')),
       conditionVerified: finalCondition,
-      auditNotes: auditNotes.trim()
+      auditNotes: cleanedNotes
     };
 
-    // Build occurrence history description com distinção inequívoca
-    let occurrenceTitle = 'CHECKUP DE AUDITORIA: 100% CONFORME (Tudo OK)';
-    if (!isOk) {
-      if (!screenOk && peliculaStatus === 'PELICULA_TRINCADA') {
-        occurrenceTitle = 'CHECKUP: 🔨 TELA DO APARELHO QUEBRADA & ⚠️ PELÍCULA TRINCADA';
-      } else if (!screenOk) {
-        occurrenceTitle = 'CHECKUP: 🔨 TELA DO APARELHO QUEBRADA / TRINCADA';
-      } else if (!batteryOk && peliculaStatus === 'PELICULA_TRINCADA') {
-        occurrenceTitle = 'CHECKUP: 🔋 BATERIA INCHADA / DANIFICADA & ⚠️ PELÍCULA TRINCADA';
-      } else if (!batteryOk) {
-        occurrenceTitle = 'CHECKUP: 🔋 BATERIA INCHADA / DANIFICADA (Problema de Bateria)';
-      } else if (peliculaStatus === 'PELICULA_TRINCADA' && isCapaDamaged) {
-        occurrenceTitle = 'CHECKUP: ⚠️ PELÍCULA TRINCADA & 🛡️ CAPA DESGASTADA / RASGADA';
-      } else if (peliculaStatus === 'PELICULA_TRINCADA') {
-        occurrenceTitle = 'CHECKUP: ⚠️ PELÍCULA DE PROTEÇÃO TRINCADA (Tela Original Íntegra)';
-      } else if (isCapaDamaged) {
-        occurrenceTitle = 'CHECKUP: 🛡️ CAPA PROTETORA DESGASTADA / RASGADA (Avaria na Capa)';
-      } else if (missingItems.length > 0) {
-        occurrenceTitle = `CHECKUP: ❌ ITENS FALTANDO (${missingItems.join(', ')})`;
-      } else if (allDamaged.length > 0) {
-        occurrenceTitle = `CHECKUP: ⚠️ ACESSÓRIO DANIFICADO (${allDamaged.join(', ')})`;
-      } else {
-        occurrenceTitle = 'CHECKUP: ⚠️ DIVERGÊNCIA APONTADA';
-      }
-    }
-
-    const missingDesc = missingItems.length > 0 ? `\nItens Ausentes: ${missingItems.join(', ')}.` : '';
-    const damagedDesc = allDamaged.length > 0 ? `\nAcessórios Danificados: ${allDamaged.join(', ')}.` : '';
-    const telaDesc = screenOk 
-      ? 'Tela Original do Aparelho: ÍNTEGRA / SEM TRINCA' 
-      : '🚨 TELA DO APARELHO QUEBRADA/TRINCADA (Dano no Display/Vidro)';
-    const peliculaDesc = peliculaStatus === 'COM_PELICULA_OK' 
-      ? 'Película: Íntegra e Aplicada' 
-      : peliculaStatus === 'PELICULA_TRINCADA' 
-        ? '⚠️ PELÍCULA DE PROTEÇÃO TRINCADA (Necessita substituição · Tela do aparelho está íntegra)' 
-        : '❌ SEM PELÍCULA (Aparelho desprotegido)';
-
-    const physicalDesc = `\nEstado Geral: ${finalCondition} | ${telaDesc} | ${peliculaDesc} | Bateria: ${batteryOk ? 'OK' : 'Defeito/Viciada'}.`;
-    const notesDesc = auditNotes.trim() ? `\nObs: "${auditNotes.trim()}"` : '';
+    const execSummary = buildExecutiveAuditText({
+      isOk,
+      screenOk,
+      batteryOk,
+      peliculaStatus,
+      isCapaDamaged,
+      missingItems,
+      damagedAccessories: allDamaged,
+      auditNotes: cleanedNotes,
+    });
 
     const newOccurrence: DeviceOccurrence = {
       id: `occ-audit-${Date.now()}`,
-      date: new Date().toLocaleDateString('pt-BR'),
+      date: todayDate,
       type: 'AUDITORIA',
-      title: occurrenceTitle,
-      description: `Auditoria presencial realizada por ${auditorName.trim() || 'Auditor T.I.'}.${missingDesc}${damagedDesc}${physicalDesc}${notesDesc}`,
+      title: execSummary.title,
+      description: execSummary.description,
       recordedBy: auditorName.trim() || 'Auditor T.I.'
     };
+
+    // Remove auditorias duplicadas na mesma data para que o histórico fique sempre limpo (apenas 1 registro da auditoria atual)
+    const nonDuplicateOccurrences = (device.occurrences || []).filter((occ) => {
+      const isAudit =
+        occ.type === 'AUDITORIA' ||
+        occ.title.toUpperCase().startsWith('CHECKUP') ||
+        occ.title.toUpperCase().startsWith('AUDITORIA');
+      if (isAudit && occ.date === todayDate) {
+        return false;
+      }
+      return true;
+    });
 
     // Update condition on device if changed
     const updatedDevice: Device = {
       ...device,
       condition: finalCondition,
       auditInfo,
-      occurrences: [newOccurrence, ...(device.occurrences || [])],
+      occurrences: [newOccurrence, ...nonDuplicateOccurrences],
       updatedAt: new Date().toISOString()
     };
 
@@ -700,7 +672,6 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
                       if (condition === 'TELA TRINCADA') {
                         setCondition('BOM');
                       }
-                      setAuditNotes((prev) => prev.replace(/\.?\s*Tela do aparelho quebrada\/trincada[^\.]*/i, ''));
                     }}
                     className={`py-1.5 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
                       screenOk ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs' : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200'
@@ -713,12 +684,6 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
                     onClick={() => {
                       setScreenOk(false);
                       setCondition('TELA TRINCADA');
-                      setAuditNotes((prev) => {
-                        if (prev.includes('Tela do aparelho quebrada') || prev.includes('Tela quebrada')) return prev;
-                        return prev 
-                          ? `${prev}. Tela do aparelho quebrada/trincada (dano físico no display/vidro).`
-                          : 'Tela do aparelho quebrada/trincada (dano físico no display/vidro).';
-                      });
                     }}
                     className={`py-1.5 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
                       !screenOk ? 'bg-red-600 text-white border-red-600 shadow-2xs' : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200'
@@ -884,7 +849,6 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
                     type="button"
                     onClick={() => {
                       setBatteryOk(true);
-                      setAuditNotes((prev) => prev.replace(/\.?\s*Bateria inchada\/danificada[^\.]*/i, ''));
                     }}
                     className={`py-1.5 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
                       batteryOk ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs' : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200'
@@ -896,12 +860,6 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
                     type="button"
                     onClick={() => {
                       setBatteryOk(false);
-                      setAuditNotes((prev) => {
-                        if (prev.toLowerCase().includes('bateria inchada') || prev.toLowerCase().includes('bateria danificada')) return prev;
-                        return prev
-                          ? `${prev}. Bateria inchada/danificada (necessita avaliação/substituição).`
-                          : 'Bateria inchada/danificada (necessita avaliação/substituição).';
-                      });
                     }}
                     className={`py-1.5 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
                       !batteryOk ? 'bg-orange-600 text-white border-orange-600 shadow-2xs' : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200'
