@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, 
   Printer, 
@@ -8,6 +8,8 @@ import {
   SlidersHorizontal, 
   AlertTriangle,
   ClipboardCheck,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
 import { Device, AdvancedFilterCriteria, INITIAL_ADVANCED_FILTERS } from '../types/device';
 import { matchAdvancedCriteria, countActiveAdvancedFilters } from '../utils/filterUtils';
@@ -38,7 +40,9 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
 
   // Filtros Gerais
   const [selectedStore, setSelectedStore] = useState<string>('TODAS');
-  const [selectedSector, setSelectedSector] = useState<string>('TODOS');
+  const [selectedSectors, setSelectedSectors] = useState<string[]>([]); // Vazio = Todos os Setores
+  const [isSectorDropdownOpen, setIsSectorDropdownOpen] = useState<boolean>(false);
+  const sectorDropdownRef = useRef<HTMLDivElement>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [groupBySector, setGroupBySector] = useState<boolean>(true);
   const [showAccessoriesColumn, setShowAccessoriesColumn] = useState<boolean>(false);
@@ -56,6 +60,26 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
       setReportMode(initialMode);
     }
   }, [initialMode, isOpen]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sectorDropdownRef.current && !sectorDropdownRef.current.contains(event.target as Node)) {
+        setIsSectorDropdownOpen(false);
+      }
+    };
+    if (isSectorDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isSectorDropdownOpen]);
+
+  const toggleSectorSelection = (sector: string) => {
+    setSelectedSectors((prev) =>
+      prev.includes(sector) ? prev.filter((s) => s !== sector) : [...prev, sector]
+    );
+  };
 
   if (!isOpen) return null;
 
@@ -198,7 +222,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
   // Filtra aparelhos com base no modo selecionado
   const filtered = devices.filter((d) => {
     if (selectedStore !== 'TODAS' && d.store !== selectedStore) return false;
-    if (selectedSector !== 'TODOS' && d.sector !== selectedSector) return false;
+    if (selectedSectors.length > 0 && !selectedSectors.includes(d.sector)) return false;
 
     if (reportMode === 'INVENTARIO') {
       if (selectedStatus !== 'ALL' && d.status !== selectedStatus) return false;
@@ -245,6 +269,12 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
   const getFilterSummaryText = () => {
     if (reportMode === 'AUDITORIA') {
       const parts: string[] = ['Relatório Exclusivo de Auditoria'];
+      if (selectedStore !== 'TODAS') {
+        parts.push(`Loja: ${selectedStore}`);
+      }
+      if (selectedSectors.length > 0) {
+        parts.push(`Setor(es): ${selectedSectors.join(', ')}`);
+      }
       if (auditStatusFilter !== 'TODOS') {
         parts.push(`Status: ${auditStatusFilter === 'OK' ? '100% Conforme' : auditStatusFilter === 'COM_PENDENCIA' ? 'Com Divergência' : 'Não Auditados'}`);
       }
@@ -272,9 +302,134 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
 
     const parts: string[] = ['Planilha Padrão de Celulares (Sem Auditoria)'];
     if (selectedStore !== 'TODAS') parts.push(`Loja: ${selectedStore}`);
-    if (selectedSector !== 'TODOS') parts.push(`Setor: ${selectedSector}`);
+    if (selectedSectors.length > 0) parts.push(`Setor(es): ${selectedSectors.join(', ')}`);
     if (selectedStatus !== 'ALL') parts.push(`Status: ${selectedStatus}`);
     return parts.join(' | ');
+  };
+
+  const renderMultiSectorSelector = (labelText: string) => {
+    const buttonText =
+      selectedSectors.length === 0
+        ? 'Todos os Setores'
+        : selectedSectors.length <= 2
+          ? selectedSectors.join(', ')
+          : `${selectedSectors.length} setores (${selectedSectors.slice(0, 2).join(', ')}...)`;
+
+    return (
+      <div className="relative" ref={sectorDropdownRef}>
+        <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
+          {labelText}
+        </label>
+        <button
+          type="button"
+          onClick={() => setIsSectorDropdownOpen((prev) => !prev)}
+          className={`w-full flex items-center justify-between gap-2 bg-zinc-900 border rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors cursor-pointer ${
+            selectedSectors.length > 0
+              ? 'border-red-500 text-white font-bold bg-zinc-900/90'
+              : 'border-zinc-700 text-white hover:border-zinc-500'
+          }`}
+          title={selectedSectors.length > 0 ? `Setores filtrados: ${selectedSectors.join(', ')}` : 'Clique para selecionar um ou mais setores'}
+        >
+          <span className="truncate">{buttonText}</span>
+          <div className="flex items-center gap-1 shrink-0">
+            {selectedSectors.length > 0 && (
+              <span className="bg-red-600 text-white text-[10px] font-black px-1.5 py-0.2 rounded-full font-mono">
+                {selectedSectors.length}
+              </span>
+            )}
+            <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${isSectorDropdownOpen ? 'rotate-180 text-white' : ''}`} />
+          </div>
+        </button>
+
+        {isSectorDropdownOpen && (
+          <div className="absolute left-0 right-0 sm:w-64 mt-1 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+            <div className="px-3 py-2 bg-zinc-950 border-b border-zinc-800 flex items-center justify-between">
+              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                Selecione 1 ou mais setores
+              </span>
+              {selectedSectors.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedSectors([])}
+                  className="text-[10px] font-bold text-red-400 hover:text-red-300 underline cursor-pointer"
+                >
+                  Limpar ({selectedSectors.length})
+                </button>
+              )}
+            </div>
+
+            <div className="max-h-56 overflow-y-auto p-1.5 space-y-0.5">
+              {/* Opção Todos os Setores */}
+              <button
+                type="button"
+                onClick={() => setSelectedSectors([])}
+                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                  selectedSectors.length === 0
+                    ? 'bg-red-600/20 text-red-300 border border-red-500/40 font-bold'
+                    : 'text-zinc-300 hover:bg-zinc-800'
+                }`}
+              >
+                <span>Todos os Setores</span>
+                {selectedSectors.length === 0 && <Check className="w-3.5 h-3.5 text-red-400 shrink-0" />}
+              </button>
+
+              <div className="border-t border-zinc-800 my-1" />
+
+              {sectors.map((sec) => {
+                const isChecked = selectedSectors.includes(sec);
+                const countInSector = devices.filter(
+                  (d) => (selectedStore === 'TODAS' || d.store === selectedStore) && d.sector === sec
+                ).length;
+
+                return (
+                  <button
+                    key={sec}
+                    type="button"
+                    onClick={() => toggleSectorSelection(sec)}
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
+                      isChecked
+                        ? 'bg-red-600 text-white font-bold shadow-2xs'
+                        : 'text-zinc-200 hover:bg-zinc-800 font-medium'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <div
+                        className={`w-3.5 h-3.5 rounded flex items-center justify-center border shrink-0 ${
+                          isChecked
+                            ? 'bg-white border-white text-red-600'
+                            : 'border-zinc-600 bg-zinc-950'
+                        }`}
+                      >
+                        {isChecked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                      </div>
+                      <span className="truncate">{sec}</span>
+                    </div>
+                    <span className={`text-[10px] font-mono ml-2 ${isChecked ? 'text-red-100 font-bold' : 'text-zinc-500'}`}>
+                      {countInSector}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="px-3 py-2 bg-zinc-950 border-t border-zinc-800 flex items-center justify-between">
+              <span className="text-[10px] text-zinc-400">
+                {selectedSectors.length === 0
+                  ? 'Exibindo todos'
+                  : `${selectedSectors.length} selecionado(s)`}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsSectorDropdownOpen(false)}
+                className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-white rounded text-[10px] font-bold cursor-pointer"
+              >
+                Concluir
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const filterSummary = getFilterSummaryText();
@@ -388,21 +543,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
-                    Filtrar Setor:
-                  </label>
-                  <select
-                    value={selectedSector}
-                    onChange={(e) => setSelectedSector(e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-red-500"
-                  >
-                    <option value="TODOS">Todos os Setores</option>
-                    {sectors.map((sec) => (
-                      <option key={sec} value={sec}>{sec}</option>
-                    ))}
-                  </select>
-                </div>
+                {renderMultiSectorSelector('Filtrar Setor (1 ou mais):')}
 
                 <div>
                   <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
@@ -440,21 +581,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
-                    Filtrar Setor Auditado:
-                  </label>
-                  <select
-                    value={selectedSector}
-                    onChange={(e) => setSelectedSector(e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-red-500"
-                  >
-                    <option value="TODOS">Todos os Setores</option>
-                    {sectors.map((sec) => (
-                      <option key={sec} value={sec}>{sec}</option>
-                    ))}
-                  </select>
-                </div>
+                {renderMultiSectorSelector('Filtrar Setor Auditado (1 ou mais):')}
 
                 <div>
                   <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
