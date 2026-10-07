@@ -30,6 +30,7 @@ import {
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { Device, DeviceOccurrence, DeviceStatus, AdvancedFilterCriteria, INITIAL_ADVANCED_FILTERS } from './types/device';
 import { matchAdvancedCriteria, countActiveAdvancedFilters } from './utils/filterUtils';
+import { getManufacturerModelSpec, getFleetGenerationSummary } from './utils/modelSpecsUtils';
 import { 
   getStoredDevices, 
   saveStoredDevices, 
@@ -82,6 +83,17 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [sectorFilter, setSectorFilter] = useState<string>('TODOS');
+  const [modelGenFilter, setModelGenFilter] = useState<
+    | 'TODOS'
+    | 'ORDEM_MAIS_ANTIGO'
+    | 'ORDEM_MAIS_NOVO'
+    | 'MAIS_ANTIGOS_2021'
+    | 'MAIS_NOVOS_5G'
+    | 'GERACAO_2022'
+    | 'GERACAO_2023'
+    | 'GERACAO_2024'
+  >('TODOS');
+  const [showTechSpecBanner, setShowTechSpecBanner] = useState<boolean>(false);
   const [vpnOnly, setVpnOnly] = useState<boolean>(false);
   const [semPtOnly, setSemPtOnly] = useState<boolean>(false);
   const [personalOnly, setPersonalOnly] = useState<boolean>(false);
@@ -147,7 +159,7 @@ export default function App() {
 
   // Filtered devices calculation
   const filteredDevices = useMemo(() => {
-    return devices.filter((device) => {
+    const baseList = devices.filter((device) => {
       if (currentStore !== 'TODAS' && device.store !== currentStore) {
         return false;
       }
@@ -170,6 +182,26 @@ export default function App() {
 
       if (personalOnly && !device.isPersonalDevice) {
         return false;
+      }
+
+      // Filtro de Geração / Ficha Técnica da Fabricante (Mais Antigo vs Mais Novo)
+      if (modelGenFilter !== 'TODOS' && modelGenFilter !== 'ORDEM_MAIS_ANTIGO' && modelGenFilter !== 'ORDEM_MAIS_NOVO') {
+        const spec = getManufacturerModelSpec(device.model, device.brand);
+        if (modelGenFilter === 'MAIS_ANTIGOS_2021' && spec.category !== 'LEGADO_2021') {
+          return false;
+        }
+        if (modelGenFilter === 'MAIS_NOVOS_5G' && spec.category !== 'ULTIMA_GERACAO') {
+          return false;
+        }
+        if (modelGenFilter === 'GERACAO_2022' && spec.category !== 'GERACAO_2022') {
+          return false;
+        }
+        if (modelGenFilter === 'GERACAO_2023' && spec.category !== 'GERACAO_2023') {
+          return false;
+        }
+        if (modelGenFilter === 'GERACAO_2024' && spec.category !== 'GERACAO_2024') {
+          return false;
+        }
       }
 
       // Filtro de Auditoria / Checkup
@@ -204,7 +236,27 @@ export default function App() {
 
       return true;
     });
-  }, [devices, currentStore, statusFilter, sectorFilter, vpnOnly, semPtOnly, personalOnly, auditFilter, searchQuery, mainAdvancedCriteria]);
+
+    if (modelGenFilter === 'ORDEM_MAIS_ANTIGO') {
+      return [...baseList].sort((a, b) => {
+        const specA = getManufacturerModelSpec(a.model, a.brand);
+        const specB = getManufacturerModelSpec(b.model, b.brand);
+        return specA.chronologicalRank - specB.chronologicalRank;
+      });
+    }
+
+    if (modelGenFilter === 'ORDEM_MAIS_NOVO') {
+      return [...baseList].sort((a, b) => {
+        const specA = getManufacturerModelSpec(a.model, a.brand);
+        const specB = getManufacturerModelSpec(b.model, b.brand);
+        return specB.chronologicalRank - specA.chronologicalRank;
+      });
+    }
+
+    return baseList;
+  }, [devices, currentStore, statusFilter, sectorFilter, modelGenFilter, vpnOnly, semPtOnly, personalOnly, auditFilter, searchQuery, mainAdvancedCriteria]);
+
+  const fleetGenSummary = useMemo(() => getFleetGenerationSummary(devices), [devices]);
 
   // Estatísticas de Auditoria e Checkup
   const auditStats = useMemo(() => {
@@ -399,6 +451,7 @@ export default function App() {
     setCurrentStore('TODAS');
     setStatusFilter('ALL');
     setSectorFilter('TODOS');
+    setModelGenFilter('TODOS');
     setSearchQuery('');
     setVpnOnly(false);
     setSemPtOnly(false);
@@ -413,6 +466,7 @@ export default function App() {
     (currentStore !== 'TODAS' ? 1 : 0) +
     (statusFilter !== 'ALL' ? 1 : 0) +
     (sectorFilter !== 'TODOS' ? 1 : 0) +
+    (modelGenFilter !== 'TODOS' ? 1 : 0) +
     (vpnOnly ? 1 : 0) +
     (semPtOnly ? 1 : 0) +
     (personalOnly ? 1 : 0) +
@@ -674,6 +728,70 @@ export default function App() {
                 </select>
               </div>
 
+              {/* Filtro de Geração do Modelo pela Ficha Técnica da Fabricante (Mais Antigo vs Mais Novo) */}
+              <div
+                className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border font-medium transition-colors ${
+                  modelGenFilter !== 'TODOS'
+                    ? 'bg-zinc-900 text-white border-zinc-900 shadow-2xs'
+                    : 'bg-zinc-100/80 text-zinc-700 border-zinc-200/80'
+                }`}
+                title="Filtrar ou ordenar aparelhos pelo ano de lançamento e ficha técnica da fabricante (Samsung)"
+              >
+                <span className={modelGenFilter !== 'TODOS' ? 'text-red-400 font-bold' : 'text-zinc-500'}>
+                  Modelo (Ano Fab.):
+                </span>
+                <select
+                  aria-label="Filtrar por geração do modelo"
+                  value={modelGenFilter}
+                  onChange={(e) => {
+                    const val = e.target.value as any;
+                    setModelGenFilter(val);
+                    if (val === 'ORDEM_MAIS_ANTIGO' || val === 'ORDEM_MAIS_NOVO') {
+                      setIsGroupedBySector(false);
+                    }
+                    if (val !== 'TODOS') {
+                      setShowTechSpecBanner(true);
+                    }
+                  }}
+                  className={`bg-transparent font-bold focus:outline-none cursor-pointer text-xs ${
+                    modelGenFilter !== 'TODOS' ? 'text-white' : 'text-zinc-900'
+                  }`}
+                >
+                  <option value="TODOS" className="text-zinc-900 bg-white">Todos os Modelos</option>
+                  <option value="ORDEM_MAIS_ANTIGO" className="text-zinc-900 bg-white">⏳ Ordenar: Do Mais Antigo ao Mais Novo</option>
+                  <option value="ORDEM_MAIS_NOVO" className="text-zinc-900 bg-white">🚀 Ordenar: Do Mais Novo ao Mais Antigo</option>
+                  <option value="MAIS_ANTIGOS_2021" className="text-zinc-900 bg-white">
+                    ⚠️ Mais Antigos · Linha 2021 (A03s / A03) [{fleetGenSummary.counts.LEGADO_2021}]
+                  </option>
+                  <option value="GERACAO_2022" className="text-zinc-900 bg-white">
+                    📱 Geração 2022 · Entrada (A04s / A04e) [{fleetGenSummary.counts.GERACAO_2022}]
+                  </option>
+                  <option value="GERACAO_2023" className="text-zinc-900 bg-white">
+                    ⚡ Geração 2023 · Interm. (A14 / A54 5G) [{fleetGenSummary.counts.GERACAO_2023}]
+                  </option>
+                  <option value="GERACAO_2024" className="text-zinc-900 bg-white">
+                    🔥 Geração 2024 · Premium 5G (A55 5G) [{fleetGenSummary.counts.GERACAO_2024}]
+                  </option>
+                  <option value="MAIS_NOVOS_5G" className="text-zinc-900 bg-white">
+                    🚀 Mais Novos · Linha 2025/2026 (A16 / A56 / A57) [{fleetGenSummary.counts.ULTIMA_GERACAO}]
+                  </option>
+                </select>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowTechSpecBanner(!showTechSpecBanner)}
+                className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
+                  showTechSpecBanner
+                    ? 'bg-zinc-900 text-white border-zinc-900 shadow-2xs'
+                    : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50'
+                }`}
+                title="Ver análise das fichas técnicas da fabricante (Qual o modelo mais antigo e qual o mais novo)"
+              >
+                <Smartphone className={`w-3.5 h-3.5 ${showTechSpecBanner ? 'text-red-500' : 'text-zinc-600'}`} />
+                <span>Raio-X de Modelos</span>
+              </button>
+
               {/* Filtro Pessoal */}
               <button
                 type="button"
@@ -874,6 +992,163 @@ export default function App() {
               </button>
             </div>
           )}
+          {/* Painel de Análise Técnica da Fabricante: Qual o Modelo Mais Antigo e o Mais Novo */}
+          {(showTechSpecBanner || modelGenFilter !== 'TODOS') && (
+            <div className="p-3.5 bg-zinc-950 text-white border-t border-zinc-800 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded bg-red-600 text-white font-black text-[10px] uppercase tracking-wider">
+                    Ficha Técnica da Fabricante (Samsung Galaxy)
+                  </span>
+                  <h4 className="text-xs font-bold text-zinc-100">
+                    Ranking Cronológico de Lançamento: Do Modelo Mais Antigo (2021) ao Mais Novo (2025/2026)
+                  </h4>
+                </div>
+                <div className="flex items-center gap-2">
+                  {modelGenFilter !== 'TODOS' && (
+                    <button
+                      type="button"
+                      onClick={() => setModelGenFilter('TODOS')}
+                      className="text-[11px] font-bold text-red-400 hover:text-red-300 underline cursor-pointer"
+                    >
+                      Mostrar todos os modelos
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowTechSpecBanner(false)}
+                    className="p-1 text-zinc-400 hover:text-white rounded cursor-pointer"
+                    title="Fechar painel técnico"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Cards comparativos: O MAIS ANTIGO vs INTERMEDIÁRIOS vs O MAIS NOVO */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 text-[11px]">
+                {/* 1. MAIS ANTIGOS (2021) */}
+                <button
+                  type="button"
+                  onClick={() => setModelGenFilter(modelGenFilter === 'MAIS_ANTIGOS_2021' ? 'TODOS' : 'MAIS_ANTIGOS_2021')}
+                  className={`text-left p-2.5 rounded-xl border transition-all cursor-pointer ${
+                    modelGenFilter === 'MAIS_ANTIGOS_2021'
+                      ? 'bg-amber-950/90 border-2 border-amber-400 shadow-sm'
+                      : 'bg-zinc-900/90 border-zinc-800 hover:border-amber-500/60'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-black text-[9.5px] uppercase">
+                      ⏳ 1º · MAIS ANTIGO (2021)
+                    </span>
+                    <span className="font-mono font-black text-amber-400 text-xs">
+                      {fleetGenSummary.counts.LEGADO_2021} un.
+                    </span>
+                  </div>
+                  <strong className="block text-white font-bold text-xs">Galaxy A03s / A03</strong>
+                  <span className="text-[10px] text-zinc-400 block mt-0.5 leading-snug">
+                    Lançado em <strong>Ago–Nov/2021</strong> · Helio P35 / Unisoc (12nm) · 4G · Tela HD+ 60Hz · <strong>Ciclo encerrado (EOL)</strong>.
+                  </span>
+                </button>
+
+                {/* 2. GERAÇÃO 2022 */}
+                <button
+                  type="button"
+                  onClick={() => setModelGenFilter(modelGenFilter === 'GERACAO_2022' ? 'TODOS' : 'GERACAO_2022')}
+                  className={`text-left p-2.5 rounded-xl border transition-all cursor-pointer ${
+                    modelGenFilter === 'GERACAO_2022'
+                      ? 'bg-orange-950/80 border-2 border-orange-400 shadow-sm'
+                      : 'bg-zinc-900/90 border-zinc-800 hover:border-zinc-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300 border border-zinc-700 font-bold text-[9.5px] uppercase">
+                      2º · LINHA 2022
+                    </span>
+                    <span className="font-mono font-bold text-zinc-300 text-xs">
+                      {fleetGenSummary.counts.GERACAO_2022} un.
+                    </span>
+                  </div>
+                  <strong className="block text-white font-bold text-xs">Galaxy A04s / A04e</strong>
+                  <span className="text-[10px] text-zinc-400 block mt-0.5 leading-snug">
+                    Lançado em <strong>Set–Out/2022</strong> · Exynos 850 (8nm) / P35 · 4G · 64GB · Entrada operacional.
+                  </span>
+                </button>
+
+                {/* 3. GERAÇÃO 2023 */}
+                <button
+                  type="button"
+                  onClick={() => setModelGenFilter(modelGenFilter === 'GERACAO_2023' ? 'TODOS' : 'GERACAO_2023')}
+                  className={`text-left p-2.5 rounded-xl border transition-all cursor-pointer ${
+                    modelGenFilter === 'GERACAO_2023'
+                      ? 'bg-blue-950/80 border-2 border-blue-400 shadow-sm'
+                      : 'bg-zinc-900/90 border-zinc-800 hover:border-zinc-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 font-bold text-[9.5px] uppercase">
+                      3º · LINHA 2023
+                    </span>
+                    <span className="font-mono font-bold text-blue-300 text-xs">
+                      {fleetGenSummary.counts.GERACAO_2023} un.
+                    </span>
+                  </div>
+                  <strong className="block text-white font-bold text-xs">Galaxy A14 / A54 5G</strong>
+                  <span className="text-[10px] text-zinc-400 block mt-0.5 leading-snug">
+                    Lançado em <strong>Fev–Mar/2023</strong> · 128GB · Tela FHD+ (A54 com Exynos 1380 5G, Super AMOLED 120Hz e IP67).
+                  </span>
+                </button>
+
+                {/* 4. GERAÇÃO 2024 */}
+                <button
+                  type="button"
+                  onClick={() => setModelGenFilter(modelGenFilter === 'GERACAO_2024' ? 'TODOS' : 'GERACAO_2024')}
+                  className={`text-left p-2.5 rounded-xl border transition-all cursor-pointer ${
+                    modelGenFilter === 'GERACAO_2024'
+                      ? 'bg-indigo-950/80 border-2 border-indigo-400 shadow-sm'
+                      : 'bg-zinc-900/90 border-zinc-800 hover:border-zinc-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold text-[9.5px] uppercase">
+                      4º · LINHA 2024 (5G)
+                    </span>
+                    <span className="font-mono font-bold text-indigo-300 text-xs">
+                      {fleetGenSummary.counts.GERACAO_2024} un.
+                    </span>
+                  </div>
+                  <strong className="block text-white font-bold text-xs">Galaxy A55 5G</strong>
+                  <span className="text-[10px] text-zinc-400 block mt-0.5 leading-snug">
+                    Lançado em <strong>Mar/2024</strong> · Exynos 1480 (4nm) · 8GB RAM · Estrutura em metal, Gorilla Glass Victus+ e IP67.
+                  </span>
+                </button>
+
+                {/* 5. MAIS NOVOS (2025 / 2026) */}
+                <button
+                  type="button"
+                  onClick={() => setModelGenFilter(modelGenFilter === 'MAIS_NOVOS_5G' ? 'TODOS' : 'MAIS_NOVOS_5G')}
+                  className={`text-left p-2.5 rounded-xl border transition-all cursor-pointer ${
+                    modelGenFilter === 'MAIS_NOVOS_5G'
+                      ? 'bg-emerald-950/90 border-2 border-emerald-400 shadow-sm'
+                      : 'bg-zinc-900/90 border-zinc-800 hover:border-emerald-500/60'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-black text-[9.5px] uppercase">
+                      🚀 5º · MAIS NOVOS (5G)
+                    </span>
+                    <span className="font-mono font-black text-emerald-400 text-xs">
+                      {fleetGenSummary.counts.ULTIMA_GERACAO} un.
+                    </span>
+                  </div>
+                  <strong className="block text-white font-bold text-xs">A16 5G / A56 5G / A57</strong>
+                  <span className="text-[10px] text-zinc-400 block mt-0.5 leading-snug">
+                    Lançados em <strong>2025/2026</strong> · Arquitetura 4nm 5G · Super AMOLED 120Hz · <strong>6 anos de suporte oficial Samsung</strong>.
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Visão de Conteúdo Principal (Tabela ou Cards) */}
@@ -894,6 +1169,7 @@ export default function App() {
             isGroupedBySector={isGroupedBySector}
             onToggleGrouped={() => setIsGroupedBySector(!isGroupedBySector)}
             showAuditColumn={mainSectionMode === 'AUDITORIA'}
+            preserveCustomOrder={modelGenFilter === 'ORDEM_MAIS_ANTIGO' || modelGenFilter === 'ORDEM_MAIS_NOVO'}
           />
         ) : (
           <DeviceCardGrid

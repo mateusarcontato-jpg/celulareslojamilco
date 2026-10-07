@@ -14,6 +14,7 @@ import {
 import { Device, AdvancedFilterCriteria, INITIAL_ADVANCED_FILTERS } from '../types/device';
 import { matchAdvancedCriteria, countActiveAdvancedFilters } from '../utils/filterUtils';
 import { cleanExecutiveAuditNotes, dedupeDamagedAccessories } from '../utils/auditFormatUtils';
+import { getManufacturerModelSpec } from '../utils/modelSpecsUtils';
 import { AdvancedFilterModal } from './AdvancedFilterModal';
 
 export type ReportMode = 'INVENTARIO' | 'AUDITORIA';
@@ -44,6 +45,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
   const [isSectorDropdownOpen, setIsSectorDropdownOpen] = useState<boolean>(false);
   const sectorDropdownRef = useRef<HTMLDivElement>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
+  const [selectedModelGen, setSelectedModelGen] = useState<string>('TODOS');
   const [groupBySector, setGroupBySector] = useState<boolean>(true);
   const [showAccessoriesColumn, setShowAccessoriesColumn] = useState<boolean>(false);
 
@@ -220,9 +222,18 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
   };
 
   // Filtra aparelhos com base no modo selecionado
-  const filtered = devices.filter((d) => {
+  const filteredBase = devices.filter((d) => {
     if (selectedStore !== 'TODAS' && d.store !== selectedStore) return false;
     if (selectedSectors.length > 0 && !selectedSectors.includes(d.sector)) return false;
+
+    if (selectedModelGen !== 'TODOS' && selectedModelGen !== 'ORDEM_MAIS_ANTIGO' && selectedModelGen !== 'ORDEM_MAIS_NOVO') {
+      const spec = getManufacturerModelSpec(d.model, d.brand);
+      if (selectedModelGen === 'MAIS_ANTIGOS_2021' && spec.category !== 'LEGADO_2021') return false;
+      if (selectedModelGen === 'GERACAO_2022' && spec.category !== 'GERACAO_2022') return false;
+      if (selectedModelGen === 'GERACAO_2023' && spec.category !== 'GERACAO_2023') return false;
+      if (selectedModelGen === 'GERACAO_2024' && spec.category !== 'GERACAO_2024') return false;
+      if (selectedModelGen === 'MAIS_NOVOS_5G' && spec.category !== 'ULTIMA_GERACAO') return false;
+    }
 
     if (reportMode === 'INVENTARIO') {
       if (selectedStatus !== 'ALL' && d.status !== selectedStatus) return false;
@@ -242,6 +253,21 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
     }
     return true;
   });
+
+  const filtered =
+    selectedModelGen === 'ORDEM_MAIS_ANTIGO'
+      ? [...filteredBase].sort(
+          (a, b) =>
+            getManufacturerModelSpec(a.model, a.brand).chronologicalRank -
+            getManufacturerModelSpec(b.model, b.brand).chronologicalRank
+        )
+      : selectedModelGen === 'ORDEM_MAIS_NOVO'
+        ? [...filteredBase].sort(
+            (a, b) =>
+              getManufacturerModelSpec(b.model, b.brand).chronologicalRank -
+              getManufacturerModelSpec(a.model, a.brand).chronologicalRank
+          )
+        : filteredBase;
 
   const handlePrint = () => {
     window.print();
@@ -526,7 +552,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
             {/* BARRA DE FILTROS ESPECÍFICOS DEPENDENDO DA SEÇÃO */}
             {reportMode === 'INVENTARIO' ? (
               /* Filtros da Planilha Padrão de Celulares (Sem Auditoria) */
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-zinc-800 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-zinc-800 text-xs">
                 <div>
                   <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
                     Filtrar Loja:
@@ -547,6 +573,26 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
 
                 <div>
                   <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
+                    Modelo (Mais Antigo / Novo):
+                  </label>
+                  <select
+                    value={selectedModelGen}
+                    onChange={(e) => setSelectedModelGen(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-red-500 font-bold"
+                  >
+                    <option value="TODOS">Todas as Gerações</option>
+                    <option value="ORDEM_MAIS_ANTIGO">⏳ Ordem: Mais Antigo → Mais Novo</option>
+                    <option value="ORDEM_MAIS_NOVO">🚀 Ordem: Mais Novo → Mais Antigo</option>
+                    <option value="MAIS_ANTIGOS_2021">⚠️ Mais Antigos · 2021 (A03s / A03)</option>
+                    <option value="GERACAO_2022">📱 Geração 2022 (A04s / A04e)</option>
+                    <option value="GERACAO_2023">⚡ Geração 2023 (A14 / A54 5G)</option>
+                    <option value="GERACAO_2024">🔥 Geração 2024 (A55 5G)</option>
+                    <option value="MAIS_NOVOS_5G">🚀 Mais Novos · 2025/2026 (A16 / A56 / A57)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
                     Filtrar Status Operacional:
                   </label>
                   <select
@@ -564,7 +610,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
               </div>
             ) : (
               /* Filtros Exclusivos de Auditoria */
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-zinc-800 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-2 border-t border-zinc-800 text-xs">
                 <div>
                   <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
                     Unidade / Loja da Auditoria:
@@ -582,6 +628,26 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                 </div>
 
                 {renderMultiSectorSelector('Filtrar Setor Auditado (1 ou mais):')}
+
+                <div>
+                  <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">
+                    Modelo (Mais Antigo / Novo):
+                  </label>
+                  <select
+                    value={selectedModelGen}
+                    onChange={(e) => setSelectedModelGen(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-red-500 font-bold"
+                  >
+                    <option value="TODOS">Todas as Gerações</option>
+                    <option value="ORDEM_MAIS_ANTIGO">⏳ Ordem: Mais Antigo → Mais Novo</option>
+                    <option value="ORDEM_MAIS_NOVO">🚀 Ordem: Mais Novo → Mais Antigo</option>
+                    <option value="MAIS_ANTIGOS_2021">⚠️ Mais Antigos · 2021 (A03s / A03)</option>
+                    <option value="GERACAO_2022">📱 Geração 2022 (A04s / A04e)</option>
+                    <option value="GERACAO_2023">⚡ Geração 2023 (A14 / A54 5G)</option>
+                    <option value="GERACAO_2024">🔥 Geração 2024 (A55 5G)</option>
+                    <option value="MAIS_NOVOS_5G">🚀 Mais Novos · 2025/2026 (A16 / A56 / A57)</option>
+                  </select>
+                </div>
 
                 <div>
                   <label className="block text-zinc-300 font-semibold mb-1 text-[11px]">

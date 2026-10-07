@@ -19,6 +19,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { Device, DeviceStatus } from '../types/device';
+import { getManufacturerModelSpec } from '../utils/modelSpecsUtils';
 
 interface DeviceTableProps {
   devices: Device[];
@@ -33,6 +34,7 @@ interface DeviceTableProps {
   isGroupedBySector: boolean;
   onToggleGrouped: () => void;
   showAuditColumn?: boolean;
+  preserveCustomOrder?: boolean;
 }
 
 type SortField = 'assetNumber' | 'employeeName' | 'model' | 'sector' | 'acquisitionDate' | 'status' | 'store';
@@ -50,6 +52,7 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
   isGroupedBySector,
   onToggleGrouped,
   showAuditColumn = false,
+  preserveCustomOrder = false,
 }) => {
   const [sortField, setSortField] = useState<SortField>('assetNumber');
   const [sortAsc, setSortAsc] = useState<boolean>(true);
@@ -139,49 +142,60 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
   );
 
   const renderTableRows = (deviceList: Device[]) => {
-    const sorted = [...deviceList].sort((a, b) => {
-      let valA = '';
-      let valB = '';
+    const sorted = preserveCustomOrder
+      ? [...deviceList]
+      : [...deviceList].sort((a, b) => {
+          if (sortField === 'model') {
+            const rankA = getManufacturerModelSpec(a.model, a.brand).chronologicalRank;
+            const rankB = getManufacturerModelSpec(b.model, b.brand).chronologicalRank;
+            if (rankA !== rankB) {
+              return sortAsc ? rankA - rankB : rankB - rankA;
+            }
+          }
 
-      switch (sortField) {
-        case 'assetNumber':
-          valA = a.hasAssetTag ? a.assetNumber : 'ZZZZ';
-          valB = b.hasAssetTag ? b.assetNumber : 'ZZZZ';
-          break;
-        case 'employeeName':
-          valA = a.employeeName.toLowerCase();
-          valB = b.employeeName.toLowerCase();
-          break;
-        case 'model':
-          valA = a.model.toLowerCase();
-          valB = b.model.toLowerCase();
-          break;
-        case 'sector':
-          valA = a.sector.toLowerCase();
-          valB = b.sector.toLowerCase();
-          break;
-        case 'acquisitionDate':
-          valA = a.acquisitionDate;
-          valB = b.acquisitionDate;
-          break;
-        case 'status':
-          valA = a.status;
-          valB = b.status;
-          break;
-        case 'store':
-          valA = a.store;
-          valB = b.store;
-          break;
-      }
+          let valA = '';
+          let valB = '';
 
-      if (valA < valB) return sortAsc ? -1 : 1;
-      if (valA > valB) return sortAsc ? 1 : -1;
-      return 0;
-    });
+          switch (sortField) {
+            case 'assetNumber':
+              valA = a.hasAssetTag ? a.assetNumber : 'ZZZZ';
+              valB = b.hasAssetTag ? b.assetNumber : 'ZZZZ';
+              break;
+            case 'employeeName':
+              valA = a.employeeName.toLowerCase();
+              valB = b.employeeName.toLowerCase();
+              break;
+            case 'model':
+              valA = a.model.toLowerCase();
+              valB = b.model.toLowerCase();
+              break;
+            case 'sector':
+              valA = a.sector.toLowerCase();
+              valB = b.sector.toLowerCase();
+              break;
+            case 'acquisitionDate':
+              valA = a.acquisitionDate;
+              valB = b.acquisitionDate;
+              break;
+            case 'status':
+              valA = a.status;
+              valB = b.status;
+              break;
+            case 'store':
+              valA = a.store;
+              valB = b.store;
+              break;
+          }
+
+          if (valA < valB) return sortAsc ? -1 : 1;
+          if (valA > valB) return sortAsc ? 1 : -1;
+          return 0;
+        });
 
     return sorted.map((device, idx) => {
       const isSemPt = !device.hasAssetTag || device.assetNumber === 'SEM PT';
       const isEven = idx % 2 === 0;
+      const modelSpec = getManufacturerModelSpec(device.model, device.brand);
 
       return (
         <tr 
@@ -244,12 +258,28 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
           </td>
 
           {/* Modelo */}
-          <td className="py-2.5 px-2.5 whitespace-nowrap align-middle truncate">
+          <td
+            className="py-2.5 px-2.5 whitespace-nowrap align-middle truncate"
+            title={`${modelSpec.familyName} (${modelSpec.releaseMonthLabel}) · ${modelSpec.processor} · ${modelSpec.screenSpec} · ${modelSpec.lifecycleVerdict}`}
+          >
             <span className="text-zinc-900 font-bold text-xs block truncate">
               {device.model}
             </span>
+            <div className="flex items-center gap-1 mt-0.5">
+              <span
+                className={`inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold border ${
+                  modelSpec.isOldestTier
+                    ? 'bg-amber-50 text-amber-900 border-amber-300'
+                    : modelSpec.isNewestTier
+                      ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
+                      : 'bg-zinc-100 text-zinc-600 border-zinc-200'
+                }`}
+              >
+                {modelSpec.shortBadgeLabel}
+              </span>
+            </div>
             {device.imei1 && (
-              <span className="text-[10px] text-zinc-400 block font-mono-nums truncate">
+              <span className="text-[10px] text-zinc-400 block font-mono-nums truncate mt-0.5">
                 IMEI: {device.imei1}
               </span>
             )}

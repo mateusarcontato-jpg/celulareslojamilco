@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Device } from '../types/device';
 import { cleanExecutiveAuditNotes, getCleanOccurrencesForDisplay } from '../utils/auditFormatUtils';
+import { getManufacturerModelSpec } from '../utils/modelSpecsUtils';
 
 interface DeviceDetailModalProps {
   device: Device | null;
@@ -279,6 +280,58 @@ export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
               </span>
             </div>
           </div>
+
+          {/* Análise de Ficha Técnica da Fabricante (Mais Antigo vs Mais Novo) */}
+          {(() => {
+            const spec = getManufacturerModelSpec(device.model, device.brand);
+            return (
+              <div className="border border-zinc-200 rounded-xl p-4 bg-zinc-50/70 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 pb-2">
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-red-600" />
+                    <span className="font-bold text-zinc-900 uppercase tracking-wider text-[11px]">
+                      Ficha Técnica da Fabricante · {spec.familyName}
+                    </span>
+                  </div>
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-black uppercase border ${
+                      spec.isOldestTier
+                        ? 'bg-amber-100 text-amber-950 border-amber-400'
+                        : spec.isNewestTier
+                          ? 'bg-emerald-100 text-emerald-950 border-emerald-400'
+                          : 'bg-zinc-200 text-zinc-900 border-zinc-300'
+                    }`}
+                  >
+                    {spec.categoryLabel}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs pt-0.5">
+                  <div>
+                    <span className="text-zinc-500 block font-medium text-[11px]">Lançamento Oficial (Fabricante):</span>
+                    <strong className="text-zinc-950 font-bold">{spec.releaseMonthLabel}</strong>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block font-medium text-[11px]">Processador & Arquitetura:</span>
+                    <strong className="text-zinc-950 font-semibold">{spec.processor}</strong>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block font-medium text-[11px]">Tela & Conectividade:</span>
+                    <strong className="text-zinc-950 font-semibold">{spec.screenSpec} · {spec.connectivity}</strong>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block font-medium text-[11px]">Ciclo de Atualizações / Suporte:</span>
+                    <strong className="text-zinc-950 font-semibold">{spec.osSupportSummary}</strong>
+                  </div>
+                </div>
+
+                <div className="p-2 bg-white border border-zinc-200 rounded-lg text-[11px] text-zinc-700">
+                  <strong className="text-zinc-900 uppercase">Parecer de Geração: </strong>
+                  <span>{spec.lifecycleVerdict}</span>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Dados Técnicos */}
           <div className="border border-zinc-200 rounded-xl p-4 space-y-2.5">
