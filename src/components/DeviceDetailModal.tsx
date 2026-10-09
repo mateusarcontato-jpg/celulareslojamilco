@@ -24,6 +24,7 @@ interface DeviceDetailModalProps {
   onOpenTerm: (device: Device) => void;
   onQuickTransfer: (device: Device) => void;
   onOpenAudit?: (device: Device) => void;
+  onOpenAddOccurrence?: (device: Device) => void;
   onDeleteOccurrence?: (deviceId: string, occurrenceId: string) => void;
 }
 
@@ -34,6 +35,7 @@ export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
   onOpenTerm,
   onQuickTransfer,
   onOpenAudit,
+  onOpenAddOccurrence,
   onDeleteOccurrence,
 }) => {
   if (!device) return null;
@@ -272,9 +274,21 @@ export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
 
             <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-200">
               <span className="text-[11px] font-bold text-zinc-500 block uppercase">Status Operacional</span>
-              <span className="text-sm font-bold text-zinc-950 block mt-0.5">
-                {device.isPersonalDevice && (device.status === 'SEM PATRIMÔNIO' || device.status === 'PESSOAL') ? 'CELULAR PESSOAL' : device.status}
-              </span>
+              {device.status === 'MANUTENÇÃO' && onOpenAddOccurrence ? (
+                <button
+                  type="button"
+                  onClick={() => onOpenAddOccurrence(device)}
+                  className="mt-1 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-100 hover:bg-emerald-600 text-amber-950 hover:text-white border border-amber-400 hover:border-emerald-700 font-bold text-xs transition-colors cursor-pointer"
+                  title="Clique para Concluir a Manutenção e retornar o aparelho"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>EM MANUTENÇÃO · Concluir</span>
+                </button>
+              ) : (
+                <span className="text-sm font-bold text-zinc-950 block mt-0.5">
+                  {device.isPersonalDevice && (device.status === 'SEM PATRIMÔNIO' || device.status === 'PESSOAL') ? 'CELULAR PESSOAL' : device.status}
+                </span>
+              )}
               <span className="text-[11px] text-zinc-500 block mt-0.5 font-mono">
                 Aquisição: {device.acquisitionDate}
               </span>

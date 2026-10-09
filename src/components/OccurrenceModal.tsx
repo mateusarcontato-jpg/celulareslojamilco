@@ -45,10 +45,24 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
   const [updateCurrentEmployee, setUpdateCurrentEmployee] = useState(true);
 
   // Manutenção
+  const isCurrentlyInMaintenance = device.status === 'MANUTENÇÃO';
+  const [maintenanceMode, setMaintenanceMode] = useState<'ENVIAR' | 'CONCLUIR'>(
+    isCurrentlyInMaintenance ? 'CONCLUIR' : 'ENVIAR'
+  );
+  const [returnStatusAfterMaintenance, setReturnStatusAfterMaintenance] = useState<'EM USO' | 'DISPONÍVEL'>('EM USO');
+  const [clearHardwarePendingOnComplete, setClearHardwarePendingOnComplete] = useState(true);
   const [serviceOrderOrBo, setServiceOrderOrBo] = useState('');
   const [cost, setCost] = useState('');
   const [technicianOrProvider, setTechnicianOrProvider] = useState('');
-  const [changeStatusToMaintenance, setChangeStatusToMaintenance] = useState(true);
+  const [changeStatusToMaintenance, setChangeStatusToMaintenance] = useState(!isCurrentlyInMaintenance);
+
+  React.useEffect(() => {
+    const inMaint = device.status === 'MANUTENÇÃO';
+    setMaintenanceMode(inMaint ? 'CONCLUIR' : 'ENVIAR');
+    setChangeStatusToMaintenance(!inMaint);
+    setPreviousUser(device.employeeName);
+    setNewSector(device.sector);
+  }, [device.id, device.status, device.employeeName, device.sector]);
 
   // Perda
   const [changeStatusToLoss, setChangeStatusToLoss] = useState(true);
@@ -78,16 +92,26 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
     e.preventDefault();
 
     const generatedTitle = title.trim() || 
-      (type === 'MANUTENÇÃO' ? `Manutenção - ${technicianOrProvider || 'Assistência Técnica'}` :
-       type === 'TROCA' ? `Troca de Usuário: ${previousUser} ➔ ${newUser || 'Novo Colaborador'}` :
-       type === 'PERDA' ? `Registro de Perda/Extravio` : `${type}`);
+      (type === 'MANUTENÇÃO'
+        ? (maintenanceMode === 'CONCLUIR'
+            ? `Manutenção Concluída - ${technicianOrProvider || 'Retorno de Reparo'}`
+            : `Manutenção - ${technicianOrProvider || 'Assistência Técnica'}`)
+        : type === 'TROCA'
+          ? `Troca de Usuário: ${previousUser} ➔ ${newUser || 'Novo Colaborador'}`
+          : type === 'PERDA'
+            ? `Registro de Perda/Extravio`
+            : `${type}`);
 
     const newOcc: DeviceOccurrence = {
       id: `occ-${Date.now()}`,
       date,
       type,
       title: generatedTitle,
-      description: description.trim() || 'Sem observações adicionais.',
+      description:
+        description.trim() ||
+        (type === 'MANUTENÇÃO' && maintenanceMode === 'CONCLUIR'
+          ? `Manutenção concluída com sucesso. Aparelho retornou para o status ${returnStatusAfterMaintenance}.`
+          : 'Sem observações adicionais.'),
       previousUser: type === 'TROCA' ? previousUser : undefined,
       newUser: type === 'TROCA' ? (newUser.trim().toUpperCase() || 'Novo Colaborador') : undefined,
       serviceOrderOrBo: serviceOrderOrBo.trim() || undefined,
@@ -103,14 +127,36 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
     let updatedEmployee = device.employeeName;
     let updatedPreviousEmployee = device.previousEmployeeName;
     let updatedSector = device.sector;
+    let updatedCondition = device.condition;
+    let updatedAuditInfo = device.auditInfo;
 
     if (type === 'TROCA' && updateCurrentEmployee && newUser.trim()) {
       updatedPreviousEmployee = device.employeeName;
       updatedEmployee = newUser.trim().toUpperCase();
       updatedSector = newSector;
       if (updatedStatus === 'DISPONÍVEL') updatedStatus = 'EM USO';
-    } else if (type === 'MANUTENÇÃO' && changeStatusToMaintenance) {
-      updatedStatus = 'MANUTENÇÃO';
+    } else if (type === 'MANUTENÇÃO') {
+      if (maintenanceMode === 'CONCLUIR') {
+        updatedStatus = returnStatusAfterMaintenance;
+        if (updatedCondition === 'EM REPARO' || updatedCondition === 'TELA TRINCADA' || updatedCondition === 'COM AVARIAS') {
+          updatedCondition = 'BOM';
+        }
+        if (clearHardwarePendingOnComplete && updatedAuditInfo) {
+          const remainingMissing = updatedAuditInfo.missingAccessories || [];
+          const remainingDamaged = updatedAuditInfo.damagedAccessories || [];
+          const hasAnyOtherIssue = remainingMissing.length > 0 || remainingDamaged.length > 0 || updatedAuditInfo.peliculaStatus === 'PELICULA_TRINCADA';
+          updatedAuditInfo = {
+            ...updatedAuditInfo,
+            screenOk: true,
+            batteryOk: true,
+            conditionVerified: 'BOM',
+            status: hasAnyOtherIssue ? 'COM_PENDENCIA' : 'OK',
+          };
+        }
+      } else if (changeStatusToMaintenance) {
+        updatedStatus = 'MANUTENÇÃO';
+        updatedCondition = 'EM REPARO';
+      }
     } else if (type === 'PERDA' && changeStatusToLoss) {
       updatedStatus = 'PERDA / EXTRAVIO';
     } else if (type === 'DEVOLUCAO') {
@@ -125,6 +171,8 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
       previousEmployeeName: updatedPreviousEmployee,
       sector: updatedSector,
       status: updatedStatus,
+      condition: updatedCondition,
+      auditInfo: updatedAuditInfo,
       updatedAt: new Date().toISOString(),
       occurrences: [newOcc, ...device.occurrences],
     };
@@ -139,8 +187,10 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
         {/* Header - Amilco Red & Black */}
         <div className="px-6 py-4 border-b border-zinc-200 flex items-center justify-between bg-zinc-950 text-white">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-red-600 text-white flex items-center justify-center font-bold">
-              {type === 'MANUTENÇÃO' && <Wrench className="w-5 h-5" />}
+            <div className={`w-9 h-9 rounded-xl text-white flex items-center justify-center font-bold ${
+              type === 'MANUTENÇÃO' && maintenanceMode === 'CONCLUIR' ? 'bg-emerald-600' : 'bg-red-600'
+            }`}>
+              {type === 'MANUTENÇÃO' && (maintenanceMode === 'CONCLUIR' ? <Check className="w-5 h-5" /> : <Wrench className="w-5 h-5" />)}
               {type === 'TROCA' && <ArrowRightLeft className="w-5 h-5" />}
               {type === 'PERDA' && <AlertOctagon className="w-5 h-5" />}
               {type === 'ENTREGA' && <FileText className="w-5 h-5" />}
@@ -148,7 +198,9 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-white tracking-wide">
-                Anexar Ocorrência ao Fichário
+                {type === 'MANUTENÇÃO' && maintenanceMode === 'CONCLUIR'
+                  ? 'Concluir Manutenção do Aparelho'
+                  : 'Anexar Ocorrência ao Fichário'}
               </h2>
               <p className="text-xs text-zinc-300">
                 PT: {device.hasAssetTag ? device.assetNumber : 'SEM PT'} · {device.model} ({device.employeeName})
@@ -289,10 +341,49 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
 
           {/* Campos específicos de MANUTENÇÃO */}
           {type === 'MANUTENÇÃO' && (
-            <div className="p-3.5 bg-zinc-50 border border-zinc-200 rounded-xl space-y-3">
-              <div className="flex items-center gap-2 text-zinc-900 font-bold text-xs">
-                <Wrench className="w-4 h-4 text-red-600" />
-                <span>Dados do Reparo / Assistência Técnica</span>
+            <div className={`p-3.5 rounded-xl space-y-3 border ${
+              maintenanceMode === 'CONCLUIR'
+                ? 'bg-emerald-50/70 border-emerald-300'
+                : 'bg-zinc-50 border-zinc-200'
+            }`}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-200/80 pb-2.5">
+                <div className="flex items-center gap-2 text-zinc-900 font-bold text-xs">
+                  <Wrench className={`w-4 h-4 ${maintenanceMode === 'CONCLUIR' ? 'text-emerald-600' : 'text-red-600'}`} />
+                  <span>
+                    {maintenanceMode === 'CONCLUIR'
+                      ? 'Concluir Manutenção e Retornar Aparelho'
+                      : 'Dados do Reparo / Assistência Técnica'}
+                  </span>
+                </div>
+
+                {/* Alternador Enviar p/ Manutenção vs Concluir Manutenção */}
+                <div className="inline-flex rounded-lg p-0.5 bg-zinc-200/80 border border-zinc-300">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMaintenanceMode('ENVIAR');
+                      setChangeStatusToMaintenance(true);
+                    }}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                      maintenanceMode === 'ENVIAR'
+                        ? 'bg-amber-500 text-zinc-950 shadow-2xs'
+                        : 'text-zinc-600 hover:text-zinc-900'
+                    }`}
+                  >
+                    🔧 Enviar p/ Manutenção
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMaintenanceMode('CONCLUIR')}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                      maintenanceMode === 'CONCLUIR'
+                        ? 'bg-emerald-600 text-white shadow-2xs'
+                        : 'text-zinc-600 hover:text-zinc-900'
+                    }`}
+                  >
+                    ✅ Manutenção Concluída
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -336,15 +427,63 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
                 </div>
               </div>
 
-              <label className="flex items-center gap-2 cursor-pointer font-semibold text-zinc-800">
-                <input
-                  type="checkbox"
-                  checked={changeStatusToMaintenance}
-                  onChange={(e) => setChangeStatusToMaintenance(e.target.checked)}
-                  className="rounded text-red-600 focus:ring-red-500 w-4 h-4"
-                />
-                <span>Mudar status do aparelho para "MANUTENÇÃO"</span>
-              </label>
+              {maintenanceMode === 'CONCLUIR' ? (
+                <div className="pt-1 space-y-2.5 border-t border-emerald-200/80">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-bold text-emerald-950 text-xs">
+                      Ao concluir a manutenção, mudar status do aparelho para:
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setReturnStatusAfterMaintenance('EM USO')}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                          returnStatusAfterMaintenance === 'EM USO'
+                            ? 'bg-zinc-900 text-white border-zinc-900'
+                            : 'bg-white text-zinc-700 border-zinc-300 hover:bg-zinc-100'
+                        }`}
+                      >
+                        🟢 EM USO ({device.employeeName})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setReturnStatusAfterMaintenance('DISPONÍVEL')}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                          returnStatusAfterMaintenance === 'DISPONÍVEL'
+                            ? 'bg-zinc-900 text-white border-zinc-900'
+                            : 'bg-white text-zinc-700 border-zinc-300 hover:bg-zinc-100'
+                        }`}
+                      >
+                        ⚪ DISPONÍVEL (Reserva)
+                      </button>
+                    </div>
+                  </div>
+
+                  {(device.auditInfo?.screenOk === false || device.auditInfo?.batteryOk === false) && (
+                    <label className="flex items-center gap-2 cursor-pointer font-semibold text-emerald-900 bg-white/80 p-2 rounded-lg border border-emerald-200">
+                      <input
+                        type="checkbox"
+                        checked={clearHardwarePendingOnComplete}
+                        onChange={(e) => setClearHardwarePendingOnComplete(e.target.checked)}
+                        className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+                      />
+                      <span>
+                        Marcar defeito físico anterior (Tela Quebrada / Bateria) como <strong>reparado no Checkup</strong>
+                      </span>
+                    </label>
+                  )}
+                </div>
+              ) : (
+                <label className="flex items-center gap-2 cursor-pointer font-semibold text-zinc-800">
+                  <input
+                    type="checkbox"
+                    checked={changeStatusToMaintenance}
+                    onChange={(e) => setChangeStatusToMaintenance(e.target.checked)}
+                    className="rounded text-red-600 focus:ring-red-500 w-4 h-4"
+                  />
+                  <span>Mudar status do aparelho para "MANUTENÇÃO"</span>
+                </label>
+              )}
             </div>
           )}
 
@@ -388,14 +527,20 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
           {/* Descrição Detalhada / Laudo */}
           <div>
             <label className="block font-semibold text-zinc-700 mb-1">
-              Descrição Detalhada / Laudo Técnico / Histórico
+              {type === 'MANUTENÇÃO' && maintenanceMode === 'CONCLUIR'
+                ? 'Observações do Reparo Realizado (Opcional)'
+                : 'Descrição Detalhada / Laudo Técnico / Histórico'}
             </label>
             <textarea
               rows={3}
-              required
+              required={!(type === 'MANUTENÇÃO' && maintenanceMode === 'CONCLUIR')}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Descreva o que ocorreu, motivo da troca, defeito constatado ou circunstâncias..."
+              placeholder={
+                type === 'MANUTENÇÃO' && maintenanceMode === 'CONCLUIR'
+                  ? 'Ex: Tela original trocada com sucesso, bateria substituída, aparelho testado e entregue pronto para uso...'
+                  : 'Descreva o que ocorreu, motivo da troca, defeito constatado ou circunstâncias...'
+              }
               className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-red-600"
             />
           </div>
@@ -463,10 +608,18 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
             </button>
             <button
               type="submit"
-              className="inline-flex items-center gap-1.5 px-4 py-2 font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm transition-colors cursor-pointer"
+              className={`inline-flex items-center gap-1.5 px-4 py-2 font-bold text-white rounded-lg shadow-sm transition-colors cursor-pointer ${
+                type === 'MANUTENÇÃO' && maintenanceMode === 'CONCLUIR'
+                  ? 'bg-emerald-600 hover:bg-emerald-700'
+                  : 'bg-red-600 hover:bg-red-700'
+              }`}
             >
               <Check className="w-4 h-4" />
-              <span>Gravar Ocorrência no Fichário</span>
+              <span>
+                {type === 'MANUTENÇÃO' && maintenanceMode === 'CONCLUIR'
+                  ? `Concluir Manutenção (Mudar p/ ${returnStatusAfterMaintenance})`
+                  : 'Gravar Ocorrência no Fichário'}
+              </span>
             </button>
           </div>
         </form>

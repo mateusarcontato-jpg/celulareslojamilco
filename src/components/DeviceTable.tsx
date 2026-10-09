@@ -66,7 +66,8 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
     }
   };
 
-  const getStatusBadge = (status: DeviceStatus, isPersonal?: boolean) => {
+  const getStatusBadge = (device: Device) => {
+    const { status, isPersonalDevice: isPersonal } = device;
     const baseBadgeClass = "inline-flex items-center justify-center gap-1.5 w-[134px] py-1 rounded text-[10px] font-bold tracking-wide uppercase";
     if (isPersonal && (status === 'SEM PATRIMÔNIO' || status === 'PESSOAL')) {
       return (
@@ -106,10 +107,27 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
         );
       case 'MANUTENÇÃO':
         return (
-          <span className={`${baseBadgeClass} bg-amber-100 text-amber-900 border border-amber-300`}>
-            <Wrench className="w-3 h-3 text-amber-700 shrink-0" />
-            <span>MANUTENÇÃO</span>
-          </span>
+          <div className="inline-flex flex-col items-center gap-0.5 w-[134px]">
+            <button
+              type="button"
+              onClick={() => onOpenAddOccurrence(device)}
+              className="inline-flex items-center justify-center gap-1 w-full py-1 rounded text-[10px] font-bold tracking-wide uppercase bg-amber-100 hover:bg-emerald-600 text-amber-900 hover:text-white border border-amber-400 hover:border-emerald-700 transition-all cursor-pointer group/maint shadow-2xs"
+              title="Aparelho em manutenção. Clique aqui quando a manutenção for concluída!"
+            >
+              <Wrench className="w-3 h-3 text-amber-700 shrink-0 group-hover/maint:hidden" />
+              <CheckCircle2 className="w-3 h-3 text-white shrink-0 hidden group-hover/maint:inline" />
+              <span className="group-hover/maint:hidden">MANUTENÇÃO</span>
+              <span className="hidden group-hover/maint:inline">CONCLUIR REPARO</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpenAddOccurrence(device)}
+              className="text-[8.5px] font-bold text-emerald-700 hover:text-emerald-900 underline cursor-pointer leading-tight"
+              title="Dar baixa e concluir manutenção"
+            >
+              ✓ Concluir manutenção
+            </button>
+          </div>
         );
       case 'PERDA / EXTRAVIO':
         return (
@@ -307,7 +325,7 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
 
           {/* Status */}
           <td className="py-2.5 px-2 whitespace-nowrap align-middle text-center">
-            {getStatusBadge(device.status, device.isPersonalDevice)}
+            {getStatusBadge(device)}
           </td>
 
           {/* Auditoria / Checkup de Itens */}
@@ -452,14 +470,25 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                 <History className="w-3.5 h-3.5" />
               </button>
 
-              {/* Anexar Ocorrência (Manutenção / Troca / Perda) */}
-              <button
-                onClick={() => onOpenAddOccurrence(device)}
-                className="p-1 text-zinc-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
-                title="Anexar Manutenção, Troca ou Perda"
-              >
-                <Wrench className="w-3.5 h-3.5" />
-              </button>
+              {/* Anexar Ocorrência ou Concluir Manutenção */}
+              {device.status === 'MANUTENÇÃO' ? (
+                <button
+                  onClick={() => onOpenAddOccurrence(device)}
+                  className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-600 hover:text-white border border-emerald-400 rounded-md transition-colors cursor-pointer mr-0.5 shadow-2xs"
+                  title="Manutenção em andamento — Clique para Concluir Manutenção e Retornar Aparelho"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>Concluir</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => onOpenAddOccurrence(device)}
+                  className="p-1 text-zinc-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                  title="Anexar Manutenção, Troca ou Perda"
+                >
+                  <Wrench className="w-3.5 h-3.5" />
+                </button>
+              )}
 
               {/* Troca Rápida de Usuário */}
               <button

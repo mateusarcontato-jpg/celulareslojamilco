@@ -168,7 +168,19 @@ export const DeviceHistoryModal: React.FC<DeviceHistoryModalProps> = ({
 
           <div>
             <span className="text-[11px] text-zinc-500 font-semibold block">Status Atual:</span>
-            <span className="font-bold text-zinc-900 block">{device.status}</span>
+            {device.status === 'MANUTENÇÃO' ? (
+              <button
+                type="button"
+                onClick={() => onOpenAddOccurrence(device)}
+                className="mt-0.5 inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-amber-100 hover:bg-emerald-600 text-amber-950 hover:text-white border border-amber-400 hover:border-emerald-700 font-bold text-xs transition-colors cursor-pointer"
+                title="Clique para Concluir Manutenção e Retornar Aparelho"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>MANUTENÇÃO · Concluir</span>
+              </button>
+            ) : (
+              <span className="font-bold text-zinc-900 block">{device.status}</span>
+            )}
             <span className="text-[11px] text-zinc-500 font-mono">Aquisição: {device.acquisitionDate}</span>
           </div>
         </div>

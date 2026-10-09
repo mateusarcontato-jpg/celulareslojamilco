@@ -1183,6 +1183,7 @@ export default function App() {
             onQuickTransfer={(d) => setTransferDevice(d)}
             onDeleteDevice={handleDeleteDevice}
             onOpenAudit={(d) => setAuditDevice(d)}
+            onOpenAddOccurrence={(d) => setOccurrenceDevice(d)}
             showAuditColumn={mainSectionMode === 'AUDITORIA'}
           />
         )}
@@ -1285,6 +1286,10 @@ export default function App() {
         onOpenAudit={(d) => {
           setDetailDevice(null);
           setAuditDevice(d);
+        }}
+        onOpenAddOccurrence={(d) => {
+          setDetailDevice(null);
+          setOccurrenceDevice(d);
         }}
         onDeleteOccurrence={handleDeleteOccurrence}
       />

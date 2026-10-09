@@ -26,6 +26,7 @@ interface DeviceCardGridProps {
   onQuickTransfer: (device: Device) => void;
   onDeleteDevice: (device: Device) => void;
   onOpenAudit?: (device: Device) => void;
+  onOpenAddOccurrence?: (device: Device) => void;
   showAuditColumn?: boolean;
 }
 
@@ -37,6 +38,7 @@ export const DeviceCardGrid: React.FC<DeviceCardGridProps> = ({
   onQuickTransfer,
   onDeleteDevice,
   onOpenAudit,
+  onOpenAddOccurrence,
   showAuditColumn = false,
 }) => {
   if (devices.length === 0) {
@@ -109,15 +111,29 @@ export const DeviceCardGrid: React.FC<DeviceCardGridProps> = ({
                   </div>
                 </div>
 
-                <span className={`px-2 py-0.5 text-[11px] font-bold border rounded ${
-                  device.isPersonalDevice && (device.status === 'SEM PATRIMÔNIO' || device.status === 'PESSOAL')
-                    ? 'bg-purple-100 text-purple-900 border-purple-300'
-                    : getStatusColor(device.status)
-                }`}>
-                  {device.isPersonalDevice && (device.status === 'SEM PATRIMÔNIO' || device.status === 'PESSOAL')
-                    ? 'CELULAR PESSOAL'
-                    : device.status}
-                </span>
+                {device.status === 'MANUTENÇÃO' && onOpenAddOccurrence ? (
+                  <button
+                    type="button"
+                    onClick={() => onOpenAddOccurrence(device)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold bg-amber-100 hover:bg-emerald-600 text-amber-900 hover:text-white border border-amber-400 hover:border-emerald-700 rounded transition-colors cursor-pointer group/maint"
+                    title="Aparelho em manutenção. Clique para Concluir Manutenção!"
+                  >
+                    <Wrench className="w-3 h-3 text-amber-700 group-hover/maint:hidden" />
+                    <CheckCircle2 className="w-3 h-3 text-white hidden group-hover/maint:inline" />
+                    <span className="group-hover/maint:hidden">MANUTENÇÃO (Concluir)</span>
+                    <span className="hidden group-hover/maint:inline">CONCLUIR MANUTENÇÃO</span>
+                  </button>
+                ) : (
+                  <span className={`px-2 py-0.5 text-[11px] font-bold border rounded ${
+                    device.isPersonalDevice && (device.status === 'SEM PATRIMÔNIO' || device.status === 'PESSOAL')
+                      ? 'bg-purple-100 text-purple-900 border-purple-300'
+                      : getStatusColor(device.status)
+                  }`}>
+                    {device.isPersonalDevice && (device.status === 'SEM PATRIMÔNIO' || device.status === 'PESSOAL')
+                      ? 'CELULAR PESSOAL'
+                      : device.status}
+                  </span>
+                )}
               </div>
 
               {/* Main details */}
