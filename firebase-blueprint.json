@@ -27,6 +27,7 @@
         "imei1": { "type": "string", "description": "Código IMEI do aparelho" },
         "condition": { "type": "string", "description": "Condição física de conservação" },
         "accessories": { "type": "array", "description": "Lista de acessórios vinculados" },
+        "signedTerms": { "type": "array", "description": "Diretório de termos de responsabilidade assinados digitalmente pelo celular" },
         "notes": { "type": "string", "description": "Anotações adicionais" },
         "occurrences": { "type": "array", "description": "Histórico do fichário de manutenções e trocas" },
         "createdAt": { "type": "string", "description": "Timestamp ISO de criação" },

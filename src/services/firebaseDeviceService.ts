@@ -75,6 +75,7 @@ export function subscribeToDevices(
           hasAssetTag: data.hasAssetTag !== false && data.assetNumber !== 'SEM PT',
           occurrences: Array.isArray(data.occurrences) ? data.occurrences : [],
           accessories: Array.isArray(data.accessories) ? data.accessories : [],
+          signedTerms: Array.isArray(data.signedTerms) ? data.signedTerms : [],
         } as Device);
       });
 

@@ -41,6 +41,29 @@ export interface DeviceOccurrence {
 
 export type AuditStatus = 'OK' | 'COM_PENDENCIA' | 'NAO_AUDITADO';
 
+export interface SignedTermRecord {
+  id: string;
+  deviceId: string;
+  employeeName: string;
+  employeeCpf?: string;
+  store: string;
+  sector: string;
+  assetNumber: string;
+  brand: string;
+  model: string;
+  imei1?: string;
+  phoneNumber?: string;
+  condition: DeviceCondition;
+  accessories: string[];
+  signatureDataUrl: string; // Base64 PNG da assinatura manuscrita feita na tela do celular
+  signedAt: string; // Ex: "10/10/2026 às 09:42:15"
+  signedAtIso: string; // Timestamp ISO para ordenação
+  verificationHash: string; // Código hash único de autenticidade (Ex: "AMILCO-9F4A-2026")
+  recordedBy: string; // Técnico responsável ou link mobile
+  signedVia: 'LINK_CELULAR' | 'TELA_DIRETA'; // Como foi assinado
+  userAgentInfo?: string; // Resumo do dispositivo usado para assinar
+}
+
 export interface DeviceAuditInfo {
   status: AuditStatus;
   lastAuditedAt: string; // Ex: "02/10/2026 14:30"
@@ -84,6 +107,9 @@ export interface Device {
   
   // Controle de Auditoria & Checkup de Itens
   auditInfo?: DeviceAuditInfo;
+
+  // Diretório de Termos de Responsabilidade Assinados Digitalmente pelo Celular
+  signedTerms?: SignedTermRecord[];
 
   // Fichário de Histórico e Ocorrências (Manutenção, Troca, Perda, Entrega)
   occurrences: DeviceOccurrence[];

@@ -7,6 +7,7 @@ import {
   Building2,
   LogIn,
   LogOut,
+  FolderCheck,
 } from 'lucide-react';
 import { TechnicianUser } from '../types/auth';
 
@@ -17,6 +18,8 @@ interface NavbarProps {
   onOpenNewDeviceModal: () => void;
   onOpenImportExportModal: () => void;
   onOpenPdfReportModal: () => void;
+  onOpenSignedDirectoryModal?: () => void;
+  signedTermsCount?: number;
   totalDevicesCount: number;
   isFirebaseConnected?: boolean;
   currentTechnician: TechnicianUser | null;
@@ -31,6 +34,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenNewDeviceModal,
   onOpenImportExportModal,
   onOpenPdfReportModal,
+  onOpenSignedDirectoryModal,
+  signedTermsCount = 0,
   isFirebaseConnected = true,
   currentTechnician,
   onOpenLoginModal,
@@ -97,6 +102,22 @@ export const Navbar: React.FC<NavbarProps> = ({
                 ))}
               </select>
             </div>
+
+            {/* Diretório de Termos Assinados Digitalmente */}
+            {onOpenSignedDirectoryModal && (
+              <button
+                type="button"
+                onClick={onOpenSignedDirectoryModal}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold text-emerald-300 bg-zinc-900 hover:bg-zinc-800 border border-emerald-500/40 rounded-lg transition-colors cursor-pointer"
+                title="Abrir Diretório de Termos Assinados Digitalmente pelo Celular"
+              >
+                <FolderCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="hidden md:inline">Termos Assinados</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 font-mono text-[10px]">
+                  {signedTermsCount}
+                </span>
+              </button>
+            )}
 
             {/* Planilha / Backup */}
             <button
