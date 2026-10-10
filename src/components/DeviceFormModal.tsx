@@ -90,7 +90,12 @@ export const DeviceFormModal: React.FC<DeviceFormModalProps> = ({
       setCarrier('Claro Corporativo');
       setImei1('');
       setCondition('BOM');
-      setSelectedAccessories(['Carregador Original', 'Capa Protetora']);
+      setSelectedAccessories([
+        'Carregador Original',
+        'Cabo USB-C',
+        'Capa Protetora',
+        'Película de Vidro',
+      ]);
       setNotes('');
     }
     setFormError('');
@@ -488,14 +493,14 @@ export const DeviceFormModal: React.FC<DeviceFormModalProps> = ({
               Acessórios Entregues / Vinculados
             </label>
             <div className="flex flex-wrap gap-1.5">
-              {COMMON_ACCESSORIES.map((acc) => {
+              {Array.from(new Set([...COMMON_ACCESSORIES, ...selectedAccessories])).map((acc) => {
                 const isSelected = selectedAccessories.includes(acc);
                 return (
                   <button
                     type="button"
                     key={acc}
                     onClick={() => toggleAccessory(acc)}
-                    className={`px-2.5 py-1 rounded-lg border text-xs font-semibold transition-all ${
+                    className={`px-2.5 py-1 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
                       isSelected
                         ? 'bg-zinc-900 text-white border-zinc-900'
                         : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200'
