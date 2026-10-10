@@ -31,6 +31,7 @@ const COMMON_ACCESSORIES_LIST = [
   { id: 'Carregador', label: 'Carregador Original', icon: '🔌' },
   { id: 'Capa', label: 'Capa Protetora', icon: '🛡️' },
   { id: 'Película', label: 'Película de Vidro', icon: '📱' },
+  { id: 'Cartão', label: 'Cartão de Memória', icon: '💾' },
   { id: 'Cabo', label: 'Cabo USB-C', icon: '⚡' },
   { id: 'Veicular', label: 'Carregador Veicular', icon: '🚗' },
   { id: 'Fone', label: 'Fone de Ouvido', icon: '🎧' },

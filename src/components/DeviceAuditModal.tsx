@@ -37,6 +37,7 @@ const COMMON_ACCESSORIES = [
   'Cabo USB-C',
   'Capa Protetora',
   'Película de Vidro',
+  'Cartão de Memória',
   'Carregador Veicular',
   'Fone de Ouvido'
 ];
@@ -53,7 +54,7 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
   // Expected accessories: union of device.accessories or default set
   const baseAccessories = (device.accessories && device.accessories.length > 0)
     ? device.accessories
-    : ['Carregador Original', 'Cabo USB-C', 'Capa Protetora', 'Película de Vidro'];
+    : ['Carregador Original', 'Cabo USB-C', 'Capa Protetora', 'Película de Vidro', 'Cartão de Memória'];
 
   const [expectedItems, setExpectedItems] = useState<string[]>(baseAccessories);
   const [verifiedItems, setVerifiedItems] = useState<string[]>([]);
@@ -337,9 +338,11 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
       return true;
     });
 
-    // Update condition on device if changed
+    // Update condition and accessories on device if changed
+    const updatedAccessories = Array.from(new Set([...(device.accessories || []), ...verifiedItems]));
     const updatedDevice: Device = {
       ...device,
+      accessories: updatedAccessories,
       condition: finalCondition,
       auditInfo,
       occurrences: [newOccurrence, ...nonDuplicateOccurrences],
@@ -579,28 +582,49 @@ export const DeviceAuditModal: React.FC<DeviceAuditModalProps> = ({
               })}
             </div>
 
-            {/* Adicionar item extra encontrado */}
-            <div className="flex items-center gap-2 pt-1">
-              <input
-                type="text"
-                value={newItemText}
-                onChange={(e) => setNewItemText(e.target.value)}
-                placeholder="Adicionar outro item verificado (ex: Fone, Adaptador...)"
-                className="flex-1 bg-white border border-zinc-300 rounded-lg px-2.5 py-1.5 text-xs text-zinc-900 focus:outline-none focus:ring-1 focus:ring-red-600"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddNewItem();
-                  }
-                }}
-              />
-              <button
-                type="button"
-                onClick={handleAddNewItem}
-                className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 cursor-pointer transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" /> Adicionar
-              </button>
+            {/* Atalhos rápidos para incluir acessórios adicionais (ex: Cartão de Memória) e campo livre */}
+            <div className="space-y-2 pt-1">
+              {COMMON_ACCESSORIES.some((acc) => !expectedItems.includes(acc)) && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase">Incluir acessório rápido:</span>
+                  {COMMON_ACCESSORIES.filter((acc) => !expectedItems.includes(acc)).map((acc) => (
+                    <button
+                      key={acc}
+                      type="button"
+                      onClick={() => {
+                        setExpectedItems((prev) => [...prev, acc]);
+                        setVerifiedItems((prev) => [...prev, acc]);
+                      }}
+                      className="px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-zinc-100 hover:bg-zinc-900 text-zinc-800 hover:text-white border border-zinc-300 transition-colors cursor-pointer"
+                    >
+                      + {acc}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={newItemText}
+                  onChange={(e) => setNewItemText(e.target.value)}
+                  placeholder="Adicionar outro item verificado (ex: Cartão de Memória, Fone, Adaptador...)"
+                  className="flex-1 bg-white border border-zinc-300 rounded-lg px-2.5 py-1.5 text-xs text-zinc-900 focus:outline-none focus:ring-1 focus:ring-red-600"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddNewItem();
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddNewItem}
+                  className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Adicionar
+                </button>
+              </div>
             </div>
 
             {/* Alertas de Itens Faltando e Danificados (Divergências) */}

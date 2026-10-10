@@ -17,6 +17,7 @@ const COMMON_ACCESSORIES = [
   'Cabo USB-C',
   'Capa Protetora',
   'Película de Vidro',
+  'Cartão de Memória',
   'Carregador Veicular',
   'Caixa Original',
 ];
