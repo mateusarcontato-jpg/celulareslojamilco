@@ -55,13 +55,18 @@ export interface SignedTermRecord {
   phoneNumber?: string;
   condition: DeviceCondition;
   accessories: string[];
-  signatureDataUrl: string; // Base64 PNG da assinatura manuscrita feita na tela do celular
-  signedAt: string; // Ex: "10/10/2026 às 09:42:15"
-  signedAtIso: string; // Timestamp ISO para ordenação
-  verificationHash: string; // Código hash único de autenticidade (Ex: "AMILCO-9F4A-2026")
-  recordedBy: string; // Técnico responsável ou link mobile
-  signedVia: 'LINK_CELULAR' | 'TELA_DIRETA'; // Como foi assinado
-  userAgentInfo?: string; // Resumo do dispositivo usado para assinar
+  fileName: string; // Nome do arquivo enviado (Ex: "Termo_Assinado_Vinicius.jpg" ou ".pdf")
+  fileMimeType?: string; // "image/jpeg", "image/png", "application/pdf"
+  fileDataUrl: string; // Base64 da foto ou documento escaneado pós-assinatura
+  uploadedAt: string; // Ex: "10/10/2026 às 09:42"
+  uploadedAtIso: string; // Timestamp ISO para ordenação
+  recordedBy: string; // Quem anexou no diretório
+  notes?: string; // Observação opcional sobre o termo
+  // Mantido para retrocompatibilidade se houver:
+  signatureDataUrl?: string;
+  signedAt?: string;
+  signedAtIso?: string;
+  verificationHash?: string;
 }
 
 export interface DeviceAuditInfo {

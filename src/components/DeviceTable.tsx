@@ -499,21 +499,21 @@ export const DeviceTable: React.FC<DeviceTableProps> = ({
                 <ArrowRightLeft className="w-3.5 h-3.5" />
               </button>
 
-              {/* Termo de Responsabilidade e Assinatura Digital pelo Celular */}
+              {/* Termo de Responsabilidade e Documento Anexado no Diretório */}
               {Array.isArray(device.signedTerms) && device.signedTerms.length > 0 ? (
                 <button
                   onClick={() => onOpenTerm(device)}
                   className="inline-flex items-center gap-1 px-1.5 py-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-md transition-colors cursor-pointer"
-                  title={`Termo Assinado Digitalmente (${device.signedTerms[0].signedAt}) — Clique para abrir ou enviar novo link`}
+                  title={`Termo Escaneado/Foto Anexado (${device.signedTerms[0].signedAt}) — Clique para imprimir o termo ou ver no diretório`}
                 >
                   <FileText className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Assinado</span>
+                  <span>Anexado</span>
                 </button>
               ) : (
                 <button
                   onClick={() => onOpenTerm(device)}
                   className="p-1 text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100 rounded transition-colors cursor-pointer"
-                  title="Termo de Responsabilidade / Assinar pelo Celular (QR Code)"
+                  title="Imprimir Termo de Responsabilidade / Anexar Foto ou Escaneamento Pós-Assinatura"
                 >
                   <FileText className="w-3.5 h-3.5" />
                 </button>

@@ -26,7 +26,8 @@ import {
   CloudCheck,
   SlidersHorizontal,
   ClipboardCheck,
-  FolderCheck
+  FolderCheck,
+  Package
 } from 'lucide-react';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { Device, DeviceOccurrence, DeviceStatus, AdvancedFilterCriteria, INITIAL_ADVANCED_FILTERS, SignedTermRecord } from './types/device';
@@ -64,7 +65,6 @@ import { PdfReportModal } from './components/PdfReportModal';
 import { AdvancedFilterModal } from './components/AdvancedFilterModal';
 import { DeviceAuditModal } from './components/DeviceAuditModal';
 import { SignedTermsDirectoryModal } from './components/SignedTermsDirectoryModal';
-import { MobileSignaturePage } from './components/MobileSignaturePage';
 import { LoginScreen } from './components/LoginScreen';
 import { TechnicianUser } from './types/auth';
 import { getStoredCurrentTechnician, logoutTechnicianService } from './services/authService';
@@ -102,7 +102,7 @@ export default function App() {
   const [personalOnly, setPersonalOnly] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [isGroupedBySector, setIsGroupedBySector] = useState<boolean>(true); // Separado por grupos igual no PDF
-  const [mainSectionMode, setMainSectionMode] = useState<'PADRAO' | 'AUDITORIA'>('AUDITORIA');
+  const [mainSectionMode, setMainSectionMode] = useState<'PADRAO' | 'AUDITORIA' | 'ESTOQUE'>('AUDITORIA');
 
   // Modals
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -120,12 +120,7 @@ export default function App() {
   const [isMainAdvancedModalOpen, setIsMainAdvancedModalOpen] = useState(false);
   const [mainAdvancedCriteria, setMainAdvancedCriteria] = useState<AdvancedFilterCriteria>(INITIAL_ADVANCED_FILTERS);
   const [isSignedDirectoryOpen, setIsSignedDirectoryOpen] = useState(false);
-  const [newlySignedTermForDirectory, setNewlySignedTermForDirectory] = useState<SignedTermRecord | null>(null);
-  const [mobileSignDeviceId, setMobileSignDeviceId] = useState<string | null>(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('assinar');
-  });
-  const [isInitialFirestoreLoaded, setIsInitialFirestoreLoaded] = useState<boolean>(false);
+  const [directoryInitialUploadDevice, setDirectoryInitialUploadDevice] = useState<Device | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // 1. Auth Listener e Teste de Conexão Firebase
@@ -150,12 +145,10 @@ export default function App() {
           saveStoredDevices(firestoreDevices);
           setIsFirebaseConnected(true);
         }
-        setIsInitialFirestoreLoaded(true);
       },
       (error) => {
         console.warn('Operando com armazenamento local devido a erro no Firestore:', error);
         setIsFirebaseConnected(false);
-        setIsInitialFirestoreLoaded(true);
       }
     );
 
@@ -173,6 +166,10 @@ export default function App() {
   const filteredDevices = useMemo(() => {
     const baseList = devices.filter((device) => {
       if (currentStore !== 'TODAS' && device.store !== currentStore) {
+        return false;
+      }
+
+      if (mainSectionMode === 'ESTOQUE' && device.status !== 'DISPONÍVEL') {
         return false;
       }
 
@@ -266,9 +263,15 @@ export default function App() {
     }
 
     return baseList;
-  }, [devices, currentStore, statusFilter, sectorFilter, modelGenFilter, vpnOnly, semPtOnly, personalOnly, auditFilter, searchQuery, mainAdvancedCriteria]);
+  }, [devices, currentStore, mainSectionMode, statusFilter, sectorFilter, modelGenFilter, vpnOnly, semPtOnly, personalOnly, auditFilter, searchQuery, mainAdvancedCriteria]);
 
   const fleetGenSummary = useMemo(() => getFleetGenerationSummary(devices), [devices]);
+
+  const availableInStockCount = useMemo(() => {
+    return devices.filter(
+      (d) => d.status === 'DISPONÍVEL' && (currentStore === 'TODAS' || d.store === currentStore)
+    ).length;
+  }, [devices, currentStore]);
 
   // Estatísticas de Auditoria e Checkup
   const auditStats = useMemo(() => {
@@ -290,11 +293,10 @@ export default function App() {
     return devices.reduce((acc, d) => acc + (Array.isArray(d.signedTerms) ? d.signedTerms.length : 0), 0);
   }, [devices]);
 
-  const handleSaveSignedTerm = async (
+  const handleSaveUploadedTerm = async (
     updatedDevice: Device,
-    newTerm: SignedTermRecord,
-    _newOccurrence: DeviceOccurrence,
-    openDirectoryAfter = true
+    _newTerm: SignedTermRecord,
+    _newOccurrence: DeviceOccurrence
   ) => {
     setDevices((prev) => {
       const updated = prev.map((d) => (d.id === updatedDevice.id ? updatedDevice : d));
@@ -313,17 +315,11 @@ export default function App() {
       await saveDeviceToFirestore(updatedDevice);
       setIsFirebaseConnected(true);
       showToast(
-        `✅ Termo de ${updatedDevice.employeeName} assinado digitalmente e salvo no Diretório!`
+        `📁 Arquivo do termo de ${updatedDevice.employeeName} anexado no Diretório!`
       );
     } catch (e) {
-      console.error('[App] Erro ao gravar termo assinado no Firebase:', e);
-      showToast('Termo assinado salvo no Diretório local.');
-    }
-
-    if (openDirectoryAfter) {
-      setTermDevice(null);
-      setNewlySignedTermForDirectory(newTerm);
-      setIsSignedDirectoryOpen(true);
+      console.error('[App] Erro ao gravar arquivo do termo no Firebase:', e);
+      showToast('Arquivo do termo salvo no Diretório local.');
     }
   };
 
@@ -346,31 +342,44 @@ export default function App() {
 
     try {
       await saveDeviceToFirestore(updatedDevice);
-      showToast('Termo removido do diretório.');
+      showToast('Arquivo removido do diretório.');
     } catch (e) {
-      showToast('Termo removido localmente.');
+      showToast('Arquivo removido localmente.');
     }
   };
 
   // Actions Handlers integrados ao Firebase
-  const handleSaveDevice = async (savedDevice: Device) => {
-    // Atualização otimista local
+  const handleSaveDevice = async (savedDevice: Device, additionalUpdatedDevices?: Device[]) => {
+    const extraList = additionalUpdatedDevices || [];
+
+    // Atualização otimista local (aparelho principal + eventuais aparelhos remanejados em sincronismo)
     setDevices((prev) => {
       const exists = prev.some((d) => d.id === savedDevice.id);
-      const updated = exists 
+      let updated = exists
         ? prev.map((d) => (d.id === savedDevice.id ? savedDevice : d))
         : [savedDevice, ...prev];
+
+      if (extraList.length > 0) {
+        const extraMap = new Map(extraList.map((ed) => [ed.id, ed]));
+        updated = updated.map((d) => extraMap.get(d.id) || d);
+      }
+
       saveStoredDevices(updated);
       return updated;
     });
 
     try {
       await saveDeviceToFirestore(savedDevice);
+      for (const extraDev of extraList) {
+        await saveDeviceToFirestore(extraDev);
+      }
       setIsFirebaseConnected(true);
       showToast(
-        savedDevice.assetNumber === 'SEM PT'
-          ? `Aparelho de ${savedDevice.employeeName} salvo e sincronizado na nuvem Firebase!`
-          : `Aparelho PT ${savedDevice.assetNumber} salvo e sincronizado na nuvem Firebase!`
+        extraList.length > 0
+          ? `Aparelho salvo e ${extraList.length} remanejamento(s) sincronizado(s) no Firebase!`
+          : savedDevice.assetNumber === 'SEM PT'
+            ? `Aparelho de ${savedDevice.employeeName} salvo e sincronizado na nuvem Firebase!`
+            : `Aparelho PT ${savedDevice.assetNumber} salvo e sincronizado na nuvem Firebase!`
       );
     } catch (e) {
       console.error('[App] Erro ao sincronizar com Firebase:', e);
@@ -398,16 +407,26 @@ export default function App() {
     }
   };
 
-  const handleQuickTransfer = async (updatedDevice: Device) => {
+  const handleQuickTransfer = async (updatedDevices: Device[]) => {
+    if (!updatedDevices || updatedDevices.length === 0) return;
+    const primary = updatedDevices[0];
+    const mapUpdates = new Map(updatedDevices.map((u) => [u.id, u]));
+
     setDevices((prev) => {
-      const updated = prev.map((d) => (d.id === updatedDevice.id ? updatedDevice : d));
+      const updated = prev.map((d) => mapUpdates.get(d.id) || d);
       saveStoredDevices(updated);
       return updated;
     });
     try {
-      await saveDeviceToFirestore(updatedDevice);
+      for (const dev of updatedDevices) {
+        await saveDeviceToFirestore(dev);
+      }
       setIsFirebaseConnected(true);
-      showToast(`Troca salva no Firebase: Alocado para ${updatedDevice.employeeName}.`);
+      showToast(
+        updatedDevices.length > 1
+          ? `Troca e sincronismo salvos: Alocado para ${primary.employeeName}.`
+          : `Troca salva no Firebase: Alocado para ${primary.employeeName}.`
+      );
     } catch (e) {
       console.error('[App] Erro na transferência:', e);
       showToast(`Troca registrada localmente.`);
@@ -559,27 +578,6 @@ export default function App() {
     showToast('Sessão encerrada com sucesso.');
   };
 
-  // Se o link foi aberto pelo celular para Assinatura Digital (?assinar=ID_DO_APARELHO), abre direto a tela mobile
-  if (mobileSignDeviceId) {
-    const targetSignDevice = devices.find((d) => d.id === mobileSignDeviceId) || null;
-    return (
-      <MobileSignaturePage
-        device={targetSignDevice}
-        isLoading={!isInitialFirestoreLoaded && !targetSignDevice}
-        onSaveSignedTerm={async (updatedDevice, newTerm, newOccurrence) => {
-          await handleSaveSignedTerm(updatedDevice, newTerm, newOccurrence, false);
-        }}
-        onExitMobileMode={() => {
-          const url = new URL(window.location.href);
-          url.searchParams.delete('assinar');
-          window.history.replaceState({}, '', url.toString());
-          setMobileSignDeviceId(null);
-          setIsSignedDirectoryOpen(true);
-        }}
-      />
-    );
-  }
-
   // Se o técnico não estiver autenticado, exige a tela de login
   if (!currentTechnician) {
     return (
@@ -614,7 +612,7 @@ export default function App() {
         onOpenImportExportModal={() => setIsImportExportOpen(true)}
         onOpenPdfReportModal={() => setIsPdfModalOpen(true)}
         onOpenSignedDirectoryModal={() => {
-          setNewlySignedTermForDirectory(null);
+          setDirectoryInitialUploadDevice(null);
           setIsSignedDirectoryOpen(true);
         }}
         signedTermsCount={signedTermsTotalCount}
@@ -652,14 +650,14 @@ export default function App() {
             <button
               type="button"
               onClick={() => {
-                setNewlySignedTermForDirectory(null);
+                setDirectoryInitialUploadDevice(null);
                 setIsSignedDirectoryOpen(true);
               }}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg shadow-2xs transition-colors cursor-pointer"
-              title="Abrir Diretório de Termos Assinados Digitalmente pelo Celular"
+              title="Abrir Diretório para anexar fotos ou documentos escaneados dos termos assinados"
             >
               <FolderCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Diretório de Termos Assinados ({signedTermsTotalCount})</span>
+              <span>Diretório de Termos Anexados ({signedTermsTotalCount})</span>
             </button>
 
             <button
@@ -779,6 +777,23 @@ export default function App() {
               >
                 <ClipboardCheck className="w-3.5 h-3.5" />
                 <span>Auditoria & Checkup ({auditStats.percent}%)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMainSectionMode('ESTOQUE');
+                  setAuditFilter('ALL');
+                }}
+                className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  mainSectionMode === 'ESTOQUE'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-zinc-300 hover:text-white hover:bg-zinc-900'
+                }`}
+                title="Exibir exclusivamente celulares disponíveis em estoque prontos para entrega ou remanejamento"
+              >
+                <Package className="w-3.5 h-3.5" />
+                <span>Disponíveis em Estoque ({availableInStockCount})</span>
               </button>
             </div>
 
@@ -1110,6 +1125,34 @@ export default function App() {
               </button>
             </div>
           )}
+          {/* Linha 2B: Banner exclusivo da Aba de Celulares Disponíveis em Estoque */}
+          {mainSectionMode === 'ESTOQUE' && (
+            <div className="px-3.5 py-2.5 bg-emerald-50/70 border-t border-emerald-200/70 flex flex-col md:flex-row md:items-center justify-between gap-2.5 text-xs">
+              <div className="flex items-center gap-2 text-emerald-950">
+                <Package className="w-4 h-4 text-emerald-600 shrink-0" />
+                <div>
+                  <span className="font-bold uppercase tracking-wide text-[11px] text-emerald-900">
+                    Aba de Celulares Disponíveis em Estoque ({availableInStockCount} {availableInStockCount === 1 ? 'aparelho pronto' : 'aparelhos prontos'}):
+                  </span>{' '}
+                  <span className="text-emerald-800">
+                    Estes aparelhos estão livres no estoque. Clique no ícone de <strong>Trocar Usuário (⇄)</strong> na linha do aparelho para alocá-lo imediatamente a um colaborador cadastrado ou novo usuário.
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingDevice(null);
+                  setIsFormOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-2xs cursor-pointer self-start md:self-auto shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Cadastrar Aparelho no Estoque</span>
+              </button>
+            </div>
+          )}
+
           {/* Painel de Análise Técnica da Fabricante: Qual o Modelo Mais Antigo e o Mais Novo */}
           {(showTechSpecBanner || modelGenFilter !== 'TODOS') && (
             <div className="p-3.5 bg-zinc-950 text-white border-t border-zinc-800 space-y-3">
@@ -1328,6 +1371,7 @@ export default function App() {
         }}
         onSave={handleSaveDevice}
         editingDevice={editingDevice}
+        allDevices={devices}
         stores={stores}
         sectors={sectors}
       />
@@ -1344,6 +1388,7 @@ export default function App() {
       {/* 3. Modal de Anexar Ocorrência (Manutenção / Troca / Perda) */}
       <OccurrenceModal
         device={occurrenceDevice}
+        allDevices={devices}
         isOpen={Boolean(occurrenceDevice)}
         onClose={() => setOccurrenceDevice(null)}
         onSaveOccurrence={handleSaveOccurrence}
@@ -1354,39 +1399,39 @@ export default function App() {
       {/* 4. Modal de Troca Rápida de Usuário */}
       <QuickTransferModal
         device={transferDevice}
+        allDevices={devices}
         onClose={() => setTransferDevice(null)}
         onTransfer={handleQuickTransfer}
         sectors={sectors}
       />
 
-      {/* 5. Modal de Termo de Responsabilidade e Assinatura Digital no Celular */}
+      {/* 5. Modal de Termo de Responsabilidade (A4 para Impressão e Botão para Anexar Escaneado) */}
       <ResponsibilityTermModal
         device={termDevice}
         onClose={() => setTermDevice(null)}
-        onTermSignedAndOpenDirectory={async (updatedDevice, newTerm, newOccurrence) => {
-          await handleSaveSignedTerm(updatedDevice, newTerm, newOccurrence, true);
-        }}
-        onOpenDirectory={() => {
-          setNewlySignedTermForDirectory(null);
+        onOpenDirectoryForUpload={(dev) => {
+          setTermDevice(null);
+          setDirectoryInitialUploadDevice(dev);
           setIsSignedDirectoryOpen(true);
         }}
-        currentTechnicianName={currentTechnician?.name}
       />
 
-      {/* 5.1. Diretório Pós-Assinatura de Termos Assinados Digitalmente */}
+      {/* 5.1. Diretório para Anexar Fotos ou Documentos Escaneados Pós-Assinatura */}
       <SignedTermsDirectoryModal
         isOpen={isSignedDirectoryOpen}
         onClose={() => {
           setIsSignedDirectoryOpen(false);
-          setNewlySignedTermForDirectory(null);
+          setDirectoryInitialUploadDevice(null);
         }}
         devices={devices}
-        initialSelectedTerm={newlySignedTermForDirectory}
-        onOpenSignForDevice={(dev) => {
+        initialUploadDevice={directoryInitialUploadDevice}
+        onSaveUploadedTerm={handleSaveUploadedTerm}
+        onDeleteSignedTerm={handleDeleteSignedTerm}
+        onOpenPrintBlankTerm={(dev) => {
           setIsSignedDirectoryOpen(false);
           setTermDevice(dev);
         }}
-        onDeleteSignedTerm={handleDeleteSignedTerm}
+        currentTechnicianName={currentTechnician?.name}
       />
 
       {/* 6. Modal de Filtro e Exportação de Relatório PDF */}

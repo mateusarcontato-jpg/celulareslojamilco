@@ -13,9 +13,11 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { Device, DeviceOccurrence, OccurrenceType, DeviceStatus } from '../types/device';
+import { getSynchronizedEmployees } from '../utils/userSyncUtils';
 
 interface OccurrenceModalProps {
   device: Device | null;
+  allDevices?: Device[];
   isOpen: boolean;
   onClose: () => void;
   onSaveOccurrence: (updatedDevice: Device, occurrence: DeviceOccurrence) => void;
@@ -25,12 +27,16 @@ interface OccurrenceModalProps {
 
 export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
   device,
+  allDevices = [],
   isOpen,
   onClose,
   onSaveOccurrence,
   sectors,
   currentTechnicianName,
 }) => {
+  const synchronizedUsers = React.useMemo(() => getSynchronizedEmployees(allDevices), [allDevices]);
+  const [swapUserMode, setSwapUserMode] = useState<'CADASTRADO' | 'NOVO'>('CADASTRADO');
+
   if (!isOpen || !device) return null;
 
   const [type, setType] = useState<OccurrenceType>('MANUTENÇÃO');
@@ -294,17 +300,53 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-zinc-700 mb-1">
-                    Com quem ficou / Novo Usuário: <span className="text-red-600">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newUser}
-                    onChange={(e) => setNewUser(e.target.value)}
-                    placeholder="Ex: MARCOS ALVES"
-                    className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-zinc-900 uppercase font-semibold focus:ring-2 focus:ring-red-600"
-                  />
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-semibold text-zinc-700">
+                      Com quem ficou / Novo Usuário: <span className="text-red-600">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSwapUserMode(swapUserMode === 'CADASTRADO' ? 'NOVO' : 'CADASTRADO');
+                        setNewUser('');
+                      }}
+                      className="text-[10px] font-bold text-red-700 hover:underline cursor-pointer"
+                    >
+                      {swapUserMode === 'CADASTRADO' ? '+ Digitar Novo Usuário' : '📋 Listar Usuários Cadastrados'}
+                    </button>
+                  </div>
+
+                  {swapUserMode === 'CADASTRADO' && synchronizedUsers.length > 0 ? (
+                    <select
+                      required
+                      value={newUser}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setNewUser(val);
+                        const found = synchronizedUsers.find((u) => u.name === val);
+                        if (found && found.sector && found.sector !== 'ESTOQUE') {
+                          setNewSector(found.sector);
+                        }
+                      }}
+                      className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-zinc-900 font-bold focus:ring-2 focus:ring-red-600"
+                    >
+                      <option value="">— Selecione um usuário cadastrado ({synchronizedUsers.length}) —</option>
+                      {synchronizedUsers.map((u) => (
+                        <option key={u.name} value={u.name}>
+                          {u.name} ({u.sector} · {u.store.replace('LOJA ', '')})
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      required
+                      value={newUser}
+                      onChange={(e) => setNewUser(e.target.value)}
+                      placeholder="Ex: MARCOS ALVES"
+                      className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-zinc-900 uppercase font-semibold focus:ring-2 focus:ring-red-600"
+                    />
+                  )}
                 </div>
               </div>
 

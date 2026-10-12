@@ -103,16 +103,16 @@ export const Navbar: React.FC<NavbarProps> = ({
               </select>
             </div>
 
-            {/* Diretório de Termos Assinados Digitalmente */}
+            {/* Diretório de Termos Anexados (Fotos / Escaneados) */}
             {onOpenSignedDirectoryModal && (
               <button
                 type="button"
                 onClick={onOpenSignedDirectoryModal}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold text-emerald-300 bg-zinc-900 hover:bg-zinc-800 border border-emerald-500/40 rounded-lg transition-colors cursor-pointer"
-                title="Abrir Diretório de Termos Assinados Digitalmente pelo Celular"
+                title="Abrir Diretório para anexar fotos ou documentos escaneados dos termos assinados"
               >
                 <FolderCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="hidden md:inline">Termos Assinados</span>
+                <span className="hidden md:inline">Diretório de Termos</span>
                 <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 font-mono text-[10px]">
                   {signedTermsCount}
                 </span>
