@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React from 'react';
 import {
   Smartphone,
   Plus,
@@ -8,7 +8,6 @@ import {
   LogIn,
   LogOut,
   FolderCheck,
-  Upload,
 } from 'lucide-react';
 import { TechnicianUser } from '../types/auth';
 
@@ -42,62 +41,17 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenLoginModal,
   onLogout,
 }) => {
-  const [customLogo, setCustomLogo] = useState<string>(() => {
-    try {
-      return localStorage.getItem('amilco_store_logo_v1') || '';
-    } catch {
-      return '';
-    }
-  });
-
-  const logoInputRef = useRef<HTMLInputElement | null>(null);
-
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const result = ev.target?.result as string;
-        setCustomLogo(result);
-        try {
-          localStorage.setItem('amilco_store_logo_v1', result);
-        } catch (err) {
-          console.error('Erro ao salvar logotipo da loja:', err);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   return (
     <header className="bg-zinc-950 text-white border-b border-zinc-800 sticky top-0 z-30 no-print">
       <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-10">
         <div className="flex items-center justify-between h-16 gap-4">
-          {/* Espaço para Logotipo da Loja (Maior e estendido para os lados) */}
+          {/* Logotipo Fixo da Loja */}
           <div className="flex items-center gap-3 min-w-0">
-            <input
-              type="file"
-              ref={logoInputRef}
-              onChange={handleLogoUpload}
-              accept="image/*"
-              className="hidden"
-            />
             <div
-              onClick={() => logoInputRef.current?.click()}
-              className="h-14 min-w-[180px] sm:min-w-[220px] max-w-[320px] flex items-center justify-start shrink-0 cursor-pointer overflow-hidden transition-all group relative py-1"
-              title="Clique para definir ou alterar o logotipo da loja"
+              className="h-15 min-w-[200px] sm:min-w-[260px] max-w-[380px] flex items-center justify-start shrink-0 overflow-hidden py-0.5"
+              title="Amilco Home Center · Gestão de Patrimônio"
             >
-              {customLogo ? (
-                <img src={customLogo} alt="Logotipo da Loja" className="w-full h-full object-contain object-left max-h-13" />
-              ) : (
-                <div className="flex items-center gap-2 text-xs font-bold text-zinc-400 group-hover:text-white bg-zinc-900 px-3.5 py-2.5 rounded-xl border border-zinc-800">
-                  <Upload className="w-4 h-4 shrink-0 text-red-500" />
-                  <span className="truncate">Definir Logotipo</span>
-                </div>
-              )}
-              <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-xs font-bold text-white tracking-wide rounded">
-                Alterar Logotipo
-              </div>
+              <img src="/store-logo.png" alt="Amilco Home Center" className="w-full h-full object-contain object-left max-h-15" />
             </div>
 
             {/* Status da Nuvem discreto */}

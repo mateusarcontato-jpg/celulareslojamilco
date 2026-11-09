@@ -4,7 +4,6 @@ import {
   Lock, 
   Eye, 
   EyeOff, 
-  Smartphone, 
   AlertCircle, 
   Loader2, 
   LogIn,
@@ -63,20 +62,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       {/* Container Principal */}
       <div className="w-full max-w-md z-10 animate-in fade-in zoom-in-95 duration-200">
         
-        {/* Cabeçalho da Empresa Amilco Home Center */}
+        {/* Cabeçalho com Logotipo Oficial da Empresa */}
         <div className="flex flex-col items-center text-center mb-6">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center text-white shadow-xl shadow-red-950/80 border border-red-500/40 mb-3">
-            <Smartphone className="w-7 h-7" />
+          <div className="mb-2 max-w-[280px] sm:max-w-[340px] h-20 sm:h-24 flex items-center justify-center">
+            <img
+              src="/store-logo.png"
+              alt="Amilco Home Center"
+              className="w-full h-full object-contain"
+            />
           </div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white uppercase">
-              AMILCO HOME CENTER
-            </h1>
-            <span className="text-[10px] bg-red-600 text-white font-bold px-2 py-0.5 rounded tracking-wide uppercase shadow-xs">
-              PATRIMÔNIO
-            </span>
-          </div>
-          <p className="text-xs text-zinc-400 mt-1">
+          <p className="text-xs text-zinc-400 mt-1 font-medium">
             Controle de Celulares e Termos de Responsabilidade
           </p>
         </div>
