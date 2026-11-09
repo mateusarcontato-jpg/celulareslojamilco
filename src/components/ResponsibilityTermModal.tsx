@@ -13,6 +13,14 @@ export const ResponsibilityTermModal: React.FC<ResponsibilityTermModalProps> = (
   onClose,
   onOpenDirectoryForUpload,
 }) => {
+  const [customLogo] = React.useState<string>(() => {
+    try {
+      return localStorage.getItem('amilco_store_logo_v1') || '';
+    } catch {
+      return '';
+    }
+  });
+
   if (!device) return null;
 
   const handlePrint = () => {
@@ -89,10 +97,19 @@ export const ResponsibilityTermModal: React.FC<ResponsibilityTermModalProps> = (
         </div>
 
         {/* Termo Printable Body */}
-        <div className="flex-1 overflow-y-auto p-6 sm:p-10 bg-white text-zinc-900 text-xs sm:text-sm space-y-4 print:p-6 print:space-y-4 font-sans leading-relaxed print-sheet-a4">
+        <div className="flex-1 overflow-y-auto p-6 sm:p-10 bg-white text-zinc-900 text-xs sm:text-sm space-y-4 print:p-6 print:space-y-4 font-sans leading-relaxed print-sheet-a4 relative">
+          {/* Marca d'água (Papel Timbrado) no meio do termo */}
+          {customLogo && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden select-none opacity-[0.06] print:opacity-[0.05]">
+              <div className="sticky top-1/2 -translate-y-1/2 flex items-center justify-center w-full">
+                <img src={customLogo} alt="Marca d'água" className="w-[65%] max-w-[480px] object-contain grayscale" />
+              </div>
+            </div>
+          )}
+
           {/* Banner informativo no topo (não sai na impressão) */}
           {onOpenDirectoryForUpload && (
-            <div className="no-print bg-zinc-900 text-white p-3 rounded-xl border-l-4 border-emerald-500 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+            <div className="no-print bg-zinc-900 text-white p-3 rounded-xl border-l-4 border-emerald-500 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs relative z-10">
               <div className="flex items-center gap-2">
                 <FolderCheck className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>
@@ -113,11 +130,17 @@ export const ResponsibilityTermModal: React.FC<ResponsibilityTermModalProps> = (
             </div>
           )}
 
-          {/* Header Document */}
-          <div className="text-center border-b-2 border-black pb-3">
-            <h1 className="text-xl font-bold tracking-tight text-black uppercase">
-              AMILCO HOME CENTER
-            </h1>
+          {/* Header Document (Papel Timbrado) */}
+          <div className="text-center border-b-2 border-black pb-3 relative z-10">
+            {customLogo ? (
+              <div className="flex justify-center mb-1.5">
+                <img src={customLogo} alt="Logotipo da Loja" className="h-14 sm:h-16 max-w-[220px] object-contain" />
+              </div>
+            ) : (
+              <h1 className="text-xl font-bold tracking-tight text-black uppercase">
+                AMILCO HOME CENTER
+              </h1>
+            )}
             <p className="text-xs font-bold text-red-600 uppercase tracking-wider mt-0.5">
               CONTROLE DE PATRIMÔNIO CORPORATIVO — {device.store}
             </p>

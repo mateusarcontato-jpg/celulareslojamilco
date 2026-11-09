@@ -37,21 +37,19 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
   const synchronizedUsers = React.useMemo(() => getSynchronizedEmployees(allDevices), [allDevices]);
   const [swapUserMode, setSwapUserMode] = useState<'CADASTRADO' | 'NOVO'>('CADASTRADO');
 
-  if (!isOpen || !device) return null;
-
   const [type, setType] = useState<OccurrenceType>('MANUTENÇÃO');
   const [date, setDate] = useState(new Date().toLocaleDateString('pt-BR'));
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   
   // Troca de usuário / aparelho
-  const [previousUser, setPreviousUser] = useState(device.employeeName);
+  const [previousUser, setPreviousUser] = useState(device?.employeeName || '');
   const [newUser, setNewUser] = useState('');
-  const [newSector, setNewSector] = useState(device.sector);
+  const [newSector, setNewSector] = useState(device?.sector || '');
   const [updateCurrentEmployee, setUpdateCurrentEmployee] = useState(true);
 
   // Manutenção
-  const isCurrentlyInMaintenance = device.status === 'MANUTENÇÃO';
+  const isCurrentlyInMaintenance = device?.status === 'MANUTENÇÃO';
   const [maintenanceMode, setMaintenanceMode] = useState<'ENVIAR' | 'CONCLUIR'>(
     isCurrentlyInMaintenance ? 'CONCLUIR' : 'ENVIAR'
   );
@@ -62,14 +60,6 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
   const [technicianOrProvider, setTechnicianOrProvider] = useState('');
   const [changeStatusToMaintenance, setChangeStatusToMaintenance] = useState(!isCurrentlyInMaintenance);
 
-  React.useEffect(() => {
-    const inMaint = device.status === 'MANUTENÇÃO';
-    setMaintenanceMode(inMaint ? 'CONCLUIR' : 'ENVIAR');
-    setChangeStatusToMaintenance(!inMaint);
-    setPreviousUser(device.employeeName);
-    setNewSector(device.sector);
-  }, [device.id, device.status, device.employeeName, device.sector]);
-
   // Perda
   const [changeStatusToLoss, setChangeStatusToLoss] = useState(true);
 
@@ -77,6 +67,18 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
   const [recordedBy, setRecordedBy] = useState(currentTechnicianName || 'Técnico de T.I.');
   const [attachmentName, setAttachmentName] = useState('');
   const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (device) {
+      const inMaint = device.status === 'MANUTENÇÃO';
+      setMaintenanceMode(inMaint ? 'CONCLUIR' : 'ENVIAR');
+      setChangeStatusToMaintenance(!inMaint);
+      setPreviousUser(device.employeeName);
+      setNewSector(device.sector);
+    }
+  }, [device?.id, device?.status, device?.employeeName, device?.sector]);
+
+  if (!isOpen || !device) return null;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Smartphone,
   Plus,
@@ -8,6 +8,7 @@ import {
   LogIn,
   LogOut,
   FolderCheck,
+  Upload,
 } from 'lucide-react';
 import { TechnicianUser } from '../types/auth';
 
@@ -41,42 +42,72 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenLoginModal,
   onLogout,
 }) => {
+  const [customLogo, setCustomLogo] = useState<string>(() => {
+    try {
+      return localStorage.getItem('amilco_store_logo_v1') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const result = ev.target?.result as string;
+        setCustomLogo(result);
+        try {
+          localStorage.setItem('amilco_store_logo_v1', result);
+        } catch (err) {
+          console.error('Erro ao salvar logotipo da loja:', err);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
     <header className="bg-zinc-950 text-white border-b border-zinc-800 sticky top-0 z-30 no-print">
       <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-10">
-        <div className="flex items-center justify-between h-14 gap-4">
-          {/* Identidade Visual Corporativa */}
+        <div className="flex items-center justify-between h-16 gap-4">
+          {/* Espaço para Logotipo da Loja (Maior e estendido para os lados) */}
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center text-white shrink-0">
-              <Smartphone className="w-4 h-4" />
+            <input
+              type="file"
+              ref={logoInputRef}
+              onChange={handleLogoUpload}
+              accept="image/*"
+              className="hidden"
+            />
+            <div
+              onClick={() => logoInputRef.current?.click()}
+              className="h-14 min-w-[180px] sm:min-w-[220px] max-w-[320px] flex items-center justify-start shrink-0 cursor-pointer overflow-hidden transition-all group relative py-1"
+              title="Clique para definir ou alterar o logotipo da loja"
+            >
+              {customLogo ? (
+                <img src={customLogo} alt="Logotipo da Loja" className="w-full h-full object-contain object-left max-h-13" />
+              ) : (
+                <div className="flex items-center gap-2 text-xs font-bold text-zinc-400 group-hover:text-white bg-zinc-900 px-3.5 py-2.5 rounded-xl border border-zinc-800">
+                  <Upload className="w-4 h-4 shrink-0 text-red-500" />
+                  <span className="truncate">Definir Logotipo</span>
+                </div>
+              )}
+              <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-xs font-bold text-white tracking-wide rounded">
+                Alterar Logotipo
+              </div>
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h1 className="text-sm sm:text-base font-bold tracking-tight text-white truncate">
-                  AMILCO HOME CENTER
-                </h1>
-                <span className="text-zinc-600 hidden sm:inline">·</span>
-                <span className="text-xs font-semibold text-red-500 uppercase tracking-wider hidden sm:inline">
-                  Gestão de Patrimônio
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-[11px] text-zinc-400">
-                <span className="truncate hidden md:inline">
-                  Controle de Celulares e Termos de Responsabilidade
-                </span>
-                <span className="text-zinc-700 hidden md:inline">·</span>
-                <span
-                  className="inline-flex items-center gap-1.5 text-[10px] text-zinc-400 select-none"
-                  title={isFirebaseConnected ? 'Sincronização em nuvem ativa' : 'Modo local'}
-                >
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      isFirebaseConnected ? 'bg-emerald-500' : 'bg-zinc-600'
-                    }`}
-                  />
-                  <span>{isFirebaseConnected ? 'Nuvem Ativa' : 'Local'}</span>
-                </span>
-              </div>
+
+            {/* Status da Nuvem discreto */}
+            <div className="hidden lg:flex items-center gap-1.5 text-[11px] text-zinc-400 select-none pl-3 border-l border-zinc-800">
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  isFirebaseConnected ? 'bg-emerald-500' : 'bg-zinc-600'
+                }`}
+              />
+              <span className="font-medium">{isFirebaseConnected ? 'Nuvem Ativa' : 'Modo Local'}</span>
             </div>
           </div>
 
